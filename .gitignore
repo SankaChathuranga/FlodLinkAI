@@ -1,0 +1,76 @@
+# .NET build artifacts
+bin/
+obj/
+*.user
+*.suo
+*.vs/
+.vs/
+*.nupkg
+*.snupkg
+
+# .NET publish output
+publish/
+
+# EF Core migration bundles
+*.efbundle
+
+# ASP.NET Core environment-specific settings (contain secrets)
+appsettings.Development.json
+appsettings.*.json
+!appsettings.json
+
+# User secrets
+secrets.json
+
+# Test results
+TestResults/
+coverage/
+*.trx
+*.coveragexml
+
+# Node / Vite / Web
+node_modules/
+dist/
+.vite/
+web/dist/
+web/.env
+web/.env.local
+web/.env.*.local
+
+# dotenv files at root (never commit real secrets)
+.env
+.env.local
+.env.production
+
+# Flutter / Dart build artifacts
+mobile/build/
+mobile/.dart_tool/
+mobile/.flutter-plugin-dependencies
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/*.iml
+mobile/**/*.iml
+.dart_tool/
+.flutter-plugin-dependencies
+build/
+*.iml
+
+# IDE
+.idea/
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docker
+docker-compose.override.yml
