@@ -1,4 +1,4 @@
-# FloodLink AI — Monorepo
+# FloodLink AI 
 
 **An AI-Coordinated Disaster & Flood Relief Resource Platform for Sri Lanka**
 
