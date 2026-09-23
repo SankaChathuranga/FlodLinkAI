@@ -1,86 +1,83 @@
-using FloodLink.Contracts.Depots;
-using FloodLink.Domain.Entities;
-using FloodLink.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using FloodLink.Domain.Entities;
+using FloodLink.Infrastructure;
 
 namespace FloodLink.Api.Controllers;
 
 [ApiController]
-[Route("api/depots")]
+[Route("api/[controller]")]
 public class DepotsController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly AppDbContext _context;
 
-    public DepotsController(AppDbContext db)
+    public DepotsController(AppDbContext context)
     {
-        _db = db;
+        _context = context;
     }
 
+    // POST: api/depots
     [HttpPost]
-    public async Task<IActionResult> Create(CreateDepotRequest request)
+    public async Task<IActionResult> CreateDepot([FromBody] Depot depot)
     {
-        var depot = new Depot
-        {
-            Name = request.Name,
-            Latitude = request.Latitude,
-            Longitude = request.Longitude,
-            ManagerId = request.ManagerId,
-            CreatedAt = DateTime.UtcNow
-        };
+        depot.CreatedAt = DateTime.UtcNow;
 
-        _db.Depots.Add(depot);
-        await _db.SaveChangesAsync();
+        _context.Depots.Add(depot);
+        await _context.SaveChangesAsync();
 
         return CreatedAtAction(
-            nameof(GetById),
+            nameof(GetDepot),
             new { id = depot.Id },
             depot);
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int id)
+    // GET: api/depots/{id}
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetDepot(int id)
     {
-        var depot = await _db.Depots
-            .AsNoTracking()
+        var depot = await _context.Depots
             .FirstOrDefaultAsync(d => d.Id == id);
 
         if (depot == null)
-            return NotFound();
+            return NotFound(new { message = "Depot not found." });
 
         return Ok(depot);
     }
 
+    // GET: api/depots
     [HttpGet]
-public async Task<IActionResult> GetAll(
-    string? search,
-    int page = 1,
-    int pageSize = 10)
-{
-    var query = _db.Depots
-        .AsNoTracking()
-        .AsQueryable();
-
-    if (!string.IsNullOrWhiteSpace(search))
+    public async Task<IActionResult> GetDepots(
+        [FromQuery] string? search,
+        [FromQuery] int page = 1)
     {
-        query = query.Where(d =>
-            d.Name.ToLower().Contains(search.ToLower()));
+        const int pageSize = 10;
+
+        if (page < 1)
+            page = 1;
+
+        var query = _context.Depots.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(d =>
+                d.Name.ToLower().Contains(search.ToLower()));
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var depots = await query
+            .OrderBy(d => d.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return Ok(new
+        {
+            page,
+            pageSize,
+            totalCount,
+            totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+            data = depots
+        });
     }
-
-    var total = await query.CountAsync();
-
-    var depots = await query
-        .OrderBy(d => d.Name)
-        .Skip((page - 1) * pageSize)
-        .Take(pageSize)
-        .ToListAsync();
-
-    return Ok(new
-    {
-        total,
-        page,
-        pageSize,
-        data = depots
-    });
-}
 }
