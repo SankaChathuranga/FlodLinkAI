@@ -18,9 +18,6 @@ namespace FloodLink.Infrastructure.Migrations
                 .HasAnnotation("ProductVersion", "9.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            Npgsql.EntityFrameworkCore.PostgreSQL.Infrastructure.Internal
-                .NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
             modelBuilder.Entity("FloodLink.Domain.Entities.AgentExecutionLog", b =>
             {
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
