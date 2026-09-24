@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FloodLink.Infrastructure;
+using FloodLink.Api.Services;
+using FloodLink.Contracts.Agents;
 
 namespace FloodLink.Api.Controllers;
 
@@ -9,10 +11,12 @@ namespace FloodLink.Api.Controllers;
 public class AllocationsController : ControllerBase
 {
     private readonly AppDbContext _context;
+    private readonly IMatchingAgentService _matchingAgentService;
 
-    public AllocationsController(AppDbContext context)
+    public AllocationsController(AppDbContext context, IMatchingAgentService matchingAgentService)
     {
         _context = context;
+        _matchingAgentService = matchingAgentService;
     }
 
 
@@ -88,22 +92,20 @@ public class AllocationsController : ControllerBase
             });
         }
 
-        // TODO:
-        // Day 4 - Call Logistics / Matching Agent here.
-
-        return Ok(new
+        var result = await _matchingAgentService.MatchAsync(new TriagePlan
         {
-            message = "Matching triggered successfully.",
-
-            allocationId = allocation.Id,
-
-            shelterId = allocation.ShelterId,
-
-            itemName = allocation.ItemName,
-
-            requestedQuantity = allocation.Quantity,
-
-            status = allocation.Status
+            Needs = new List<TriageNeed>
+            {
+                new()
+                {
+                    ShelterId = allocation.ShelterId,
+                    ItemName = allocation.ItemName,
+                    QuantityRequired = allocation.Quantity,
+                    Priority = 0
+                }
+            }
         });
+
+        return Ok(result);
     }
 }
