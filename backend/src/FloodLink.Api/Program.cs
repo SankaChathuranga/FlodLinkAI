@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -40,8 +41,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "Floo
    .WithTags("Health")
    .WithOpenApi();
 
-// TODO (Week 2-3): Controllers / minimal-API endpoints per member's area will be
-// added here. See CONTRIBUTING.md for ownership details.
+app.MapControllers();
 
 app.Run();
 
