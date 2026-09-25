@@ -5,58 +5,61 @@ using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
 using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Route = FloodLink.Contracts.Route;
 
-namespace FloodLink.Api.Endpoints;
+namespace FloodLink.Api.Controllers;
 
 /// <summary>
 /// Validation/Safety Agent endpoints (Member D — Ijini).
 /// Triggers the deterministic validation pipeline and exposes persisted results.
+/// Coordinator-only.
 /// </summary>
-public static class ValidationEndpoints
+[ApiController]
+[Route("api/validations")]
+[Authorize(Roles = "Coordinator")]
+public sealed class ValidationController : ControllerBase
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-
     /// <summary>Body contract for POST /api/validations/run.</summary>
     public sealed record RunValidationRequest(Guid WorkflowRunId);
 
-    /// <summary>Wires the /api/validations route group.</summary>
-    public static void MapValidationEndpoints(this IEndpointRouteBuilder app)
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    private readonly AppDbContext _db;
+    private readonly IValidationAgent _validationAgent;
+    private readonly IWorkflowStateService _workflow;
+
+    public ValidationController(AppDbContext db, IValidationAgent validationAgent, IWorkflowStateService workflow)
     {
-        var group = app.MapGroup("/api/validations");
-
-        group.MapPost("/run", RunAsync)
-            .WithName("RunValidation")
-            .WithTags("Validations");
-
-        group.MapGet("/{workflowRunId:guid}", GetResultsAsync)
-            .WithName("GetValidationResults")
-            .WithTags("Validations");
+        _db = db;
+        _validationAgent = validationAgent;
+        _workflow = workflow;
     }
 
     /// <summary>
     /// Runs all deterministic safety checks against a completed plan. On overall
     /// pass the workflow moves to PendingApproval; on fail it moves to Failed.
     /// </summary>
-    private static async Task<IResult> RunAsync(
-        RunValidationRequest request,
-        AppDbContext db,
-        IValidationAgent validationAgent,
-        IWorkflowStateService workflow,
-        CancellationToken ct)
+    [HttpPost("run")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> RunAsync([FromBody] RunValidationRequest request, CancellationToken ct)
     {
-        var run = await db.WorkflowRuns
+        var run = await _db.WorkflowRuns
             .FirstOrDefaultAsync(r => r.Id == request.WorkflowRunId, ct);
 
         if (run is null)
         {
-            return Results.NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {request.WorkflowRunId}." });
+            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {request.WorkflowRunId}." });
         }
 
         if (run.CurrentState != WorkflowState.Validating)
         {
-            return Results.Conflict(new
+            return Conflict(new
             {
                 error = "INVALID_STATE",
                 message = $"Validation requires state Validating but the workflow is {run.CurrentState}."
@@ -65,7 +68,7 @@ public static class ValidationEndpoints
 
         if (string.IsNullOrWhiteSpace(run.PlanJson))
         {
-            return Results.UnprocessableEntity(new { error = "PLAN_NOT_FOUND", message = "Workflow run has no PlanJson to validate." });
+            return UnprocessableEntity(new { error = "PLAN_NOT_FOUND", message = "Workflow run has no PlanJson to validate." });
         }
 
         PlanDocument plan;
@@ -76,7 +79,7 @@ public static class ValidationEndpoints
         }
         catch (JsonException ex)
         {
-            return Results.UnprocessableEntity(new { error = "INVALID_PLAN", message = $"PlanJson is not a valid plan document: {ex.Message}" });
+            return UnprocessableEntity(new { error = "INVALID_PLAN", message = $"PlanJson is not a valid plan document: {ex.Message}" });
         }
 
         var route = new Route
@@ -88,15 +91,15 @@ public static class ValidationEndpoints
             Polyline = plan.Polyline
         };
 
-        var agentResult = await validationAgent.ExecuteAsync(route, ct);
+        var agentResult = await _validationAgent.ExecuteAsync(route, ct);
         if (!agentResult.Success)
         {
-            return Results.UnprocessableEntity(new { error = agentResult.ErrorCode, message = agentResult.ErrorMessage });
+            return UnprocessableEntity(new { error = agentResult.ErrorCode, message = agentResult.ErrorMessage });
         }
 
         foreach (var check in agentResult.Data!.Checks)
         {
-            db.ValidationResults.Add(new ValidationResult
+            _db.ValidationResults.Add(new ValidationResult
             {
                 WorkflowRunId = run.Id,
                 CheckName = check.CheckName,
@@ -105,7 +108,7 @@ public static class ValidationEndpoints
             });
         }
 
-        db.AuditTrail.Add(new AuditTrail
+        _db.AuditTrail.Add(new AuditTrail
         {
             EventType = "PlanValidated",
             EventDetailJson = JsonSerializer.Serialize(new
@@ -116,10 +119,10 @@ public static class ValidationEndpoints
         });
 
         var targetState = agentResult.Data.OverallPassed ? WorkflowState.PendingApproval : WorkflowState.Failed;
-        await workflow.TryTransitionAsync(run.Id, targetState, ct);
-        await db.SaveChangesAsync(ct);
+        await _workflow.TryTransitionAsync(run.Id, targetState, ct);
+        await _db.SaveChangesAsync(ct);
 
-        return Results.Ok(new
+        return Ok(new
         {
             workflowRunId = run.Id,
             overallPassed = agentResult.Data.OverallPassed,
@@ -129,26 +132,26 @@ public static class ValidationEndpoints
     }
 
     /// <summary>Returns all persisted validation checks for a workflow run.</summary>
-    private static async Task<IResult> GetResultsAsync(
-        Guid workflowRunId,
-        AppDbContext db,
-        CancellationToken ct)
+    [HttpGet("{workflowRunId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetResultsAsync(Guid workflowRunId, CancellationToken ct)
     {
-        var run = await db.WorkflowRuns.AsNoTracking()
+        var run = await _db.WorkflowRuns.AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
 
         if (run is null)
         {
-            return Results.NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
+            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
         }
 
-        var checks = await db.ValidationResults.AsNoTracking()
+        var checks = await _db.ValidationResults.AsNoTracking()
             .Where(v => v.WorkflowRunId == workflowRunId)
             .OrderBy(v => v.CreatedAt)
             .Select(v => new { v.CheckName, v.Passed, v.ViolationDetail })
             .ToListAsync(ct);
 
-        return Results.Ok(new
+        return Ok(new
         {
             workflowRunId,
             state = run.CurrentState,
