@@ -23,7 +23,7 @@
  *   // Spread into the value object and use in components.
  */
 
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 
 // ── Context value shape ────────────────────────────────────────────────────────
 
