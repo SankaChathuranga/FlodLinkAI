@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\FloodLink.Infrastructure\FloodLink.Infrastructure.csproj" />
     <ProjectReference Include="..\FloodLink.Contracts\FloodLink.Contracts.csproj" />
+    <ProjectReference Include="..\FloodLink.Agents.Validation\FloodLink.Agents.Validation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

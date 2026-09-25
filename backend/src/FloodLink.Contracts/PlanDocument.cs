@@ -18,8 +18,20 @@ public record PlanDocument
     /// <summary>The workflow run this plan belongs to.</summary>
     public required Guid WorkflowRunId { get; init; }
 
+    /// <summary>Allocation proposal id this plan was built from (Member B/C wiring).</summary>
+    public required int AllocationProposalId { get; init; }
+
     /// <summary>Total vehicle/truck capacity in the same unit as allocation quantities.</summary>
     public required double VehicleCapacity { get; init; }
+
+    /// <summary>Road distance in kilometres as returned by the Route/ETA agent.</summary>
+    public required double DistanceKm { get; init; }
+
+    /// <summary>Estimated travel time in minutes as returned by the Route/ETA agent.</summary>
+    public required double EtaMinutes { get; init; }
+
+    /// <summary>Encoded route polyline for map display.</summary>
+    public required string Polyline { get; init; }
 
     /// <summary>Depot (origin) latitude. Set by Member B's proposal routing context.</summary>
     public required double OriginLat { get; init; }

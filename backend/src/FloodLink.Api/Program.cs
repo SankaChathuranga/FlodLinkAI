@@ -1,4 +1,7 @@
+using FloodLink.Agents.Validation;
+using FloodLink.Api.Endpoints;
 using FloodLink.Infrastructure;
+using FloodLink.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +16,10 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "FloodLink AI API", Version = "v1" });
 });
+
+// Member D (Ijini) — Validation/Safety Agent + guarded workflow state transitions.
+builder.Services.AddScoped<IValidationAgent, ValidationAgent>();
+builder.Services.AddScoped<IWorkflowStateService, WorkflowStateService>();
 
 // TODO (Week 2): Add JWT authentication / authorization services here.
 // TODO (Week 2): Register agent interface implementations via DI here (all as stubs initially).
@@ -37,8 +44,11 @@ app.UseHttpsRedirection();
 /// </summary>
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "FloodLink API" }))
    .WithName("HealthCheck")
-   .WithTags("Health")
-   .WithOpenApi();
+   .WithTags("Health");
+
+// Member D (Ijini) — validation and coordinator approval/dispatch/audit.
+app.MapValidationEndpoints();
+app.MapDispatchEndpoints();
 
 // TODO (Week 2-3): Controllers / minimal-API endpoints per member's area will be
 // added here. See CONTRIBUTING.md for ownership details.

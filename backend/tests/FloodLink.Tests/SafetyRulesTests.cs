@@ -41,7 +41,11 @@ public class SafetyRulesTests
         new()
         {
             WorkflowRunId = workflowRunId,
+            AllocationProposalId = 1,
             VehicleCapacity = double.MaxValue,
+            DistanceKm = 25,
+            EtaMinutes = 45,
+            Polyline = "encoded",
             OriginLat = 6.9271,
             OriginLng = 79.8612,
             DestLat = 7.2906,
@@ -112,7 +116,11 @@ public class SafetyRulesTests
         var plan = new PlanDocument
         {
             WorkflowRunId = Guid.NewGuid(),
+            AllocationProposalId = 1,
             VehicleCapacity = 500,
+            DistanceKm = 25,
+            EtaMinutes = 45,
+            Polyline = "encoded",
             OriginLat = 0,
             OriginLng = 0,
             DestLat = 1,
@@ -131,7 +139,11 @@ public class SafetyRulesTests
         var plan = new PlanDocument
         {
             WorkflowRunId = Guid.NewGuid(),
+            AllocationProposalId = 1,
             VehicleCapacity = 100,
+            DistanceKm = 25,
+            EtaMinutes = 45,
+            Polyline = "encoded",
             OriginLat = 0,
             OriginLng = 0,
             DestLat = 1,
@@ -163,7 +175,11 @@ public class SafetyRulesTests
         var plan = new PlanDocument
         {
             WorkflowRunId = Guid.NewGuid(),
+            AllocationProposalId = 1,
             VehicleCapacity = 100,
+            DistanceKm = 25,
+            EtaMinutes = 45,
+            Polyline = "encoded",
             OriginLat = 95,
             OriginLng = 79.8612,
             DestLat = 7.2906,
@@ -254,7 +270,11 @@ public class SafetyRulesTests
         var plan = new PlanDocument
         {
             WorkflowRunId = Guid.NewGuid(),
+            AllocationProposalId = 1,
             VehicleCapacity = 5000,
+            DistanceKm = 25,
+            EtaMinutes = 45,
+            Polyline = "encoded",
             OriginLat = 6.9,
             OriginLng = 79.9,
             DestLat = 7.1,
