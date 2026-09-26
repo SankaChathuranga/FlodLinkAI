@@ -1,4 +1,7 @@
+using FloodLink.Api.Middleware;
+using FloodLink.Domain.Services;
 using FloodLink.Infrastructure;
+using FloodLink.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +11,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped<IUrgencyScoringService, UrgencyScoringService>();
+builder.Services.AddScoped<IPhotoStorageService, PhotoStorageService>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -15,12 +21,11 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "FloodLink AI API", Version = "v1" });
 });
 
-// TODO (Week 2): Add JWT authentication / authorization services here.
-// TODO (Week 2): Register agent interface implementations via DI here (all as stubs initially).
-
 var app = builder.Build();
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -29,6 +34,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 

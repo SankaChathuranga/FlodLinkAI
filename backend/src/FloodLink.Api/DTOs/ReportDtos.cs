@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace FloodLink.Api.DTOs;
 
@@ -17,12 +18,14 @@ public class CreateReportDto
     [Range(1, int.MaxValue, ErrorMessage = "QuantityNeeded must be at least 1.")]
     public int QuantityNeeded { get; set; }
 
-    [Range(1, 5, ErrorMessage = "UrgencyLevel must be between 1 and 5.")]
-    public int UrgencyLevel { get; set; }
+    [Range(0, 100, ErrorMessage = "UrgencyLevel must be between 0 and 100.")]
+    public int? UrgencyLevel { get; set; }
 
     [Url(ErrorMessage = "PhotoUrl must be a valid URL.")]
     [StringLength(500, ErrorMessage = "PhotoUrl cannot exceed 500 characters.")]
     public string? PhotoUrl { get; set; }
+
+    public IFormFile? Photo { get; set; }
 
     [Range(-90.0, 90.0, ErrorMessage = "GpsLat must be between -90 and 90.")]
     public double? GpsLat { get; set; }
@@ -43,12 +46,14 @@ public class UpdateReportDto
     [Range(1, int.MaxValue, ErrorMessage = "QuantityNeeded must be at least 1.")]
     public int QuantityNeeded { get; set; }
 
-    [Range(1, 5, ErrorMessage = "UrgencyLevel must be between 1 and 5.")]
+    [Range(0, 100, ErrorMessage = "UrgencyLevel must be between 0 and 100.")]
     public int UrgencyLevel { get; set; }
 
     [Url(ErrorMessage = "PhotoUrl must be a valid URL.")]
     [StringLength(500, ErrorMessage = "PhotoUrl cannot exceed 500 characters.")]
     public string? PhotoUrl { get; set; }
+
+    public IFormFile? Photo { get; set; }
 
     [Range(-90.0, 90.0, ErrorMessage = "GpsLat must be between -90 and 90.")]
     public double? GpsLat { get; set; }

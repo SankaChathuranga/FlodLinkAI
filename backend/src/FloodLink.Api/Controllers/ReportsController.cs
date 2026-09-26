@@ -1,5 +1,11 @@
 using FloodLink.Api.DTOs;
+using FloodLink.Domain.Entities;
+using FloodLink.Domain.Exceptions;
+using FloodLink.Domain.Services;
+using FloodLink.Infrastructure;
+using FloodLink.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FloodLink.Api.Controllers;
 
@@ -7,53 +13,191 @@ namespace FloodLink.Api.Controllers;
 [Route("api/reports")]
 public class ReportsController : ControllerBase
 {
+    private readonly AppDbContext _context;
+    private readonly IUrgencyScoringService _urgencyScoringService;
+    private readonly IPhotoStorageService _photoStorageService;
+
+    public ReportsController(
+        AppDbContext context,
+        IUrgencyScoringService urgencyScoringService,
+        IPhotoStorageService photoStorageService)
+    {
+        _context = context;
+        _urgencyScoringService = urgencyScoringService;
+        _photoStorageService = photoStorageService;
+    }
+
     /// <summary>
-    /// GET /api/reports
-    /// Retrieves all field reports.
+    /// GET /api/reports?shelterId=&amp;status=&amp;urgency=&amp;sort=
+    /// Retrieves field reports filtered by shelter, status, minimum urgency level, and sorted.
     /// </summary>
     [HttpGet]
-    public IActionResult GetReports()
+    public async Task<ActionResult<IEnumerable<Report>>> GetReports(
+        [FromQuery] int? shelterId,
+        [FromQuery] string? status,
+        [FromQuery] int? urgency,
+        [FromQuery] string? sort)
     {
-        return Ok();
+        IQueryable<Report> query = _context.Reports
+            .Include(r => r.Shelter)
+            .Include(r => r.Reporter)
+            .AsNoTracking();
+
+        if (shelterId.HasValue)
+        {
+            query = query.Where(r => r.ShelterId == shelterId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(r => r.Status.ToLower() == status.Trim().ToLower());
+        }
+
+        if (urgency.HasValue)
+        {
+            query = query.Where(r => r.UrgencyLevel >= urgency.Value);
+        }
+
+        query = (sort?.Trim().ToLower()) switch
+        {
+            "urgency" or "urgency_desc" => query.OrderByDescending(r => r.UrgencyLevel),
+            "urgency_asc" => query.OrderBy(r => r.UrgencyLevel),
+            "oldest" or "created_asc" => query.OrderBy(r => r.CreatedAt),
+            _ => query.OrderByDescending(r => r.CreatedAt)
+        };
+
+        List<Report> reports = await query.ToListAsync();
+        return Ok(reports);
     }
 
     /// <summary>
     /// GET /api/reports/{id}
-    /// Retrieves a specific report by ID.
+    /// Retrieves a specific field report by ID with shelter and reporter details.
     /// </summary>
     [HttpGet("{id:int}")]
-    public IActionResult GetReportById(int id)
+    public async Task<ActionResult<Report>> GetReportById(int id)
     {
-        return Ok();
+        Report? report = await _context.Reports
+            .Include(r => r.Shelter)
+            .Include(r => r.Reporter)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (report == null)
+        {
+            throw new NotFoundException($"Report with ID {id} was not found.");
+        }
+
+        return Ok(report);
     }
 
     /// <summary>
     /// POST /api/reports
-    /// Creates a new field report.
+    /// Creates a new field report, accepting photo file upload or URL and GPS coordinates.
+    /// Automatically calculates rule-based urgency score (0-100).
     /// </summary>
     [HttpPost]
-    public IActionResult CreateReport([FromBody] CreateReportDto dto)
+    public async Task<ActionResult<Report>> CreateReport([FromForm] CreateReportDto dto)
     {
-        return CreatedAtAction(nameof(GetReportById), new { id = 1 }, dto);
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        Shelter? shelter = await _context.Shelters.FirstOrDefaultAsync(s => s.Id == dto.ShelterId);
+        if (shelter == null)
+        {
+            throw new BadRequestException($"Shelter with ID {dto.ShelterId} does not exist.");
+        }
+
+        bool reporterExists = await _context.Users.AnyAsync(u => u.Id == dto.ReportedBy);
+        if (!reporterExists)
+        {
+            throw new BadRequestException($"User (ReportedBy) with ID {dto.ReportedBy} does not exist.");
+        }
+
+        // Handle photo upload if file was uploaded
+        string? photoUrl = dto.PhotoUrl;
+        if (dto.Photo != null)
+        {
+            string? uploadedPath = await _photoStorageService.SavePhotoAsync(dto.Photo);
+            if (!string.IsNullOrEmpty(uploadedPath))
+            {
+                photoUrl = uploadedPath;
+            }
+        }
+
+        // Find last resupply date (e.g. latest resolved report for this shelter)
+        DateTime? lastResupplyUtc = await _context.Reports
+            .Where(r => r.ShelterId == dto.ShelterId && r.Status == "Resolved")
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => (DateTime?)r.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        // Rule-based auto-urgency calculation (0-100)
+        int autoCalculatedUrgency = _urgencyScoringService.CalculateUrgencyScore(shelter, dto.NeedType, lastResupplyUtc);
+        int finalUrgency = dto.UrgencyLevel.HasValue ? Math.Clamp(dto.UrgencyLevel.Value, 0, 100) : autoCalculatedUrgency;
+
+        var report = new Report
+        {
+            ShelterId = dto.ShelterId,
+            ReportedBy = dto.ReportedBy,
+            NeedType = dto.NeedType,
+            QuantityNeeded = dto.QuantityNeeded,
+            UrgencyLevel = finalUrgency,
+            PhotoUrl = photoUrl,
+            GpsLat = dto.GpsLat ?? shelter.Latitude,
+            GpsLng = dto.GpsLng ?? shelter.Longitude,
+            Status = dto.Status,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Reports.Add(report);
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetReportById), new { id = report.Id }, report);
     }
 
     /// <summary>
     /// PUT /api/reports/{id}
-    /// Updates an existing report.
+    /// Updates an existing field report.
     /// </summary>
     [HttpPut("{id:int}")]
-    public IActionResult UpdateReport(int id, [FromBody] UpdateReportDto dto)
+    public async Task<ActionResult<Report>> UpdateReport(int id, [FromForm] UpdateReportDto dto)
     {
-        return NoContent();
-    }
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
 
-    /// <summary>
-    /// DELETE /api/reports/{id}
-    /// Deletes a report by ID.
-    /// </summary>
-    [HttpDelete("{id:int}")]
-    public IActionResult DeleteReport(int id)
-    {
-        return NoContent();
+        Report? report = await _context.Reports.FindAsync(id);
+        if (report == null)
+        {
+            throw new NotFoundException($"Report with ID {id} was not found.");
+        }
+
+        if (dto.Photo != null)
+        {
+            string? uploadedPath = await _photoStorageService.SavePhotoAsync(dto.Photo);
+            if (!string.IsNullOrEmpty(uploadedPath))
+            {
+                report.PhotoUrl = uploadedPath;
+            }
+        }
+        else if (!string.IsNullOrEmpty(dto.PhotoUrl))
+        {
+            report.PhotoUrl = dto.PhotoUrl;
+        }
+
+        report.NeedType = dto.NeedType;
+        report.QuantityNeeded = dto.QuantityNeeded;
+        report.UrgencyLevel = dto.UrgencyLevel;
+        report.GpsLat = dto.GpsLat ?? report.GpsLat;
+        report.GpsLng = dto.GpsLng ?? report.GpsLng;
+        report.Status = dto.Status;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(report);
     }
 }

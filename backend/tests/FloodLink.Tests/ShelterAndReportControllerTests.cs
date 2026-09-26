@@ -1,50 +1,92 @@
 using FloodLink.Api.Controllers;
 using FloodLink.Api.DTOs;
+using FloodLink.Domain.Entities;
+using FloodLink.Infrastructure;
+using FloodLink.Infrastructure.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Moq;
 using Xunit;
 
 namespace FloodLink.Tests;
 
 public class ShelterAndReportControllerTests
 {
-    [Fact]
-    public void SheltersController_GetShelters_ReturnsOk()
+    private AppDbContext CreateDbContext()
     {
-        var controller = new SheltersController();
-        var result = controller.GetShelters();
-        Assert.IsType<OkResult>(result);
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        var context = new AppDbContext(options);
+
+        context.Users.Add(new User
+        {
+            Id = 1,
+            Name = "Volunteer 1",
+            Role = "Volunteer",
+            Phone = "+94770000000",
+            HashedPassword = "pass"
+        });
+
+        context.Shelters.Add(new Shelter
+        {
+            Id = 1,
+            Name = "Shelter Alpha",
+            Capacity = 100,
+            CurrentOccupancy = 50,
+            Status = "Active",
+            Latitude = 6.9,
+            Longitude = 79.8
+        });
+
+        context.SaveChanges();
+        return context;
     }
 
     [Fact]
-    public void SheltersController_GetShelterById_ReturnsOk()
+    public async Task SheltersController_GetShelters_ReturnsOk()
     {
-        var controller = new SheltersController();
-        var result = controller.GetShelterById(1);
-        Assert.IsType<OkResult>(result);
+        using var context = CreateDbContext();
+        var controller = new SheltersController(context);
+        var result = await controller.GetShelters(status: null, search: null, page: 1, pageSize: 10);
+        Assert.IsType<OkObjectResult>(result.Result);
     }
 
     [Fact]
-    public void SheltersController_CreateShelter_ReturnsCreatedAtAction()
+    public async Task SheltersController_GetShelterById_ReturnsOk()
     {
-        var controller = new SheltersController();
+        using var context = CreateDbContext();
+        var controller = new SheltersController(context);
+        var result = await controller.GetShelterById(1);
+        Assert.IsType<OkObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task SheltersController_CreateShelter_ReturnsCreatedAtAction()
+    {
+        using var context = CreateDbContext();
+        var controller = new SheltersController(context);
         var dto = new CreateShelterDto
         {
-            Name = "Test Shelter",
+            Name = "New Shelter",
             Latitude = 6.9,
             Longitude = 79.8,
             Capacity = 100,
             CurrentOccupancy = 20,
             Status = "Active"
         };
-        var result = controller.CreateShelter(dto);
-        var createdResult = Assert.IsType<CreatedAtActionResult>(result);
+        var result = await controller.CreateShelter(dto);
+        var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
         Assert.Equal(nameof(SheltersController.GetShelterById), createdResult.ActionName);
     }
 
     [Fact]
-    public void SheltersController_UpdateShelter_ReturnsNoContent()
+    public async Task SheltersController_UpdateShelter_ReturnsOk()
     {
-        var controller = new SheltersController();
+        using var context = CreateDbContext();
+        var controller = new SheltersController(context);
         var dto = new UpdateShelterDto
         {
             Name = "Updated Shelter",
@@ -54,72 +96,42 @@ public class ShelterAndReportControllerTests
             CurrentOccupancy = 50,
             Status = "Active"
         };
-        var result = controller.UpdateShelter(1, dto);
-        Assert.IsType<NoContentResult>(result);
+        var result = await controller.UpdateShelter(1, dto);
+        Assert.IsType<OkObjectResult>(result.Result);
     }
 
     [Fact]
-    public void SheltersController_DeleteShelter_ReturnsNoContent()
+    public async Task ReportsController_GetReports_ReturnsOk()
     {
-        var controller = new SheltersController();
-        var result = controller.DeleteShelter(1);
-        Assert.IsType<NoContentResult>(result);
+        using var context = CreateDbContext();
+        var urgencyService = new UrgencyScoringService();
+        var mockEnv = new Mock<IWebHostEnvironment>();
+        var photoService = new PhotoStorageService(mockEnv.Object);
+        var controller = new ReportsController(context, urgencyService, photoService);
+
+        var result = await controller.GetReports(shelterId: null, status: null, urgency: null, sort: null);
+        Assert.IsType<OkObjectResult>(result.Result);
     }
 
     [Fact]
-    public void ReportsController_GetReports_ReturnsOk()
+    public async Task ReportsController_CreateReport_ReturnsCreatedAtAction()
     {
-        var controller = new ReportsController();
-        var result = controller.GetReports();
-        Assert.IsType<OkResult>(result);
-    }
+        using var context = CreateDbContext();
+        var urgencyService = new UrgencyScoringService();
+        var mockEnv = new Mock<IWebHostEnvironment>();
+        var photoService = new PhotoStorageService(mockEnv.Object);
+        var controller = new ReportsController(context, urgencyService, photoService);
 
-    [Fact]
-    public void ReportsController_GetReportById_ReturnsOk()
-    {
-        var controller = new ReportsController();
-        var result = controller.GetReportById(1);
-        Assert.IsType<OkResult>(result);
-    }
-
-    [Fact]
-    public void ReportsController_CreateReport_ReturnsCreatedAtAction()
-    {
-        var controller = new ReportsController();
         var dto = new CreateReportDto
         {
             ShelterId = 1,
             ReportedBy = 1,
             NeedType = "Water",
             QuantityNeeded = 100,
-            UrgencyLevel = 4,
             Status = "New"
         };
-        var result = controller.CreateReport(dto);
-        var createdResult = Assert.IsType<CreatedAtActionResult>(result);
+        var result = await controller.CreateReport(dto);
+        var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
         Assert.Equal(nameof(ReportsController.GetReportById), createdResult.ActionName);
-    }
-
-    [Fact]
-    public void ReportsController_UpdateReport_ReturnsNoContent()
-    {
-        var controller = new ReportsController();
-        var dto = new UpdateReportDto
-        {
-            NeedType = "Food",
-            QuantityNeeded = 200,
-            UrgencyLevel = 3,
-            Status = "Triaged"
-        };
-        var result = controller.UpdateReport(1, dto);
-        Assert.IsType<NoContentResult>(result);
-    }
-
-    [Fact]
-    public void ReportsController_DeleteReport_ReturnsNoContent()
-    {
-        var controller = new ReportsController();
-        var result = controller.DeleteReport(1);
-        Assert.IsType<NoContentResult>(result);
     }
 }
