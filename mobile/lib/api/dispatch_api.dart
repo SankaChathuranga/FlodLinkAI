@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 import 'models.dart';
 
@@ -17,7 +18,7 @@ class ApiException implements Exception {
 }
 
 /// Minimal JSON client for Member D's dispatch endpoints.
-/// Uses dart:io HttpClient — no extra package dependencies.
+/// Uses package:http so it works on Chrome (web), desktop and mobile.
 class DispatchApi {
   const DispatchApi(this.baseUrl);
 
@@ -28,36 +29,26 @@ class DispatchApi {
     String path, [
     Object? body,
   ]) async {
-    final client = HttpClient();
+    final uri = Uri.parse('$baseUrl$path');
+    final headers = {'Content-Type': 'application/json'};
 
-    try {
-      final uri = Uri.parse('$baseUrl$path');
-      final request =
-          method == 'GET' ? await client.getUrl(uri) : await client.postUrl(uri);
-      request.headers.contentType = ContentType.json;
+    final http.Response response = method == 'GET'
+        ? await http.get(uri, headers: headers)
+        : await http.post(uri, headers: headers, body: jsonEncode(body));
 
-      if (body != null) {
-        request.write(jsonEncode(body));
-      }
+    final decoded = response.body.isEmpty
+        ? <String, dynamic>{}
+        : jsonDecode(response.body) as Map<String, dynamic>;
 
-      final response = await request.close();
-      final text = await response.transform(utf8.decoder).join();
-      final decoded = text.isEmpty
-          ? <String, dynamic>{}
-          : jsonDecode(text) as Map<String, dynamic>;
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return decoded;
-      }
-
-      throw ApiException(
-        response.statusCode,
-        decoded['error'] as String? ?? 'REQUEST_FAILED',
-        decoded['message'] as String? ?? response.reasonPhrase,
-      );
-    } finally {
-      client.close(force: true);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return decoded;
     }
+
+    throw ApiException(
+      response.statusCode,
+      decoded['error'] as String? ?? 'REQUEST_FAILED',
+      decoded['message'] as String? ?? 'HTTP ${response.statusCode}',
+    );
   }
 
   /// Current dispatch status for a workflow run (decision, reason, state).
