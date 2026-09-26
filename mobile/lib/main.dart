@@ -8,6 +8,8 @@ import 'screens/new_report_screen.dart';
 import 'screens/camera_capture_screen.dart';
 import 'screens/gps_capture_screen.dart';
 
+import 'screens/my_submitted_reports_screen.dart';
+
 void main() {
   runApp(
     MultiProvider(
@@ -30,6 +32,10 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/',
       builder: (context, state) => const ReportsListScreen(),
+    ),
+    GoRoute(
+      path: '/my-submitted-reports',
+      builder: (context, state) => const MySubmittedReportsScreen(),
     ),
     GoRoute(
       path: '/new-report',

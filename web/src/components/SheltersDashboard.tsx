@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppContext } from '../context/AppContext'
 import { ShelterMap } from './ShelterMap'
+import { ShelterDetailModal } from './ShelterDetailModal'
 import type { Shelter, PaginatedResult } from '../types'
 
 export function SheltersDashboard() {
@@ -14,6 +15,7 @@ export function SheltersDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [selectedShelter, setSelectedShelter] = useState<Shelter | null>(null)
+  const [detailShelterId, setDetailShelterId] = useState<number | null>(null)
   const [page, setPage] = useState<number>(1)
   const [totalPages, setTotalPages] = useState<number>(1)
 
@@ -221,7 +223,7 @@ export function SheltersDashboard() {
                     </div>
                   </div>
 
-                  {/* Volunteer Contact Information */}
+                  {/* Volunteer Contact Information & Timeline Button */}
                   <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                     <div className="flex items-center space-x-1.5">
                       <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -229,9 +231,19 @@ export function SheltersDashboard() {
                       </svg>
                       <span>{shelter.contactVolunteer?.name ?? `Volunteer #${shelter.contactVolunteerId ?? 1}`}</span>
                     </div>
-                    {shelter.contactVolunteer?.phone && (
-                      <span className="font-mono text-slate-600">{shelter.contactVolunteer.phone}</span>
-                    )}
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDetailShelterId(shelter.id)
+                      }}
+                      className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded text-xs transition border border-blue-200 flex items-center space-x-1"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Report History</span>
+                    </button>
                   </div>
                 </div>
               )
@@ -262,6 +274,12 @@ export function SheltersDashboard() {
           )}
         </>
       )}
+
+      {/* Shelter Detail Modal with Full Report History Timeline */}
+      <ShelterDetailModal
+        shelterId={detailShelterId}
+        onClose={() => setDetailShelterId(null)}
+      />
     </div>
   )
 }

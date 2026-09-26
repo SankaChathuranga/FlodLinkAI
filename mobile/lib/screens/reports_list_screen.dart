@@ -39,6 +39,11 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         actions: [
           IconButton(
+            icon: const Icon(Icons.assignment_ind_outlined, color: Colors.white),
+            tooltip: 'My Submitted Reports',
+            onPressed: () => context.push('/my-submitted-reports'),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () => reportProvider.fetchReports(),
           ),
