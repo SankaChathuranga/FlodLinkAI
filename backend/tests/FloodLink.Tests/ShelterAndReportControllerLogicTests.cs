@@ -1,3 +1,4 @@
+using FloodLink.Agents.Triage;
 using FloodLink.Api.Controllers;
 using FloodLink.Api.DTOs;
 using FloodLink.Domain.Entities;
@@ -93,8 +94,9 @@ public class ShelterAndReportControllerLogicTests
         var mockEnv = new Mock<IWebHostEnvironment>();
         mockEnv.Setup(e => e.WebRootPath).Returns(Path.GetTempPath());
         var photoService = new PhotoStorageService(mockEnv.Object);
+        var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, urgencyService, photoService);
+        var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
 
         var dto = new CreateReportDto
         {
@@ -126,7 +128,8 @@ public class ShelterAndReportControllerLogicTests
         var urgencyService = new UrgencyScoringService();
         var mockEnv = new Mock<IWebHostEnvironment>();
         var photoService = new PhotoStorageService(mockEnv.Object);
-        var controller = new ReportsController(context, urgencyService, photoService);
+        var mockAgent = new Mock<ITriageAgent>();
+        var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
 
         // Filter by urgency >= 50 and sort by urgency descending
         var actionResult = await controller.GetReports(shelterId: 1, status: null, urgency: 50, sort: "urgency_desc");

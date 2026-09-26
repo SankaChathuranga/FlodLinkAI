@@ -1,3 +1,4 @@
+using FloodLink.Agents.Triage;
 using FloodLink.Api.Middleware;
 using FloodLink.Domain.Services;
 using FloodLink.Infrastructure;
@@ -13,6 +14,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IUrgencyScoringService, UrgencyScoringService>();
 builder.Services.AddScoped<IPhotoStorageService, PhotoStorageService>();
+builder.Services.AddScoped<ITriageAgent, TriageAgent>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

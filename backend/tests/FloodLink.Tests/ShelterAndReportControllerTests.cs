@@ -1,3 +1,4 @@
+using FloodLink.Agents.Triage;
 using FloodLink.Api.Controllers;
 using FloodLink.Api.DTOs;
 using FloodLink.Domain.Entities;
@@ -107,7 +108,8 @@ public class ShelterAndReportControllerTests
         var urgencyService = new UrgencyScoringService();
         var mockEnv = new Mock<IWebHostEnvironment>();
         var photoService = new PhotoStorageService(mockEnv.Object);
-        var controller = new ReportsController(context, urgencyService, photoService);
+        var mockAgent = new Mock<ITriageAgent>();
+        var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
 
         var result = await controller.GetReports(shelterId: null, status: null, urgency: null, sort: null);
         Assert.IsType<OkObjectResult>(result.Result);
@@ -120,7 +122,8 @@ public class ShelterAndReportControllerTests
         var urgencyService = new UrgencyScoringService();
         var mockEnv = new Mock<IWebHostEnvironment>();
         var photoService = new PhotoStorageService(mockEnv.Object);
-        var controller = new ReportsController(context, urgencyService, photoService);
+        var mockAgent = new Mock<ITriageAgent>();
+        var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
 
         var dto = new CreateReportDto
         {

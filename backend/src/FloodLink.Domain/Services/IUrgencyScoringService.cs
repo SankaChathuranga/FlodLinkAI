@@ -11,5 +11,5 @@ public interface IUrgencyScoringService
     /// Calculates a rule-based urgency score (0-100) for a field report.
     /// Combines people-count/capacity ratio, need_type severity, and time-since-last-resupply.
     /// </summary>
-    int CalculateUrgencyScore(Shelter shelter, string needType, DateTime? lastResupplyTimeUtc = null);
+    int CalculateUrgencyScore(Shelter? shelter, string needType, DateTime? lastResupplyTimeUtc = null);
 }

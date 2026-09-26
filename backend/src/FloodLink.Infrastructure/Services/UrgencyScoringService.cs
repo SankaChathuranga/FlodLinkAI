@@ -9,7 +9,7 @@ namespace FloodLink.Infrastructure.Services;
 /// </summary>
 public class UrgencyScoringService : IUrgencyScoringService
 {
-    public int CalculateUrgencyScore(Shelter shelter, string needType, DateTime? lastResupplyTimeUtc = null)
+    public int CalculateUrgencyScore(Shelter? shelter, string needType, DateTime? lastResupplyTimeUtc = null)
     {
         double score = 0;
 
