@@ -13,6 +13,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddControllers();
 builder.Services.AddAuthorization();
 
+// Dev-only CORS: lets the Vite dev server (http://localhost:5173) call this API
+// from the browser. Any origin is allowed so every member's UI can run locally.
+builder.Services.AddCors(options =>
+    options.AddPolicy("DevWeb", policy => policy
+        .SetIsOriginAllowed(_ => true)
+        .AllowAnyHeader()
+        .AllowAnyMethod()));
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -38,6 +46,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("DevWeb");
 
 app.UseAuthorization();
 

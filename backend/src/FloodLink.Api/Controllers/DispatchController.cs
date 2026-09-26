@@ -215,6 +215,30 @@ public sealed class DispatchController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Returns the approval queue: workflow runs awaiting a coordinator decision.
+    /// This powers the coordinator's "Approval Queue" screen (Member D — React).
+    /// Only runs in PendingApproval appear — they have already passed validation.
+    /// </summary>
+    [HttpGet("approval-queue")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ApprovalQueueAsync(CancellationToken ct)
+    {
+        var items = await _db.WorkflowRuns.AsNoTracking()
+            .Where(r => r.CurrentState == WorkflowState.PendingApproval)
+            .OrderBy(r => r.CreatedAt)
+            .Select(r => new
+            {
+                workflowRunId = r.Id,
+                objective = r.Objective,
+                createdAt = r.CreatedAt,
+                state = r.CurrentState
+            })
+            .ToListAsync(ct);
+
+        return Ok(new { items });
+    }
+
     /// <summary>Lists, filters and paginates dispatch history.</summary>
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
