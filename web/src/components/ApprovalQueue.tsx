@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppContext } from '../context/AppContext'
 import {
-  ApiError,
   approveRun,
   getApprovalQueue,
   getValidationReport,
   rejectRun,
   requestRevision,
 } from '../api/client'
+import { describeApiError } from '../lib/apiError'
 import type { ValidationReport, WorkflowRunQueueItem } from '../api/types'
 
 /**
@@ -59,7 +59,7 @@ function ApprovalQueue() {
       setState((s) => ({ ...s, items, error: null }))
     } catch (err) {
       if (!mountedRef.current) return
-      setState((s) => ({ ...s, error: describeError(err, apiBaseUrl) }))
+      setState((s) => ({ ...s, error: describeApiError(err) }))
     } finally {
       if (mountedRef.current) setLoading(false)
     }
@@ -91,7 +91,7 @@ function ApprovalQueue() {
         }))
       } catch (err) {
         if (!mountedRef.current) return
-        setState((s) => ({ ...s, error: describeError(err, apiBaseUrl) }))
+        setState((s) => ({ ...s, error: describeApiError(err) }))
       }
     }
   }
@@ -133,19 +133,12 @@ function ApprovalQueue() {
       await refresh()
     } catch (err) {
       if (!mountedRef.current) return
-      setState((s) => ({ ...s, busyId: null, error: describeError(err, apiBaseUrl) }))
+      setState((s) => ({ ...s, busyId: null, error: describeApiError(err) }))
     }
   }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Approval Queue</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Plans validated by the Safety Agent and awaiting a coordinator decision.
-        </p>
-      </header>
-
       {state.notice && <Banner tone="ok" text={state.notice} />}
       {state.error && <Banner tone="error" text={state.error} />}
 
@@ -384,18 +377,6 @@ function ValidationChecks({ report }: { report: ValidationReport | undefined }) 
       </ul>
     </div>
   )
-}
-
-function describeError(err: unknown, apiBaseUrl: string): string {
-  if (err instanceof ApiError) {
-    if (err.status === 401) {
-      return `API returned 401 Unauthorized — the endpoints require [Authorize(Roles="Coordinator")]. ` +
-        `Until JWT auth is wired, remove that attribute in the controllers for a dev demo. ` +
-        `(API at ${apiBaseUrl})`
-    }
-    return `Request failed (${err.status} ${err.code}): ${err.message}`
-  }
-  return err instanceof Error ? err.message : 'Unexpected error. Check that the API is running.'
 }
 
 export default ApprovalQueue

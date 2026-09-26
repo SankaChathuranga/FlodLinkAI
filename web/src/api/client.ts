@@ -1,4 +1,11 @@
-import type { ApprovalActionResult, ValidationReport, WorkflowRunQueueItem } from './types'
+import type {
+  ApprovalActionResult,
+  AuditResponse,
+  DispatchListResponse,
+  DispatchSummary,
+  ValidationReport,
+  WorkflowRunQueueItem,
+} from './types'
 
 /**
  * Minimal JSON API client for the FloodLink backend (Member D — approval queue).
@@ -76,4 +83,29 @@ export function requestRevision(baseUrl: string, workflowRunId: string, notes: s
     method: 'POST',
     body: JSON.stringify({ notes }),
   })
+}
+
+/** Paginated, filterable dispatch history. */
+export function listDispatches(
+  baseUrl: string,
+  params: { status?: string; dateFrom?: string; dateTo?: string; page?: number; pageSize?: number },
+): Promise<DispatchListResponse> {
+  const qs = new URLSearchParams()
+  if (params.status) qs.set('status', params.status)
+  if (params.dateFrom) qs.set('dateFrom', params.dateFrom)
+  if (params.dateTo) qs.set('dateTo', params.dateTo)
+  qs.set('page', String(params.page ?? 1))
+  qs.set('pageSize', String(params.pageSize ?? 20))
+
+  return request<DispatchListResponse>(baseUrl, `/api/dispatches?${qs.toString()}`)
+}
+
+/** Reporting/analytics: decision totals, turnaround and rejection reasons. */
+export function getDispatchSummary(baseUrl: string): Promise<DispatchSummary> {
+  return request(baseUrl, '/api/dispatches/summary')
+}
+
+/** Append-only compliance trail for one dispatch. */
+export function getAuditTrail(baseUrl: string, dispatchId: string): Promise<AuditResponse> {
+  return request(baseUrl, `/api/audit/${dispatchId}`)
 }

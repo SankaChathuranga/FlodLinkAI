@@ -1,6 +1,7 @@
 using FloodLink.Agents.Validation;
 using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddAuthorization();
+
+// Development-only auto-auth so [Authorize(Roles="Coordinator")] endpoints are
+// demoable before the team's JWT work (Week 2). No scheme in Production.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services
+        .AddAuthentication("Dev")
+        .AddScheme<AuthenticationSchemeOptions, FloodLink.Api.Auth.DevCoordinatorHandler>("Dev", null);
+}
 
 // Dev-only CORS: lets the Vite dev server (http://localhost:5173) call this API
 // from the browser. Any origin is allowed so every member's UI can run locally.
@@ -49,6 +59,7 @@ app.UseHttpsRedirection();
 
 app.UseCors("DevWeb");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
