@@ -29,6 +29,9 @@ public sealed class DispatchController : ControllerBase
     /// <summary>Body contract for POST /api/dispatches/{id}/request-revision (Notes required).</summary>
     public sealed record RevisionRequest(string Notes);
 
+    /// <summary>Body contract for POST /api/dispatches/{id}/confirm-delivery (Notes and PhotoReference optional).</summary>
+    public sealed record ConfirmDeliveryRequest(string? Notes, string? PhotoReference);
+
     private readonly AppDbContext _db;
     private readonly IWorkflowStateService _workflow;
 
@@ -213,6 +216,104 @@ public sealed class DispatchController : ControllerBase
             state = WorkflowState.RevisionRequested,
             loopsBackTo = WorkflowState.Matching
         });
+    }
+
+    /// <summary>
+    /// Returns the current dispatch status for a workflow run (decision, reason, state).
+    /// </summary>
+    [HttpGet("by-workflow/{workflowRunId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByWorkflowAsync(Guid workflowRunId, CancellationToken ct)
+    {
+        var run = await _db.WorkflowRuns.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
+
+        if (run is null)
+        {
+            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
+        }
+
+        var dispatch = await _db.Dispatches.AsNoTracking()
+            .Where(d => d.WorkflowRunId == workflowRunId)
+            .OrderByDescending(d => d.CreatedAt)
+            .Select(d => new { d.Id, d.Decision, d.ApprovalNotes, d.DispatchedAt, d.CreatedAt })
+            .FirstOrDefaultAsync(ct);
+
+        var deliveryEvent = await _db.AuditTrail.AsNoTracking()
+            .Where(a => a.EventType == "DeliveryConfirmed" && a.Dispatch != null && a.Dispatch.WorkflowRunId == workflowRunId)
+            .OrderByDescending(a => a.CreatedAt)
+            .Select(a => new { a.CreatedAt })
+            .FirstOrDefaultAsync(ct);
+
+        return Ok(new
+        {
+            workflowRunId,
+            state = run.CurrentState,
+            decision = dispatch?.Decision,
+            notes = dispatch?.ApprovalNotes,
+            dispatchedAt = dispatch?.DispatchedAt,
+            isDelivered = deliveryEvent is not null,
+            deliveredAt = deliveryEvent?.CreatedAt
+        });
+    }
+
+    /// <summary>
+    /// Field-worker delivery confirmation. Only an Approved dispatch can be
+    /// confirmed. The spec fixes exactly 9 workflow states, so delivery does not
+    /// advance the state machine — it is recorded as an append-only audit event
+    /// ("DeliveryConfirmed") that the dispatch-status endpoint surfaces as
+    /// isDelivered / deliveredAt. State stays Approved (terminal).
+    /// </summary>
+    [HttpPost("{workflowRunId:guid}/confirm-delivery")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ConfirmDeliveryAsync(Guid workflowRunId, [FromBody] ConfirmDeliveryRequest? request, CancellationToken ct)
+    {
+        var run = await _db.WorkflowRuns
+            .FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
+
+        if (run is null)
+        {
+            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
+        }
+
+        if (run.CurrentState != WorkflowState.Approved)
+        {
+            return Conflict(new
+            {
+                error = "INVALID_STATE",
+                message = $"Delivery confirmation requires state Approved; current state is {run.CurrentState}."
+            });
+        }
+
+        var dispatch = await _db.Dispatches
+            .Where(d => d.WorkflowRunId == workflowRunId && d.Decision == DispatchDecision.Approved)
+            .OrderByDescending(d => d.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (dispatch is null)
+        {
+            return Conflict(new { error = "DISPATCH_NOT_FOUND", message = "No approved dispatch exists for this workflow run." });
+        }
+
+        _db.AuditTrail.Add(new AuditTrail
+        {
+            DispatchId = dispatch.Id,
+            EventType = "DeliveryConfirmed",
+            EventDetailJson = JsonSerializer.Serialize(new
+            {
+                workflowRunId,
+                notes = request?.Notes,
+                photoReference = request?.PhotoReference,
+                deliveredAt = DateTime.UtcNow
+            })
+        });
+
+        await _db.SaveChangesAsync(ct);
+
+        return Ok(new { workflowRunId, state = WorkflowState.Approved, isDelivered = true, notes = request?.Notes });
     }
 
     /// <summary>
