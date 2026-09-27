@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using FloodLink.Agents.Validation;
 using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Services;
@@ -11,7 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddAuthorization();
 
 // Development-only auto-auth so [Authorize(Roles="Coordinator")] endpoints are
