@@ -23,7 +23,7 @@ $env:PGPASSWORD = $pw
 
 Write-Host ""
 Write-Host "[1/2] Creating role 'floodlink' (password floodlink_dev_pw) ..."
-& $psql -U postgres -h localhost -c "CREATE USER floodlink WITH LOGIN PASSWORD 'floodlink_dev_pw';" -c "ALTER ROLE floodlink WITH LOGIN PASSWORD 'floodlink_dev_pw';"
+& $psql -U postgres -h localhost -c "CREATE USER floodlink WITH LOGIN PASSWORD 'floodlink_dev_pw';" -c "ALTER ROLE floodlink WITH LOGIN PASSWORD 'floodlink_dev_pw' CREATEDB;"
 
 Write-Host "[2/2] Creating database 'floodlink' (owner floodlink) ..."
 & $psql -U postgres -h localhost -c "CREATE DATABASE floodlink OWNER floodlink;"

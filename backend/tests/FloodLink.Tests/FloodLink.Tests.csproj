@@ -11,9 +11,11 @@
     <ProjectReference Include="..\..\src\FloodLink.Domain\FloodLink.Domain.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Contracts\FloodLink.Contracts.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Agents.Validation\FloodLink.Agents.Validation.csproj" />
+    <ProjectReference Include="..\..\src\FloodLink.Api\FloodLink.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>
