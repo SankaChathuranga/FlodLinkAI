@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'screens/stock_check_in_screen.dart';
 
 // ── State Management Pattern ──────────────────────────────────────────────────
 //
@@ -36,7 +37,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppState()),
-        // TODO (Week 3): Add feature-specific providers here, e.g.:
+        // Planned for Week 3: Add feature-specific providers here, e.g.:
         //   ChangeNotifierProvider(create: (_) => WorkflowStatusNotifier()),
         //   ChangeNotifierProvider(create: (_) => ReportNotifier()),
       ],
@@ -62,14 +63,14 @@ void main() {
 class AppState extends ChangeNotifier {
   /// API base URL for FloodLink backend requests.
   ///
-  /// TODO (Week 3): Replace with flutter_dotenv value:
+  /// Planned for Week 3: Replace with flutter_dotenv value:
   ///   dotenv.env['API_BASE_URL'] ?? 'http://localhost:5000'
   ///
   /// Use 10.0.2.2 instead of localhost when running on an Android emulator
   /// (the emulator's loopback maps to the host machine via 10.0.2.2).
   String apiBaseUrl = 'http://localhost:5000';
 
-  // TODO: Add real state fields here as features are implemented.
+  // Add real state fields here as features are implemented.
   // Example:
   //   User? currentUser;
   //   String? currentWorkflowId;
@@ -168,6 +169,22 @@ class PlaceholderScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const StockCheckInScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.inventory),
+                label: const Text('Stock Check-In'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 ),
               ),
             ],

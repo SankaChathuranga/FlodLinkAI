@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ── Services ──────────────────────────────────────────────────────────────────
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseInMemoryDatabase("FloodLinkDB"));
 builder.Services.AddControllers();
 builder.Services.AddScoped<IMatchingAgentService, MatchingAgentService>();
 
@@ -21,6 +21,38 @@ builder.Services.AddSwaggerGen(c =>
 // TODO (Week 2): Register agent interface implementations via DI here (all as stubs initially).
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    context.Database.EnsureCreated();
+    if (!context.Depots.Any())
+    {
+        var depot = new FloodLink.Domain.Entities.Depot { Name = "Central Warehouse", Latitude = 0, Longitude = 0 };
+        context.Depots.Add(depot);
+        context.SaveChanges();
+        
+        context.InventoryItems.Add(new FloodLink.Domain.Entities.InventoryItem
+        {
+            DepotId = depot.Id,
+            ItemName = "Water Bottles",
+            Unit = "boxes",
+            QuantityAvailable = 500,
+            QuantityReserved = 50,
+            ReorderThreshold = 100
+        });
+        context.InventoryItems.Add(new FloodLink.Domain.Entities.InventoryItem
+        {
+            DepotId = depot.Id,
+            ItemName = "Blankets",
+            Unit = "pieces",
+            QuantityAvailable = 10,
+            QuantityReserved = 5,
+            ReorderThreshold = 20 // Low stock!
+        });
+        context.SaveChanges();
+    }
+}
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 

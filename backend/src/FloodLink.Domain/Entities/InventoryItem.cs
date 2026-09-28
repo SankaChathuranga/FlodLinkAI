@@ -18,5 +18,5 @@ public class InventoryItem
 
     public DateTime UpdatedAt { get; set; }
 
-    public Depot Depot { get; set; } = null!;
+    public Depot? Depot { get; set; }
 }
