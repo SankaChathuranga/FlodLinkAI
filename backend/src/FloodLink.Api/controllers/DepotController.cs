@@ -44,6 +44,24 @@ public class DepotsController : ControllerBase
         return Ok(depot);
     }
 
+    // PUT: api/depots/{id}
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateDepot(int id, [FromBody] Depot request)
+    {
+        var depot = await _context.Depots.FirstOrDefaultAsync(d => d.Id == id);
+
+        if (depot == null)
+            return NotFound(new { message = "Depot not found." });
+
+        depot.Name = request.Name;
+        depot.Latitude = request.Latitude;
+        depot.Longitude = request.Longitude;
+        depot.ManagerId = request.ManagerId;
+
+        await _context.SaveChangesAsync();
+        return Ok(depot);
+    }
+
     // GET: api/depots
     [HttpGet]
     public async Task<IActionResult> GetDepots(
