@@ -17,6 +17,24 @@ jobs:
       run:
         working-directory: backend
 
+    # Spin up a Postgres container that matches TestAppFactory.TestConnectionString:
+    #   Host=localhost;Port=5432;Database=floodlink_test;
+    #   Username=floodlink;Password=floodlink_dev_pw
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: floodlink_test
+          POSTGRES_USER: floodlink
+          POSTGRES_PASSWORD: floodlink_dev_pw
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U floodlink -d floodlink_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +44,6 @@ jobs:
         with:
           # Use the wildcard form so the runner picks up whatever 10.0.x
           # patch SDK is available, matching the rollForward intent in global.json.
-          # (Exact "10.0.0" causes a 404 because the published SDK has a patch suffix.)
           dotnet-version: '10.0.x'
 
       - name: Restore NuGet packages
@@ -36,6 +53,8 @@ jobs:
         run: dotnet build ../FloodLink.sln --no-restore --configuration Release
 
       - name: Run tests
+        # The integration tests (WorkflowIntegrationTests) connect to the
+        # Postgres service container above via TestAppFactory.TestConnectionString.
         run: dotnet test ../FloodLink.sln --no-build --configuration Release --verbosity normal
 
   # -----------------------------------------------------------
