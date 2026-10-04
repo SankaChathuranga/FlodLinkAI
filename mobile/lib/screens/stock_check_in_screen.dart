@@ -1,17 +1,9 @@
-<<<<<<< HEAD
-import 'package:flutter/material.dart';
-
-class StockCheckInScreen extends StatelessWidget {
-  const StockCheckInScreen({super.key});
-
-  @override
-=======
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
-import '../main.dart'; 
+import '../main.dart';
 
 class StockCheckInScreen extends StatefulWidget {
   const StockCheckInScreen({super.key});
@@ -25,11 +17,15 @@ class _StockCheckInScreenState extends State<StockCheckInScreen> {
   final _itemNameController = TextEditingController();
   final _quantityController = TextEditingController();
   final _unitController = TextEditingController();
-  
+
   int? _selectedDepotId;
   bool _isLoading = false;
 
-  final Map<int, String> _depots = {1: 'Central Warehouse', 2: 'North Depot', 3: 'South Depot'};
+  final Map<int, String> _depots = {
+    1: 'Central Warehouse',
+    2: 'North Depot',
+    3: 'South Depot',
+  };
 
   @override
   void dispose() {
@@ -53,7 +49,7 @@ class _StockCheckInScreenState extends State<StockCheckInScreen> {
     try {
       final appState = context.read<AppState>();
       final url = Uri.parse('${appState.apiBaseUrl}/api/inventory');
-      
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -91,44 +87,10 @@ class _StockCheckInScreenState extends State<StockCheckInScreen> {
   }
 
   @override
->>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stock Check-In'),
-<<<<<<< HEAD
-      ),
-      body: const SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Stock Check-In',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'This screen was missing from the project and has been restored as a placeholder while the feature is developed.',
-                style: TextStyle(fontSize: 16),
-              ),
-              SizedBox(height: 32),
-              Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Feature status',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      SizedBox(height: 8),
-                      Text('Ready for the stock intake form and validation workflow.'),
-                    ],
-                  ),
-=======
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
@@ -215,7 +177,6 @@ class _StockCheckInScreenState extends State<StockCheckInScreen> {
                           'Submit Check-In',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
->>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
                 ),
               ),
             ],

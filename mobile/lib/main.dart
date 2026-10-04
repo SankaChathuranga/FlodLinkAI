@@ -76,7 +76,6 @@ class AppState extends ChangeNotifier {
   //   String? currentWorkflowId;
 }
 
-<<<<<<< HEAD
 // ── FloodLink Semantic Colours ────────────────────────────────────────────────
 //
 // Hex values match the web CSS variable table exactly.
@@ -96,24 +95,22 @@ abstract final class AppColors {
   static const accent = Color(0xFF0F62FE);
 
   // Semantic states
-  static const stateError   = Color(0xFFDA1E28); // --state-error
+  static const stateError = Color(0xFFDA1E28); // --state-error
   static const stateWarning = Color(0xFFF1C21B); // --state-warning (dark text only!)
   static const stateSuccess = Color(0xFF198038); // --state-success
-  static const stateInfo    = Color(0xFF0043CE); // --state-info (in-progress badges only)
+  static const stateInfo = Color(0xFF0043CE); // --state-info (in-progress badges only)
 
   // Surfaces and text
-  static const bgBase      = Color(0xFFF4F4F4); // --bg-base
-  static const bgSurface   = Color(0xFFFFFFFF); // --bg-surface
+  static const bgBase = Color(0xFFF4F4F4); // --bg-base
+  static const bgSurface = Color(0xFFFFFFFF); // --bg-surface
   static const textPrimary = Color(0xFF161616); // --text-primary
-  static const textMuted   = Color(0xFF6F6F6F); // --text-muted
-  static const border      = Color(0xFFC6C6C6); // --border-default
+  static const textMuted = Color(0xFF6F6F6F); // --text-muted
+  static const border = Color(0xFFC6C6C6); // --border-default
 
   // Warning contrast helper: text colour to use ON a warning background
   static const onWarning = Color(0xFF161616); // --text-primary (dark)
 }
 
-=======
->>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
 // ── App widget ────────────────────────────────────────────────────────────────
 
 class FloodLinkApp extends StatelessWidget {
@@ -125,7 +122,6 @@ class FloodLinkApp extends StatelessWidget {
       title: 'FloodLink Field App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-<<<<<<< HEAD
         useMaterial3: true,
         // ── FloodLink Color Scheme ──────────────────────────────────────────
         // Hex values match the web design token table exactly so status colours
@@ -133,19 +129,19 @@ class FloodLinkApp extends StatelessWidget {
         // Update both places if any colour changes in the spec.
         colorScheme: const ColorScheme.light(
           // Primary (accent) — interactive elements only
-          primary:        Color(0xFF0F62FE), // --accent-primary
-          onPrimary:      Color(0xFFFFFFFF),
+          primary: Color(0xFF0F62FE), // --accent-primary
+          onPrimary: Color(0xFFFFFFFF),
           primaryContainer: Color(0xFF0043CE), // --state-info
           onPrimaryContainer: Color(0xFFFFFFFF),
           // Surfaces
-          surface:        Color(0xFFFFFFFF), // --bg-surface
-          onSurface:      Color(0xFF161616), // --text-primary
+          surface: Color(0xFFFFFFFF), // --bg-surface
+          onSurface: Color(0xFF161616), // --text-primary
           surfaceContainerHighest: Color(0xFFF4F4F4), // --bg-base
           // Semantic states
-          error:          Color(0xFFDA1E28), // --state-error
-          onError:        Color(0xFFFFFFFF),
+          error: Color(0xFFDA1E28), // --state-error
+          onError: Color(0xFFFFFFFF),
           // Borders / muted
-          outline:        Color(0xFFC6C6C6), // --border-default
+          outline: Color(0xFFC6C6C6), // --border-default
           outlineVariant: Color(0xFF6F6F6F), // --text-muted
           // Warning and success are not in ColorScheme natively;
           // access them via AppColors constants (see below).
@@ -160,10 +156,6 @@ class FloodLinkApp extends StatelessWidget {
         //        fontFamily: GoogleFonts.ibmPlexSans().fontFamily
         //   3. Import: import 'package:google_fonts/google_fonts.dart';
         fontFamily: 'sans-serif', // placeholder — swap for GoogleFonts.ibmPlexSans()
-=======
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0369A1)),
-        useMaterial3: true,
->>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
       ),
       home: const PlaceholderScreen(),
     );
