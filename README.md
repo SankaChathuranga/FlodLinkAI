@@ -30,7 +30,7 @@ FloodLink/
 
 | Tool | Minimum Version |
 |------|----------------|
-| .NET SDK | 9.0 (pinned in `global.json`) |
+| .NET SDK | 10.0 (pinned in `global.json`) |
 | Docker + Docker Compose | Docker Desktop or Engine ≥ 24 |
 | Node.js | 20 LTS |
 | Flutter SDK | 3.22+ |

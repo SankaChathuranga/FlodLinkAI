@@ -14,6 +14,34 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { createContext, useContext, useState, type ReactNode } from 'react';
+/**
+ * AppContext — shared application state for the FloodLink coordinator dashboard.
+ *
+ * STATE MANAGEMENT RULE (see CONTRIBUTING.md):
+ * All shared state MUST go through this Context API. Do NOT add Redux, Zustand,
+ * Jotai, or any other state management library. If state is needed in a single
+ * component only, use local useState/useReducer there instead.
+ *
+ * HOW TO USE:
+ *   1. Add your state field + setter to AppContextValue below.
+ *   2. Initialise it in AppProvider.
+ *   3. Consume it in any component with: const { yourField } = useAppContext()
+ *
+ * EXAMPLE PATTERN (no real state yet — placeholder only):
+ *
+ *   // In AppContextValue, add:
+ *   currentWorkflowId: string | null
+ *   setCurrentWorkflowId: (id: string | null) => void
+ *
+ *   // In AppProvider, add:
+ *   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null)
+ *
+ *   // Spread into the value object and use in components.
+ */
+
+import { createContext, useContext, type ReactNode } from 'react'
+
+// ── Context value shape ────────────────────────────────────────────────────────
 
 interface AppContextValue {
   /** FloodLink backend base URL. Override via VITE_API_BASE_URL in .env */

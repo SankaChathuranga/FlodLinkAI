@@ -178,6 +178,22 @@ namespace FloodLink.Infrastructure.Migrations
 
                     b.ToTable("InventoryItems");
                 });
+            modelBuilder.Entity("FloodLink.Domain.Entities.AgentExecutionLog", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<string>("AgentName").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
+                b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.Property<long>("DurationMs").HasColumnType("bigint");
+                b.Property<string?>("ErrorMessage").HasColumnType("text");
+                b.Property<string>("InputJson").HasColumnType("text");
+                b.Property<string>("OutputJson").HasColumnType("text");
+                b.Property<string>("Status").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("ToolCallsJson").HasColumnType("text");
+                b.Property<Guid>("WorkflowRunId").HasColumnType("uuid");
+                b.HasKey("Id");
+                b.HasIndex("WorkflowRunId");
+                b.ToTable("AgentExecutionLogs");
+            });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.RouteEntity", b =>
                 {
@@ -218,34 +234,17 @@ namespace FloodLink.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.WorkflowRun", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CurrentState")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Objective")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("PlanJson")
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("WorkflowRuns");
-                });
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.Property<string>("CurrentState").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)");
+                b.Property<string?>("FailedAtState").HasMaxLength(50).HasColumnType("character varying(50)");
+                b.Property<string>("Objective").IsRequired().HasMaxLength(1000).HasColumnType("character varying(1000)");
+                b.Property<string>("PlanJson").HasColumnType("jsonb");
+                b.Property<DateTime>("UpdatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.ToTable("WorkflowRuns");
+            });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.AgentExecutionLog", b =>
                 {

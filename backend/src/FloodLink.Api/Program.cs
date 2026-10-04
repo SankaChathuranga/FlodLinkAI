@@ -1,3 +1,4 @@
+using FloodLink.Domain;
 using FloodLink.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using FloodLink.Api.Services;
@@ -11,14 +12,22 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddControllers();
 builder.Services.AddScoped<IMatchingAgentService, MatchingAgentService>();
 
+builder.Services.AddScoped<IAgentExecutionLogger, AgentExecutionLogger>();
+builder.Services.AddScoped<IWorkflowRunRepository, WorkflowRunRepository>();
+builder.Services.AddScoped<WorkflowOrchestrator>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "FloodLink AI API", Version = "v1" });
 });
+builder.Services.AddControllers();
 
+// TODO (Week 5–6): Register each agent invoker once the real implementations are built.
+// Each FloodLink.Agents.* project's class implements the matching IXxxAgentInvoker
+// interface from FloodLink.Domain, then gets registered here, e.g.:
+//   builder.Services.AddScoped<ITriageAgentInvoker, TriageAgentAdapter>();
 // TODO (Week 2): Add JWT authentication / authorization services here.
-// TODO (Week 2): Register agent interface implementations via DI here (all as stubs initially).
 
 var app = builder.Build();
 
