@@ -9,5 +9,6 @@ namespace FloodLink.Domain;
 public interface IWorkflowRunRepository
 {
     Task<WorkflowRun?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task AddAsync(WorkflowRun run, CancellationToken ct = default);
     Task SaveAsync(CancellationToken ct = default);
 }

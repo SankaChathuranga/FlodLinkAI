@@ -25,6 +25,9 @@ public class WorkflowOrchestratorTests
         public Task<WorkflowRun?> GetByIdAsync(Guid id, CancellationToken ct = default)
             => Task.FromResult<WorkflowRun?>(Run.Id == id ? Run : null);
 
+        public Task AddAsync(WorkflowRun run, CancellationToken ct = default)
+            => Task.CompletedTask;
+
         public Task SaveAsync(CancellationToken ct = default)
         {
             SaveCount++;
@@ -209,7 +212,46 @@ public class WorkflowOrchestratorTests
         Assert.Equal(WorkflowState.Validating, run.FailedAtState);
     }
 
+    [Fact]
+    public async Task ApplyCoordinatorDecision_WhenNotInPendingApproval_Throws()
+    {
+        var run = new WorkflowRun { Id = RunId, Objective = "Test", CurrentState = WorkflowState.Triage };
+        var logger = new FakeLogger();
+        var sut = BuildOrchestrator(run, logger);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => sut.ApplyCoordinatorDecisionAsync(RunId, WorkflowState.Approved));
+        
+        Assert.Contains("Cannot apply Approved to a run in state Triage", ex.Message);
+    }
+
+    [Fact]
+    public async Task ApplyCoordinatorDecision_Approved_SetsStateToApproved()
+    {
+        var run = new WorkflowRun { Id = RunId, Objective = "Test", CurrentState = WorkflowState.PendingApproval };
+        var logger = new FakeLogger();
+        var sut = BuildOrchestrator(run, logger);
+
+        await sut.ApplyCoordinatorDecisionAsync(RunId, WorkflowState.Approved);
+
+        Assert.Equal(WorkflowState.Approved, run.CurrentState);
+    }
+
+    [Fact]
+    public async Task ApplyCoordinatorDecision_RevisionRequested_AutoTransitionsToMatching()
+    {
+        var run = new WorkflowRun { Id = RunId, Objective = "Test", CurrentState = WorkflowState.PendingApproval };
+        var logger = new FakeLogger();
+        var sut = BuildOrchestrator(run, logger);
+
+        await sut.ApplyCoordinatorDecisionAsync(RunId, WorkflowState.RevisionRequested);
+
+        // Orchestrator automatically re-queues to Matching per transition table
+        Assert.Equal(WorkflowState.Matching, run.CurrentState);
+    }
+
     private sealed class AlwaysPassValidationAgent : IValidationAgentInvoker
+
     {
         private readonly ValidationResults _results;
         public AlwaysPassValidationAgent(ValidationResults results) => _results = results;

@@ -14,6 +14,9 @@ public sealed class WorkflowRunRepository : IWorkflowRunRepository
     public Task<WorkflowRun?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => _db.WorkflowRuns.FirstOrDefaultAsync(r => r.Id == id, ct);
 
+    public async Task AddAsync(WorkflowRun run, CancellationToken ct = default)
+        => await _db.WorkflowRuns.AddAsync(run, ct);
+
     public Task SaveAsync(CancellationToken ct = default)
         => _db.SaveChangesAsync(ct);
 }

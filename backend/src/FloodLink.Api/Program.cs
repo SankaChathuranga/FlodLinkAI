@@ -18,6 +18,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "FloodLink AI API", Version = "v1" });
 });
+builder.Services.AddControllers();
 
 // TODO (Week 5–6): Register each agent invoker once the real implementations are built.
 // Each FloodLink.Agents.* project's class implements the matching IXxxAgentInvoker
@@ -36,6 +37,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.MapControllers();
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 

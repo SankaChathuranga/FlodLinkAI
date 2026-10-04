@@ -113,6 +113,44 @@ public sealed class WorkflowOrchestrator
         return run;
     }
 
+    /// <summary>
+    /// Applies a coordinator decision (Approve / Reject / RevisionRequested) to a run
+    /// that is in <see cref="WorkflowState.PendingApproval"/>. Reuses
+    /// <see cref="WorkflowEngine.TryTransition"/> — no transition logic is duplicated here.
+    /// </summary>
+    /// <remarks>
+    /// On <see cref="WorkflowState.RevisionRequested"/> the run is automatically
+    /// re-queued to <see cref="WorkflowState.Matching"/> per the transition table.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="decision"/> is not a coordinator-action state.
+    /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// Run not found, or run is not in PendingApproval.
+    /// </exception>
+    public async Task<WorkflowRun> ApplyCoordinatorDecisionAsync(
+        Guid workflowRunId,
+        WorkflowState decision,
+        CancellationToken ct = default)
+    {
+        if (decision is not (WorkflowState.Approved or WorkflowState.Rejected or WorkflowState.RevisionRequested))
+            throw new ArgumentException($"{decision} is not a valid coordinator decision.", nameof(decision));
+
+        var run = await _runs.GetByIdAsync(workflowRunId, ct)
+            ?? throw new InvalidOperationException($"WorkflowRun {workflowRunId} not found.");
+
+        if (!WorkflowEngine.TryTransition(run, decision))
+            throw new InvalidOperationException(
+                $"Cannot apply {decision} to a run in state {run.CurrentState}. Run must be in PendingApproval.");
+
+        // Auto re-queue: RevisionRequested → Matching (orchestrator-driven, per transition table).
+        if (decision == WorkflowState.RevisionRequested)
+            WorkflowEngine.TryTransition(run, WorkflowState.Matching);
+
+        await _runs.SaveAsync(ct);
+        return run;
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     private async Task StepAsync<T>(
@@ -125,7 +163,6 @@ public sealed class WorkflowOrchestrator
         var sw = Stopwatch.StartNew();
         AgentResult<T>? result = null;
         string? inputJson = null;
-        string? errorMessage = null;
 
         try
         {
