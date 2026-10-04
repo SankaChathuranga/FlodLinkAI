@@ -23,9 +23,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Title and camera action options
-    expect(find.text('Photo Evidence Capture'), findsOneWidget);
-    expect(find.text('Take Photo with Camera'), findsOneWidget);
-    expect(find.text('Select from Photo Gallery'), findsOneWidget);
+    expect(find.text('Capture Photo Evidence'), findsOneWidget);
+    expect(find.text('Take Photo'), findsOneWidget);
+    expect(find.text('Gallery'), findsOneWidget);
   });
 
   testWidgets('GpsCaptureScreen renders GPS controls and manual location adjust options', (WidgetTester tester) async {
@@ -42,10 +42,12 @@ void main() {
       ),
     );
 
-    await tester.pumpAndSettle();
+    // Pump widget without waiting indefinitely for custom paint/timer animations
+    await tester.pump();
 
     // Verify GPS Capture screen title and location options
-    expect(find.text('GPS Location Capture'), findsOneWidget);
-    expect(find.text('Confirm Pin Location'), findsOneWidget);
+    expect(find.text('GPS Location & Pin Adjust'), findsOneWidget);
+    expect(find.text('Confirm GPS Coordinates'), findsOneWidget);
   });
 }
+

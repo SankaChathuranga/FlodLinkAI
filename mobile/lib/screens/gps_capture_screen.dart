@@ -95,10 +95,12 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4), // --bg-base
       appBar: AppBar(
         title: const Text('GPS Location & Pin Adjust'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: const Color(0xFF0F62FE), // --accent-primary
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),
@@ -113,21 +115,21 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
             // ERROR / PERMISSION DENIED BANNER
             if (_errorMessage != null)
               Container(
-                color: Colors.amber.shade50,
+                color: const Color(0xFFF1C21B).withValues(alpha: 0.15), // --state-warning
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                    const Icon(Icons.warning_amber_rounded, color: Color(0xFF161616)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(fontSize: 12, color: Colors.black80),
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF161616)), // Warning contrast rule
                       ),
                     ),
                     TextButton(
                       onPressed: _autoCaptureLocation,
-                      child: const Text('Retry'),
+                      child: const Text('Retry', style: TextStyle(color: Color(0xFF0F62FE))),
                     ),
                   ],
                 ),
@@ -136,34 +138,32 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
             // LOADING STATE
             if (_isAcquiring)
               Container(
-                color: Colors.blue.shade50,
+                color: const Color(0xFF0043CE).withValues(alpha: 0.1), // --state-info
                 padding: const EdgeInsets.all(12),
                 child: const Row(
                   children: [
                     SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0043CE)),
                     ),
                     SizedBox(width: 12),
                     Text(
                       'Acquiring satellite GPS fix...',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF161616)),
                     ),
                   ],
                 ),
               ),
 
-            // SIMULATED MAP / PIN VISUALIZER & EMPTY STATE
+            // SIMULATED MAP / PIN VISUALIZER
             Expanded(
               child: Container(
                 margin: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.slate.shade900,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black12, blurRadius: 8)
-                  ],
+                  color: const Color(0xFF161616), // --text-primary dark background for map viewer
+                  borderRadius: BorderRadius.circular(6), // rounded-md
+                  border: Border.all(color: const Color(0xFFC6C6C6)),
                 ),
                 child: Stack(
                   alignment: Alignment.center,
@@ -181,24 +181,24 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.8),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blueAccent),
+                            color: const Color(0xFF161616).withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFF0F62FE)),
                           ),
                           child: Text(
                             'Lat: ${_latitude.toStringAsFixed(5)}, Lng: ${_longitude.toStringAsFixed(5)}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,
-                              fontFamily: 'monospace',
+                              fontFamily: 'IBM Plex Mono', // --font-mono
                             ),
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Icon(
+                        const Icon(
                           Icons.location_on,
                           size: 48,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: Color(0xFF0F62FE), // --accent-primary
                         ),
                       ],
                     ),
@@ -210,12 +210,13 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(6),
+                          color: const Color(0xFF161616).withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(16), // rounded-full
+                          border: Border.all(color: const Color(0xFF198038)),
                         ),
                         child: Text(
                           'Accuracy: ~${_accuracy.toStringAsFixed(1)}m',
-                          style: const TextStyle(color: Colors.greenAccent, fontSize: 10),
+                          style: const TextStyle(color: Color(0xFF198038), fontSize: 10, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -225,8 +226,13 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
             ),
 
             // MANUAL PIN-ADJUST CONTROLS
-            Card(
+            Container(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFFFF), // --bg-surface
+                borderRadius: BorderRadius.circular(6), // rounded-md
+                border: Border.all(color: const Color(0xFFC6C6C6)),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -234,14 +240,15 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
                   children: [
                     const Text(
                       'Manual Pin Fine-Tuning',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF161616)),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const SizedBox(width: 70, child: Text('Latitude:')),
+                        const SizedBox(width: 70, child: Text('Latitude:', style: TextStyle(color: Color(0xFF161616)))),
                         Expanded(
                           child: Slider(
+                            activeColor: const Color(0xFF0F62FE),
                             min: 6.0,
                             max: 8.0,
                             value: _latitude.clamp(6.0, 8.0),
@@ -250,15 +257,16 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
                         ),
                         Text(
                           _latitude.toStringAsFixed(4),
-                          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                          style: const TextStyle(fontFamily: 'IBM Plex Mono', fontSize: 12, color: Color(0xFF161616)),
                         ),
                       ],
                     ),
                     Row(
                       children: [
-                        const SizedBox(width: 70, child: Text('Longitude:')),
+                        const SizedBox(width: 70, child: Text('Longitude:', style: TextStyle(color: Color(0xFF161616)))),
                         Expanded(
                           child: Slider(
+                            activeColor: const Color(0xFF0F62FE),
                             min: 79.0,
                             max: 81.0,
                             value: _longitude.clamp(79.0, 81.0),
@@ -267,7 +275,7 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
                         ),
                         Text(
                           _longitude.toStringAsFixed(4),
-                          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                          style: const TextStyle(fontFamily: 'IBM Plex Mono', fontSize: 12, color: Color(0xFF161616)),
                         ),
                       ],
                     ),
@@ -286,9 +294,12 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
                   icon: const Icon(Icons.check_circle_outline),
                   label: const Text('Confirm GPS Coordinates'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: const Color(0xFF0F62FE), // --accent-primary
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4), // rounded-sm
+                    ),
                   ),
                 ),
               ),
@@ -304,7 +315,7 @@ class MapGridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      color = Colors.white.withOpacity(0.05)
+      ..color = Colors.white.withValues(alpha: 0.05)
       ..strokeWidth = 1.0;
 
     for (double i = 0; i < size.width; i += 30) {
@@ -318,3 +329,4 @@ class MapGridPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

@@ -58,10 +58,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4), // --bg-base
       appBar: AppBar(
         title: const Text('Capture Photo Evidence'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: const Color(0xFF0F62FE), // --accent-primary
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SafeArea(
         child: Column(
@@ -69,21 +71,21 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
             // ERROR STATE
             if (_errorMessage != null)
               Container(
-                color: Colors.red.shade50,
+                color: const Color(0xFFDA1E28).withValues(alpha: 0.1), // --state-error
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red),
+                    const Icon(Icons.error_outline, color: Color(0xFFDA1E28)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: Colors.red, fontSize: 13),
+                        style: const TextStyle(color: Color(0xFFDA1E28), fontSize: 13),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.refresh, color: Colors.red),
+                      icon: const Icon(Icons.refresh, color: Color(0xFFDA1E28)),
                       onPressed: () => _pickImage(ImageSource.camera),
                     ),
                   ],
@@ -96,24 +98,24 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                 margin: const EdgeInsets.all(16),
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade300),
+                  color: const Color(0xFFFFFFFF), // --bg-surface
+                  borderRadius: BorderRadius.circular(6), // rounded-md
+                  border: Border.all(color: const Color(0xFFC6C6C6)), // --border-default
                 ),
                 child: _isProcessing
                     ? const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            CircularProgressIndicator(),
+                            CircularProgressIndicator(color: Color(0xFF0F62FE)),
                             SizedBox(height: 16),
-                            Text('Processing photo...'),
+                            Text('Processing photo...', style: TextStyle(color: Color(0xFF6F6F6F))),
                           ],
                         ),
                       )
                     : _imageFile != null
                         ? ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(6),
                             child: Image.file(
                               File(_imageFile!.path),
                               fit: BoxFit.cover,
@@ -122,10 +124,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                         : Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.add_a_photo_outlined,
                                 size: 64,
-                                color: Colors.grey.shade400,
+                                color: Color(0xFF6F6F6F), // --text-muted
                               ),
                               const SizedBox(height: 16),
                               const Text(
@@ -133,16 +135,16 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.grey,
+                                  color: Color(0xFF161616),
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Text(
+                              const Text(
                                 'Tap below to capture a photo from camera or select from gallery.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey.shade600,
+                                  color: Color(0xFF6F6F6F),
                                 ),
                               ),
                             ],
@@ -165,9 +167,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                           icon: const Icon(Icons.camera_alt),
                           label: Text(_imageFile == null ? 'Take Photo' : 'Retake'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).colorScheme.primary,
+                            backgroundColor: const Color(0xFF0F62FE), // --accent-primary
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4), // rounded-sm
+                            ),
                           ),
                         ),
                       ),
@@ -180,7 +185,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                           icon: const Icon(Icons.photo_library),
                           label: const Text('Gallery'),
                           style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0F62FE),
+                            side: const BorderSide(color: Color(0xFF0F62FE)),
                             padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4), // rounded-sm
+                            ),
                           ),
                         ),
                       ),
@@ -195,9 +205,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                         icon: const Icon(Icons.check_circle),
                         label: const Text('Confirm & Attach Photo'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
+                          backgroundColor: const Color(0xFF198038), // --state-success
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4), // rounded-sm
+                          ),
                         ),
                       ),
                     ),

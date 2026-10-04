@@ -61,10 +61,48 @@ class FloodLinkApp extends StatelessWidget {
       title: 'FloodLink Field App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0369A1)),
         useMaterial3: true,
+        fontFamily: 'IBM Plex Sans',
+        scaffoldBackgroundColor: const Color(0xFFF4F4F4), // --bg-base
+        colorScheme: const ColorScheme(
+          brightness: Brightness.light,
+          primary: Color(0xFF0F62FE), // --accent-primary
+          onPrimary: Color(0xFFFFFFFF),
+          secondary: Color(0xFF0043CE), // --state-info
+          onSecondary: Color(0xFFFFFFFF),
+          error: Color(0xFFDA1E28), // --state-error
+          onError: Color(0xFFFFFFFF),
+          surface: Color(0xFFFFFFFF), // --bg-surface
+          onSurface: Color(0xFF161616), // --text-primary
+          surfaceContainerHighest: Color(0xFFF4F4F4),
+          onSurfaceVariant: Color(0xFF6F6F6F), // --text-muted
+          outline: Color(0xFFC6C6C6), // --border-default
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0F62FE),
+          foregroundColor: Color(0xFFFFFFFF),
+          elevation: 0,
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFFFFFFFF),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6), // rounded-md
+            side: const BorderSide(color: Color(0xFFC6C6C6), width: 1),
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF0F62FE),
+            foregroundColor: const Color(0xFFFFFFFF),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4), // rounded-sm
+            ),
+          ),
+        ),
       ),
       routerConfig: _router,
     );
   }
 }
+

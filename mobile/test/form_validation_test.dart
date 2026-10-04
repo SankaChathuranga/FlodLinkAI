@@ -22,10 +22,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Title and core form fields exist
+    expect(find.text('Submit Field Intake Report'), findsOneWidget);
+    expect(find.text('2. Need Type *'), findsOneWidget);
+    expect(find.text('3. Quantity Required *'), findsOneWidget);
     expect(find.text('Submit Field Report'), findsOneWidget);
-    expect(find.text('Emergency Need Type'), findsOneWidget);
-    expect(find.text('Quantity Required'), findsOneWidget);
-    expect(find.text('Submit Report'), findsOneWidget);
   });
 
   testWidgets('NewReportScreen validates empty quantity field on submit', (WidgetTester tester) async {
@@ -49,8 +49,9 @@ void main() {
     await tester.enterText(quantityField, '');
     await tester.pumpAndSettle();
 
-    // Tap submit button
-    final submitButton = find.text('Submit Report');
+    // Scroll to submit button and tap
+    final submitButton = find.text('Submit Field Report');
+    await tester.ensureVisible(submitButton);
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
@@ -79,8 +80,9 @@ void main() {
     await tester.enterText(quantityField, '-5');
     await tester.pumpAndSettle();
 
-    // Tap submit button
-    final submitButton = find.text('Submit Report');
+    // Scroll to submit button and tap
+    final submitButton = find.text('Submit Field Report');
+    await tester.ensureVisible(submitButton);
     await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
@@ -88,3 +90,5 @@ void main() {
     expect(find.text('Quantity must be greater than 0.'), findsOneWidget);
   });
 }
+
+

@@ -46,23 +46,28 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
   Color _getStatusColor(String status) {
     switch (status.trim().toLowerCase()) {
       case 'new':
-        return Colors.blue.shade700;
       case 'triaged':
-        return Colors.purple.shade700;
       case 'inplan':
       case 'in-plan':
-        return Colors.amber.shade800;
+        return const Color(0xFF0043CE); // --state-info
       case 'resolved':
-        return Colors.emerald.shade700;
+      case 'approved':
+        return const Color(0xFF198038); // --state-success
+      case 'pendingapproval':
+      case 'revisionrequested':
+        return const Color(0xFFF1C21B); // --state-warning
+      case 'rejected':
+      case 'failed':
+        return const Color(0xFFDA1E28); // --state-error
       default:
-        return Colors.grey.shade700;
+        return const Color(0xFF6F6F6F); // --text-muted
     }
   }
 
   Color _getUrgencyColor(int urgency) {
-    if (urgency >= 80) return Colors.red.shade700;
-    if (urgency >= 50) return Colors.orange.shade800;
-    return Colors.green.shade700;
+    if (urgency >= 80) return const Color(0xFFDA1E28); // --state-error
+    if (urgency >= 50) return const Color(0xFFF1C21B); // --state-warning
+    return const Color(0xFF198038); // --state-success
   }
 
   List<FieldReport> _filterReports(List<FieldReport> reports) {
@@ -76,6 +81,7 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
     final filteredReports = _filterReports(reportProvider.reports);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4), // --bg-base
       appBar: AppBar(
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,7 +96,8 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
             ),
           ],
         ),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: const Color(0xFF0F62FE), // --accent-primary
+        elevation: 0,
         actions: [
           IconButton(
             icon: Icon(
@@ -121,14 +128,17 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
         onPressed: () => context.push('/new-report'),
         icon: const Icon(Icons.add),
         label: const Text('New Report'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: const Color(0xFF0F62FE), // --accent-primary
         foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4), // rounded-sm
+        ),
       ),
       body: Column(
         children: [
           // Status Filter Tabs
           Container(
-            color: Colors.white,
+            color: const Color(0xFFFFFFFF), // --bg-surface
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -143,12 +153,13 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
               ),
             ),
           ),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE2E8F0)),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFC6C6C6)), // --border-default
 
           // Main Content
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async => _loadReports(),
+              color: const Color(0xFF0F62FE),
               child: Builder(
                 builder: (context) {
                   // ERROR STATE
@@ -160,23 +171,30 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.cloud_off_rounded, size: 64, color: Colors.redAccent),
+                            const Icon(Icons.cloud_off_rounded, size: 64, color: Color(0xFFDA1E28)), // --state-error
                             const SizedBox(height: 16),
                             const Text(
                               'Connection Error',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF161616)),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               reportProvider.reportsError!,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.grey),
+                              style: const TextStyle(color: Color(0xFF6F6F6F)), // --text-muted
                             ),
                             const SizedBox(height: 24),
                             ElevatedButton.icon(
                               onPressed: _loadReports,
                               icon: const Icon(Icons.refresh),
                               label: const Text('Retry Connection'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0F62FE),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -190,9 +208,12 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircularProgressIndicator(),
+                          CircularProgressIndicator(color: Color(0xFF0F62FE)),
                           SizedBox(height: 16),
-                          Text('Fetching your field report updates...'),
+                          Text(
+                            'Fetching your field report updates...',
+                            style: TextStyle(color: Color(0xFF6F6F6F)),
+                          ),
                         ],
                       ),
                     );
@@ -208,18 +229,18 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.assignment_turned_in_outlined, size: 64, color: Colors.grey.shade400),
+                              const Icon(Icons.assignment_turned_in_outlined, size: 64, color: Color(0xFF6F6F6F)),
                               const SizedBox(height: 16),
                               Text(
                                 _selectedStatusFilter == 'ALL'
                                     ? 'No Submitted Reports Yet'
                                     : 'No Reports with Status "$_selectedStatusFilter"',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF161616)),
                               ),
                               const SizedBox(height: 8),
                               const Text(
                                 'Tap "+ New Report" to record emergency needs.',
-                                style: TextStyle(color: Colors.grey),
+                                style: TextStyle(color: Color(0xFF6F6F6F)),
                               ),
                             ],
                           ),
@@ -237,12 +258,12 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                       final statusColor = _getStatusColor(report.status);
                       final urgencyColor = _getUrgencyColor(report.urgencyLevel);
 
-                      return Card(
+                      return Container(
                         margin: const EdgeInsets.only(bottom: 12),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade200),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFFFFF), // --bg-surface
+                          borderRadius: BorderRadius.circular(6), // rounded-md
+                          border: Border.all(color: const Color(0xFFC6C6C6), width: 1), // --border-default
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
@@ -251,20 +272,21 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                             children: [
                               // Top Row: Need Type Badge & Status Badge
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.between,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primaryContainer,
-                                      borderRadius: BorderRadius.circular(6),
+                                      color: const Color(0xFFF4F4F4),
+                                      borderRadius: BorderRadius.circular(16), // rounded-full (Tag)
+                                      border: Border.all(color: const Color(0xFFC6C6C6)),
                                     ),
                                     child: Text(
                                       report.needType,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
-                                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                        color: Color(0xFF161616),
                                       ),
                                     ),
                                   ),
@@ -273,8 +295,8 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: statusColor.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(20),
+                                      color: statusColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(16), // rounded-full
                                       border: Border.all(color: statusColor, width: 1.5),
                                     ),
                                     child: Row(
@@ -294,7 +316,9 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 11,
-                                            color: statusColor,
+                                            color: statusColor == const Color(0xFFF1C21B)
+                                                ? const Color(0xFF161616) // Warning contrast rule
+                                                : statusColor,
                                           ),
                                         ),
                                       ],
@@ -306,7 +330,7 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
 
                               // Main Report Quantity & Shelter ID
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.between,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Column(
@@ -314,12 +338,16 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                                     children: [
                                       Text(
                                         'Quantity: ${report.quantityNeeded} units',
-                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF161616),
+                                        ),
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         'Shelter #${report.shelterId}',
-                                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                                        style: const TextStyle(fontSize: 13, color: Color(0xFF6F6F6F)),
                                       ),
                                     ],
                                   ),
@@ -328,15 +356,18 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: urgencyColor.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
+                                      color: urgencyColor.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(16), // rounded-full
+                                      border: Border.all(color: urgencyColor),
                                     ),
                                     child: Text(
                                       'Score: ${report.urgencyLevel}/100',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
-                                        color: urgencyColor,
+                                        color: urgencyColor == const Color(0xFFF1C21B)
+                                            ? const Color(0xFF161616) // Warning contrast rule
+                                            : urgencyColor,
                                       ),
                                     ),
                                   ),
@@ -348,27 +379,36 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade50,
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: const Color(0xFFF4F4F4),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(color: const Color(0xFFC6C6C6)),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.location_on_outlined, size: 16, color: Colors.slate),
+                                    const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF6F6F6F)),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
                                         report.gpsLat != null
                                             ? 'Lat: ${report.gpsLat!.toStringAsFixed(4)}, Lng: ${report.gpsLng!.toStringAsFixed(4)}'
                                             : 'GPS Location Unavailable',
-                                        style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Colors.slate),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontFamily: 'IBM Plex Mono', // --font-mono
+                                          color: Color(0xFF6F6F6F),
+                                        ),
                                       ),
                                     ),
                                     if (report.photoUrl != null) ...[
-                                      const Icon(Icons.photo_camera_outlined, size: 16, color: Colors.blueAccent),
+                                      const Icon(Icons.photo_camera_outlined, size: 16, color: Color(0xFF0F62FE)),
                                       const SizedBox(width: 4),
                                       const Text(
                                         'Photo Attached',
-                                        style: TextStyle(fontSize: 11, color: Colors.blueAccent, fontWeight: FontWeight.w600),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF0F62FE), // --accent-primary
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ],
                                   ],
@@ -393,16 +433,22 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
     final bool isSelected = _selectedStatusFilter == value;
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
-      child: FilterChip(
+      child: ChoiceChip(
         selected: isSelected,
         label: Text(label),
         labelStyle: TextStyle(
-          color: isSelected ? Colors.white : Colors.black87,
+          color: isSelected ? Colors.white : const Color(0xFF161616),
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           fontSize: 12,
         ),
-        selectedColor: Theme.of(context).colorScheme.primary,
-        backgroundColor: Colors.grey.shade100,
+        selectedColor: const Color(0xFF0F62FE), // --accent-primary
+        backgroundColor: const Color(0xFFF4F4F4), // --bg-base
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16), // rounded-full (Tag style)
+          side: BorderSide(
+            color: isSelected ? const Color(0xFF0F62FE) : const Color(0xFFC6C6C6),
+          ),
+        ),
         onSelected: (selected) {
           setState(() {
             _selectedStatusFilter = value;
@@ -412,3 +458,4 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
     );
   }
 }
+
