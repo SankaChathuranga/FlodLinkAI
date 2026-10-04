@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Job 1 — Backend (.NET / xUnit)
+  # ─────────────────────────────────────────────
+  backend:
+    name: Backend — Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FloodLink/backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET (version from global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          # Reads the SDK version from FloodLink/global.json automatically.
+          # global-json-file must point to the file relative to the repo root.
+          global-json-file: FloodLink/global.json
+
+      - name: Restore NuGet packages
+        run: dotnet restore ../FloodLink.sln
+
+      - name: Build (fail on any error or warning-as-error)
+        run: dotnet build ../FloodLink.sln --no-restore --configuration Release
+
+      - name: Run tests
+        # --no-build reuses the Release build above; fail-fast is the default.
+        run: dotnet test ../FloodLink.sln --no-build --configuration Release --verbosity normal
+
+  # ─────────────────────────────────────────────
+  # Job 2 — Web (Node / Vite)
+  # ─────────────────────────────────────────────
+  web:
+    name: Web — Install & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FloodLink/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: FloodLink/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (fail on any build error)
+        # Vite exits non-zero on type errors and build failures — CI will fail.
+        run: npm run build
+
+  # ─────────────────────────────────────────────
+  # Job 3 — Mobile (Flutter)
+  # ─────────────────────────────────────────────
+  mobile:
+    name: Mobile — Analyze
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: FloodLink/mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter (stable channel)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          # Pin to a specific version for reproducibility, e.g.:
+          # flutter-version: "3.22.3"
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # We run `flutter analyze` rather than a full Android/iOS build here
+      # because a full build requires a JDK, Android SDK, Xcode (macOS), NDK,
+      # and build tooling that significantly increases CI time and complexity.
+      # `flutter analyze` catches all static type errors, lint violations, and
+      # unused-import warnings — the same issues that would cause a build failure —
+      # in ~30 seconds instead of 5–10 minutes. Full build verification belongs
+      # in the release pipeline, not every-PR CI.
+      - name: Analyze (static analysis — catches type errors and lint violations)
+        run: flutter analyze --fatal-infos

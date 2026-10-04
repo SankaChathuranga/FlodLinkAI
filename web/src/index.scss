@@ -1,0 +1,594 @@
+// ── FloodLink AI — Global Styles ──────────────────────────────────────────────
+//
+// Loading order matters:
+//  1. IBM Carbon g10 theme variables
+//  2. Carbon component styles (Sass)
+//  3. FloodLink design token overrides (CSS custom properties on :root)
+//  4. IBM Plex fonts
+//
+// Do NOT import Tailwind here. Tailwind has been removed from this project.
+// Do NOT use @carbon/styles with Tailwind — they conflict at the PostCSS layer.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 1. Carbon g10 (light) theme
+@use '@carbon/styles/scss/theme' with (
+  $theme: (
+    // Remap Carbon's interactive-01 to our operational blue
+    interactive-01: #0f62fe,
+    interactive-02: #0043ce,
+    interactive-03: #0f62fe,
+    interactive-04: #0f62fe,
+    // Surface colours matching our spec
+    ui-background: #f4f4f4,
+    ui-01: #ffffff,
+    ui-02: #f4f4f4,
+    // Text
+    text-01: #161616,
+    text-02: #6f6f6f,
+    text-03: #a8a8a8,
+    // Support / semantic colours
+    support-01: #da1e28,  // error
+    support-02: #198038,  // success
+    support-03: #f1c21b,  // warning
+    support-04: #0043ce,  // info
+    // Border
+    ui-03: #c6c6c6,
+    ui-04: #8d8d8d,
+    // Focus ring
+    focus: #0f62fe,
+  )
+);
+
+// 2. Carbon base + all component styles
+@use '@carbon/styles';
+
+// 3. IBM Plex fonts (shipped with @ibm/plex)
+@import '@ibm/plex/css/ibm-plex.min.css';
+
+// ── FloodLink Design Token Layer ─────────────────────────────────────────────
+// All components MUST reference these variables — never hardcoded hex values.
+
+:root {
+  // Backgrounds
+  --bg-base:     #F4F4F4;
+  --bg-surface:  #FFFFFF;
+
+  // Text
+  --text-primary: #161616;
+  --text-muted:   #6F6F6F;
+
+  // Accent (interactive elements only — buttons, links, active nav, focus rings)
+  --accent-primary: #0F62FE;
+
+  // Border
+  --border-default: #C6C6C6;
+
+  // Semantic state colours
+  --state-error:   #DA1E28;
+  --state-warning: #F1C21B;  // WARNING: poor contrast — always use --text-primary on top, never white text
+  --state-success: #198038;
+  --state-info:    #0043CE;  // For Triage/Matching/Routing/Validating badges ONLY, not for interactive elements
+
+  // Typography
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  // Border radius
+  --radius-sm: 2px;   // inline / small UI
+  --radius-md: 4px;   // cards / panels / modals
+}
+
+// ── Base Reset ────────────────────────────────────────────────────────────────
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ── FloodLink App Shell ───────────────────────────────────────────────────────
+
+.fl-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+// Top header bar (Carbon Header pattern)
+.fl-header {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 16px;
+  background-color: #161616;  // Carbon header always uses this dark bar
+  border-bottom: 1px solid #393939;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 8000;
+  gap: 0;
+
+  .fl-header__brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    width: 256px;  // matches Carbon sidenav width
+    flex-shrink: 0;
+
+    .fl-header__mark {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      background-color: var(--accent-primary);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      font-family: var(--font-sans);
+      flex-shrink: 0;
+    }
+
+    .fl-header__name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f4f4f4;
+      letter-spacing: 0.01em;
+    }
+
+    .fl-header__env {
+      font-size: 11px;
+      color: #a8a8a8;
+      margin-left: 2px;
+    }
+  }
+
+  .fl-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-left: auto;
+  }
+
+  .fl-header__status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    font-size: 12px;
+    color: #a8a8a8;
+
+    .fl-header__status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--state-success);
+      flex-shrink: 0;
+    }
+  }
+
+  .fl-header__icon-btn {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border: none;
+    background: transparent;
+    color: #f4f4f4;
+    cursor: pointer;
+    transition: background-color 70ms ease;
+
+    &:hover {
+      background-color: #353535;
+    }
+
+    svg {
+      fill: currentColor;
+    }
+  }
+}
+
+// Left sidebar nav (Carbon SideNav pattern)
+.fl-sidenav {
+  position: fixed;
+  top: 48px;
+  left: 0;
+  bottom: 0;
+  width: 256px;
+  background-color: #ffffff;
+  border-right: 1px solid var(--border-default);
+  overflow-y: auto;
+  z-index: 7000;
+
+  .fl-sidenav__section {
+    padding: 16px 0 8px;
+
+    &:not(:first-child) {
+      border-top: 1px solid var(--border-default);
+      margin-top: 8px;
+    }
+  }
+
+  .fl-sidenav__label {
+    padding: 0 16px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .fl-sidenav__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    border-left: 4px solid transparent;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 70ms ease, border-color 70ms ease;
+
+    svg {
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+
+    &:hover {
+      background-color: #e8e8e8;
+    }
+
+    &.active {
+      background-color: #e8e8e8;
+      border-left-color: var(--accent-primary);
+      font-weight: 600;
+
+      svg {
+        color: var(--accent-primary);
+      }
+    }
+
+    .fl-sidenav__badge {
+      margin-left: auto;
+      display: grid;
+      place-items: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 9px;
+      background-color: var(--state-error);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+    }
+  }
+}
+
+// Main workspace (right of sidenav, below header)
+.fl-workspace {
+  margin-top: 48px;
+  margin-left: 256px;
+  min-height: calc(100vh - 48px);
+  background-color: var(--bg-base);
+}
+
+.fl-page {
+  padding: 24px 32px;
+  max-width: 1440px;
+}
+
+// ── Page Header ───────────────────────────────────────────────────────────────
+
+.fl-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-default);
+
+  .fl-page-header__eyebrow {
+    margin: 0 0 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .fl-page-header__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.25;
+  }
+
+  .fl-page-header__subtitle {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .fl-page-header__actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+}
+
+// ── Stat Tiles row ─────────────────────────────────────────────────────────────
+
+.fl-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  background-color: var(--border-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.fl-stat-tile {
+  background-color: var(--bg-surface);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .fl-stat-tile__label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .fl-stat-tile__value {
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  .fl-stat-tile__delta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  &.fl-stat-tile--error .fl-stat-tile__value { color: var(--state-error); }
+  &.fl-stat-tile--warning .fl-stat-tile__value { color: #7a6400; }  // dark amber for contrast
+  &.fl-stat-tile--success .fl-stat-tile__value { color: var(--state-success); }
+  &.fl-stat-tile--info .fl-stat-tile__value { color: var(--state-info); }
+}
+
+// ── WorkflowState Badges ──────────────────────────────────────────────────────
+// Semantic mapping (from spec):
+//   Triage / Matching / Routing / Validating → --state-info
+//   PendingApproval / RevisionRequested       → --state-warning  (dark text, yellow bg)
+//   Approved                                  → --state-success
+//   Rejected / Failed                         → --state-error
+
+.fl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;  // rounded-full
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.4;
+
+  &.fl-badge--info {
+    background-color: #dde1ff;
+    color: var(--state-info);
+  }
+
+  &.fl-badge--warning {
+    background-color: #ffebc0;
+    color: #7a6400;  // dark text on yellow — NEVER white on yellow
+  }
+
+  &.fl-badge--success {
+    background-color: #defbe6;
+    color: var(--state-success);
+  }
+
+  &.fl-badge--error {
+    background-color: #fff1f1;
+    color: var(--state-error);
+  }
+
+  .fl-badge__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: currentColor;
+    flex-shrink: 0;
+  }
+}
+
+// ── Carbon DataTable overrides ────────────────────────────────────────────────
+// Carbon's DataTable uses its own class structure; these selectors extend it
+// to honour our design token layer.
+
+.cds--data-table-container {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.cds--table-toolbar {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.cds--data-table th {
+  background: #e8e8e8;
+}
+
+.cds--data-table td {
+  font-family: var(--font-sans);
+}
+
+// Mono font for IDs and coordinates (per spec)
+.fl-cell--mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+// Low-stock / alert row highlight
+.fl-row--low-stock {
+  background-color: #fff1f1 !important;
+  border-left: 3px solid var(--state-error) !important;
+}
+
+// ── Carbon Button overrides ───────────────────────────────────────────────────
+// Carbon buttons already use our accent via the theme map above.
+// These supplements handle edge cases.
+
+.cds--btn--primary {
+  background-color: var(--accent-primary);
+
+  &:hover {
+    background-color: #0050e6;
+  }
+}
+
+// ── Toolbar / Filter row ──────────────────────────────────────────────────────
+
+.fl-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+
+  .fl-toolbar__search {
+    flex: 1;
+    min-width: 200px;
+    max-width: 320px;
+  }
+
+  .fl-toolbar__filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .fl-toolbar__count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-muted);
+    border: 1px solid var(--border-default);
+    border-radius: 9999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+}
+
+// ── Inline Notification ───────────────────────────────────────────────────────
+// Used for agent-failure alerts and system warnings.
+
+.fl-inline-notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border-left: 4px solid;
+  margin-bottom: 16px;
+  font-size: 14px;
+
+  &.fl-inline-notification--error {
+    background-color: #fff1f1;
+    border-color: var(--state-error);
+    color: var(--state-error);
+  }
+
+  &.fl-inline-notification--warning {
+    background-color: #ffebc0;
+    border-color: #7a6400;
+    color: #7a6400;
+  }
+
+  &.fl-inline-notification--success {
+    background-color: #defbe6;
+    border-color: var(--state-success);
+    color: var(--state-success);
+  }
+
+  &.fl-inline-notification--info {
+    background-color: #edf4ff;
+    border-color: var(--state-info);
+    color: var(--state-info);
+  }
+
+  .fl-inline-notification__body {
+    color: var(--text-primary);
+    flex: 1;
+
+    strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+  }
+}
+
+// ── State messages (empty / loading / error) ─────────────────────────────────
+
+.fl-state-message {
+  padding: 48px 24px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 14px;
+}
+
+// ── Responsive ────────────────────────────────────────────────────────────────
+
+@media (max-width: 1024px) {
+  .fl-sidenav {
+    display: none;  // Collapse to overlay on narrow viewports (full mobile nav TBD)
+  }
+
+  .fl-workspace {
+    margin-left: 0;
+  }
+
+  .fl-page {
+    padding: 16px;
+  }
+}

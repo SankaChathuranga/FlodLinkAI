@@ -1,0 +1,50 @@
+name: floodlink_mobile
+description: "FloodLink AI — Field Volunteer Mobile App"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management — Provider only (see CONTRIBUTING.md).
+  # Do NOT add Riverpod, BLoC, GetX, or any other state management library.
+  provider: ^6.1.2
+  http: ^1.2.0
+
+  # UI
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+# ── Notes on future dependencies ─────────────────────────────────────────────
+# When ready to implement features, consider adding:
+#
+# Environment / API config:
+#   flutter_dotenv: ^5.1.0   # For loading .env files (API base URL, etc.)
+#                              # Preferred over hardcoding; add when setting up
+#                              # the API client layer in Week 3.
+#
+# Navigation:
+#   go_router: ^14.0.0       # Declarative routing (Member A will add in Week 4)
+#
+# Location / GPS:
+#   geolocator: ^13.0.0      # Member A's GPS auto-capture screen (Week 4)
+#
+# Camera:
+#   image_picker: ^1.1.2     # Member A's photo evidence capture (Week 4)
+#
+# Notifications:
+#   flutter_local_notifications: ^17.2.2  # Member C's status update notifications
+#
+# DO NOT add these yet — wait for the owning member's session.
+
+flutter:
+  uses-material-design: true
