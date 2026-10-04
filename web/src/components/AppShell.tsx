@@ -42,7 +42,7 @@ import {
   Terminal,
 } from '@carbon/icons-react';
 import { NAV_ITEMS, SECTION_LABELS, PageId, NavItem } from '../nav';
-import InventoryDashboard from '../pages/InventoryDashboard';
+import InventoryDashboard from '../pages/InventoryDashboard.tsx';
 import DepotManagement from '../pages/DepotManagement';
 import PlaceholderPage from '../pages/PlaceholderPage';
 
@@ -71,6 +71,7 @@ function NavSection({ label, items, activePage, onNav }: {
         return (
           <SideNavLink
             key={item.id}
+            className="fl-sidenav__item"
             renderIcon={Icon ? (props: any) => <Icon {...props} size={16} /> : undefined}
             isActive={activePage === item.id}
             onClick={() => onNav(item.id)}
@@ -108,22 +109,21 @@ export default function AppShell() {
     // Wrap in Carbon's white g10 theme — our token overrides layer on top via CSS
     <Theme theme="g10">
       {/* ── Top Header ────────────────────────────────────────────────────── */}
-      <Header aria-label="FloodLink AI">
-        <HeaderName prefix="" href="#" onClick={e => { e.preventDefault(); setActivePage('dashboard'); }}>
+      <Header className="fl-header" aria-label="FloodLink AI">
+        <HeaderName className="fl-header__brand" prefix="" href="#" onClick={e => { e.preventDefault(); setActivePage('dashboard'); }}>
           <span className="fl-header__mark" aria-hidden="true">FL</span>
-          <span className="fl-header__name">FloodLink</span>
-          <span className="fl-header__env">AI</span>
+          <span className="fl-header__name">FloodLinkAI</span>
         </HeaderName>
 
-        <HeaderGlobalBar>
+        <HeaderGlobalBar className="fl-header__actions">
           <span className="fl-header__status">
             <span className="fl-header__status-dot" aria-hidden="true" />
             System online
           </span>
-          <HeaderGlobalAction aria-label="Notifications" tooltipAlignment="end">
+          <HeaderGlobalAction className="fl-header__icon-btn" aria-label="Notifications" tooltipAlignment="end">
             <Notification size={20} />
           </HeaderGlobalAction>
-          <HeaderGlobalAction aria-label="Account" tooltipAlignment="end">
+          <HeaderGlobalAction className="fl-header__icon-btn" aria-label="Account" tooltipAlignment="end">
             <UserAvatar size={20} />
           </HeaderGlobalAction>
         </HeaderGlobalBar>
@@ -131,6 +131,7 @@ export default function AppShell() {
 
       {/* ── Left Sidebar ─────────────────────────────────────────────────── */}
       <SideNav
+        className="fl-sidenav"
         aria-label="Side navigation"
         isFixedNav
         expanded
@@ -155,7 +156,7 @@ export default function AppShell() {
       </SideNav>
 
       {/* ── Main Workspace ───────────────────────────────────────────────── */}
-      <Content id="main-content">
+      <Content className="fl-workspace" id="main-content">
         {renderPage(activePage)}
       </Content>
     </Theme>

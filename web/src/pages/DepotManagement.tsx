@@ -77,7 +77,7 @@ const STATUS_TAG_TYPE: Record<DepotStatus, 'green' | 'gray' | 'red'> = {
 
 function CapacityBar({ depot }: { depot: Depot }) {
   const pct = Math.round((depot.usedCapacity / depot.capacity) * 100);
-  const color = pct >= 95 ? 'var(--state-error)' : pct >= 80 ? '#7a6400' : 'var(--state-success)';
+  const color = pct >= 95 ? 'var(--state-error)' : pct >= 80 ? 'var(--state-warning)' : 'var(--state-success)';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 100 }}>

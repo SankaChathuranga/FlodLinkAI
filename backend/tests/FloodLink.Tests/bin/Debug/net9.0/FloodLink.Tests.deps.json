@@ -581,6 +581,7 @@
           "FloodLink.Contracts": "1.0.0",
           "FloodLink.Infrastructure": "1.0.0",
           "Microsoft.AspNetCore.OpenApi": "9.0.1",
+          "Microsoft.EntityFrameworkCore.InMemory": "9.0.1",
           "Swashbuckle.AspNetCore": "7.2.0"
         },
         "runtime": {

@@ -1,18 +1,19 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\FloodLink.Api.csproj": {}
+    "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\FloodLink.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\FloodLink.Api.csproj": {
+    "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\FloodLink.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\FloodLink.Api.csproj",
+        "projectUniqueName": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\FloodLink.Api.csproj",
         "projectName": "FloodLink.Api",
-        "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\FloodLink.Api.csproj",
+        "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\FloodLink.Api.csproj",
         "packagesPath": "C:\\Users\\dusha\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\obj\\",
+        "outputPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Api\\obj\\",
         "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
         "configFilePaths": [
           "C:\\Users\\dusha\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
@@ -26,11 +27,11 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj": {
-                "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj"
+              "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj": {
+                "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj"
               },
-              "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj": {
-                "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj"
+              "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj": {
+                "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj"
               }
             }
           }
@@ -53,22 +54,39 @@
           "dependencies": {
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
-              "version": "(, )"
+              "version": "[9.0.1, )",
+              "versionCentrallyManaged": true
             },
             "Microsoft.EntityFrameworkCore.Design": {
               "include": "Runtime, Build, Native, ContentFiles, Analyzers",
               "suppressParent": "All",
               "target": "Package",
-              "version": "(, )"
+              "version": "[9.0.1, )",
+              "versionCentrallyManaged": true
             },
             "Microsoft.EntityFrameworkCore.InMemory": {
               "target": "Package",
-              "version": "(, )"
+              "version": "[9.0.1, )",
+              "versionCentrallyManaged": true
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
-              "version": "(, )"
+              "version": "[7.2.0, )",
+              "versionCentrallyManaged": true
             }
+          },
+          "centralPackageVersions": {
+            "coverlet.collector": "6.0.4",
+            "Microsoft.AspNetCore.OpenApi": "9.0.1",
+            "Microsoft.EntityFrameworkCore": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Design": "9.0.1",
+            "Microsoft.EntityFrameworkCore.InMemory": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Tools": "9.0.1",
+            "Microsoft.NET.Test.Sdk": "17.12.0",
+            "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4",
+            "Swashbuckle.AspNetCore": "7.2.0",
+            "xunit": "2.9.3",
+            "xunit.runner.visualstudio": "2.8.2"
           },
           "imports": [
             "net461",
@@ -93,15 +111,16 @@
         }
       }
     },
-    "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj": {
+    "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj",
+        "projectUniqueName": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj",
         "projectName": "FloodLink.Contracts",
-        "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj",
+        "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj",
         "packagesPath": "C:\\Users\\dusha\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\obj\\",
+        "outputPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\obj\\",
         "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
         "configFilePaths": [
           "C:\\Users\\dusha\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
@@ -132,6 +151,19 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "centralPackageVersions": {
+            "coverlet.collector": "6.0.4",
+            "Microsoft.AspNetCore.OpenApi": "9.0.1",
+            "Microsoft.EntityFrameworkCore": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Design": "9.0.1",
+            "Microsoft.EntityFrameworkCore.InMemory": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Tools": "9.0.1",
+            "Microsoft.NET.Test.Sdk": "17.12.0",
+            "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4",
+            "Swashbuckle.AspNetCore": "7.2.0",
+            "xunit": "2.9.3",
+            "xunit.runner.visualstudio": "2.8.2"
+          },
           "imports": [
             "net461",
             "net462",
@@ -152,15 +184,16 @@
         }
       }
     },
-    "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj": {
+    "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj",
+        "projectUniqueName": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj",
         "projectName": "FloodLink.Domain",
-        "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj",
+        "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj",
         "packagesPath": "C:\\Users\\dusha\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\obj\\",
+        "outputPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\obj\\",
         "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
         "configFilePaths": [
           "C:\\Users\\dusha\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
@@ -191,6 +224,19 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "centralPackageVersions": {
+            "coverlet.collector": "6.0.4",
+            "Microsoft.AspNetCore.OpenApi": "9.0.1",
+            "Microsoft.EntityFrameworkCore": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Design": "9.0.1",
+            "Microsoft.EntityFrameworkCore.InMemory": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Tools": "9.0.1",
+            "Microsoft.NET.Test.Sdk": "17.12.0",
+            "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4",
+            "Swashbuckle.AspNetCore": "7.2.0",
+            "xunit": "2.9.3",
+            "xunit.runner.visualstudio": "2.8.2"
+          },
           "imports": [
             "net461",
             "net462",
@@ -211,15 +257,16 @@
         }
       }
     },
-    "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj": {
+    "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj",
+        "projectUniqueName": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj",
         "projectName": "FloodLink.Infrastructure",
-        "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj",
+        "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\FloodLink.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\dusha\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\obj\\",
+        "outputPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
         "configFilePaths": [
           "C:\\Users\\dusha\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
@@ -233,8 +280,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj": {
-                "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj"
+              "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj": {
+                "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Domain\\FloodLink.Domain.csproj"
               }
             }
           }
@@ -257,18 +304,34 @@
           "dependencies": {
             "Microsoft.EntityFrameworkCore": {
               "target": "Package",
-              "version": "(, )"
+              "version": "[9.0.1, )",
+              "versionCentrallyManaged": true
             },
             "Microsoft.EntityFrameworkCore.Design": {
               "include": "Runtime, Build, Native, ContentFiles, Analyzers",
               "suppressParent": "All",
               "target": "Package",
-              "version": "(, )"
+              "version": "[9.0.1, )",
+              "versionCentrallyManaged": true
             },
             "Npgsql.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",
-              "version": "(, )"
+              "version": "[9.0.4, )",
+              "versionCentrallyManaged": true
             }
+          },
+          "centralPackageVersions": {
+            "coverlet.collector": "6.0.4",
+            "Microsoft.AspNetCore.OpenApi": "9.0.1",
+            "Microsoft.EntityFrameworkCore": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Design": "9.0.1",
+            "Microsoft.EntityFrameworkCore.InMemory": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Tools": "9.0.1",
+            "Microsoft.NET.Test.Sdk": "17.12.0",
+            "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4",
+            "Swashbuckle.AspNetCore": "7.2.0",
+            "xunit": "2.9.3",
+            "xunit.runner.visualstudio": "2.8.2"
           },
           "imports": [
             "net461",

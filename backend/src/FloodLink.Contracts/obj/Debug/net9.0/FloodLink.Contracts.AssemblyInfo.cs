@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FloodLink.Contracts")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3c4c4edc9eff778ad8ef36ce203d0d343609d85a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b4f821950a1641bd60cf13e9f760687473eebd63")]
 [assembly: System.Reflection.AssemblyProductAttribute("FloodLink.Contracts")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FloodLink.Contracts")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

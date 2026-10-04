@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-2026/10/04-13:09:31.920 820c Creating DB C:\Users\dusha\AppData\Local\Temp\flutter_tools.70347c9e\flutter_tools_chrome_device.a14d4ad7\Default\Site Characteristics Database since it was missing.
-2026/10/04-13:09:31.944 820c Reusing MANIFEST C:\Users\dusha\AppData\Local\Temp\flutter_tools.70347c9e\flutter_tools_chrome_device.a14d4ad7\Default\Site Characteristics Database/MANIFEST-000001
-=======
-2026/09/28-20:18:59.567 8978 Creating DB C:\Users\dusha\AppData\Local\Temp\flutter_tools.10f3678d\flutter_tools_chrome_device.c5aa188\Default\Site Characteristics Database since it was missing.
-2026/09/28-20:18:59.585 8978 Reusing MANIFEST C:\Users\dusha\AppData\Local\Temp\flutter_tools.10f3678d\flutter_tools_chrome_device.c5aa188\Default\Site Characteristics Database/MANIFEST-000001
->>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
+2026/10/04-18:16:06.321 2300 Reusing MANIFEST C:\Users\dusha\AppData\Local\Temp\flutter_tools.95f03577\flutter_tools_chrome_device.9406ad5a\Default\Site Characteristics Database/MANIFEST-000001
+2026/10/04-18:16:06.322 2300 Recovering log #3
+2026/10/04-18:16:06.323 2300 Reusing old log C:\Users\dusha\AppData\Local\Temp\flutter_tools.95f03577\flutter_tools_chrome_device.9406ad5a\Default\Site Characteristics Database/000003.log 

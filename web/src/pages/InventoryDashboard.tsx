@@ -192,7 +192,7 @@ export default function InventoryDashboard() {
                 borderColor: categoryFilter === cat ? 'var(--accent-primary)' : 'var(--border-default)',
                 borderRadius: 'var(--radius-sm)',
                 background: categoryFilter === cat ? 'var(--accent-primary)' : 'transparent',
-                color: categoryFilter === cat ? '#fff' : 'var(--text-primary)',
+                color: categoryFilter === cat ? 'var(--bg-surface)' : 'var(--text-primary)',
                 font: 'inherit',
                 fontSize: 12,
                 cursor: 'pointer',
