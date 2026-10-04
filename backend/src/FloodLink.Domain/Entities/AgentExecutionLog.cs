@@ -40,6 +40,12 @@ public class AgentExecutionLog
     /// <summary>Execution status: "Success", "Error", or "Retried".</summary>
     public required string Status { get; set; }
 
+    /// <summary>
+    /// Human-readable failure detail when <see cref="Status"/> is "Error" or "Retried".
+    /// Sourced directly from <c>AgentResult.ErrorMessage</c> — null on success.
+    /// </summary>
+    public string? ErrorMessage { get; set; }
+
     /// <summary>UTC timestamp when the agent execution started.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
