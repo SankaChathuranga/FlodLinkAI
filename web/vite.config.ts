@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+<<<<<<< HEAD
   css: {
     preprocessorOptions: {
       scss: {
@@ -16,4 +17,6 @@ export default defineConfig({
       },
     },
   },
+=======
+>>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
 })

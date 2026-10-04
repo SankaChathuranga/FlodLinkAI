@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v9.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v9.0": {
+      "FloodLink.Agents.Triage/1.0.0": {
+        "dependencies": {
+          "FloodLink.Contracts": "1.0.0"
+        },
+        "runtime": {
+          "FloodLink.Agents.Triage.dll": {}
+        }
+      },
+      "FloodLink.Contracts/1.0.0": {
+        "runtime": {
+          "FloodLink.Contracts.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "FloodLink.Agents.Triage/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "FloodLink.Contracts/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

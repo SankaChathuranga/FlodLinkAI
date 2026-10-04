@@ -76,6 +76,7 @@ class AppState extends ChangeNotifier {
   //   String? currentWorkflowId;
 }
 
+<<<<<<< HEAD
 // ── FloodLink Semantic Colours ────────────────────────────────────────────────
 //
 // Hex values match the web CSS variable table exactly.
@@ -111,6 +112,8 @@ abstract final class AppColors {
   static const onWarning = Color(0xFF161616); // --text-primary (dark)
 }
 
+=======
+>>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
 // ── App widget ────────────────────────────────────────────────────────────────
 
 class FloodLinkApp extends StatelessWidget {
@@ -122,6 +125,7 @@ class FloodLinkApp extends StatelessWidget {
       title: 'FloodLink Field App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+<<<<<<< HEAD
         useMaterial3: true,
         // ── FloodLink Color Scheme ──────────────────────────────────────────
         // Hex values match the web design token table exactly so status colours
@@ -156,6 +160,10 @@ class FloodLinkApp extends StatelessWidget {
         //        fontFamily: GoogleFonts.ibmPlexSans().fontFamily
         //   3. Import: import 'package:google_fonts/google_fonts.dart';
         fontFamily: 'sans-serif', // placeholder — swap for GoogleFonts.ibmPlexSans()
+=======
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0369A1)),
+        useMaterial3: true,
+>>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
       ),
       home: const PlaceholderScreen(),
     );
