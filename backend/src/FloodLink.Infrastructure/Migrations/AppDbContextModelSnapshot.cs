@@ -24,6 +24,7 @@ namespace FloodLink.Infrastructure.Migrations
                 b.Property<string>("AgentName").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
                 b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
                 b.Property<long>("DurationMs").HasColumnType("bigint");
+                b.Property<string?>("ErrorMessage").HasColumnType("text");
                 b.Property<string>("InputJson").HasColumnType("text");
                 b.Property<string>("OutputJson").HasColumnType("text");
                 b.Property<string>("Status").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");

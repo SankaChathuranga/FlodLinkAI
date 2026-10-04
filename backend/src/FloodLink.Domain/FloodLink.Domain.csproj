@@ -5,4 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>FloodLink.Domain</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FloodLink.Contracts\FloodLink.Contracts.csproj" />
+  </ItemGroup>
 </Project>
