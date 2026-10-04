@@ -12,20 +12,19 @@ jobs:
   # ─────────────────────────────────────────────
   backend:
     name: Backend — Build & Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup .NET (version from global.json)
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
-          # Reads the SDK version from FloodLink/global.json automatically.
-          # global-json-file must point to the file relative to the repo root.
-          global-json-file:' ../global.json'
+          # Resolve global.json from the repository root.
+          global-json-file: global.json
 
       - name: Restore NuGet packages
         run: dotnet restore ../FloodLink.sln
@@ -42,21 +41,21 @@ jobs:
   # ─────────────────────────────────────────────
   web:
     name: Web — Install & Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: web
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Setup Node.js 20 LTS
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 24 LTS
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
-          cache-dependency-path: 'web/package-lock.json'
+          cache-dependency-path: ${{ github.workspace }}/web/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -70,14 +69,14 @@ jobs:
   # ─────────────────────────────────────────────
   mobile:
     name: Mobile — Analyze
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: ../FloodLink/mobile
+        working-directory: mobile
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Flutter (stable channel)
         uses: subosito/flutter-action@v2
