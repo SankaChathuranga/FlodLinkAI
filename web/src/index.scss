@@ -10,6 +10,10 @@
 // Do NOT use @carbon/styles with Tailwind — they conflict at the PostCSS layer.
 // ─────────────────────────────────────────────────────────────────────────────
 
+@use '@carbon/styles/scss/config' with (
+  $font-path: '../node_modules/@ibm/plex'
+);
+
 // 1. Carbon g10 (light) theme
 @use '@carbon/styles/scss/theme' with (
   $theme: (
@@ -41,9 +45,6 @@
 
 // 2. Carbon base + all component styles
 @use '@carbon/styles';
-
-// 3. IBM Plex fonts (shipped with @ibm/plex)
-@import '@ibm/plex/css/ibm-plex.min.css';
 
 // ── FloodLink Design Token Layer ─────────────────────────────────────────────
 // All components MUST reference these variables — never hardcoded hex values.
@@ -295,6 +296,10 @@ body {
   background-color: var(--bg-base);
 }
 
+.cds--content.fl-workspace {
+  margin-inline-start: 240px !important;
+}
+
 .fl-page {
   padding: 20px 28px 24px;
   max-width: 1400px;
@@ -341,18 +346,18 @@ body {
 
 .fl-stat-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
-  gap: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
   background-color: var(--border-default);
   border: 1px solid var(--border-default);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   margin-bottom: 20px;
   overflow: hidden;
 }
 
 .fl-stat-tile {
   background-color: var(--bg-surface);
-  padding: 18px 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -390,6 +395,7 @@ body {
 //   Rejected / Failed                         → --state-error
 
 .fl-badge {
+  border: 0;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -397,13 +403,12 @@ body {
   border-radius: 9999px;  // rounded-full
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
   line-height: 1.4;
 
   &.fl-badge--info {
-    background-color: rgba(0, 67, 206, 0.12);
+    background-color: color-mix(in srgb, var(--state-info) 12%, var(--bg-surface));
     color: var(--state-info);
   }
 
@@ -413,12 +418,12 @@ body {
   }
 
   &.fl-badge--success {
-    background-color: rgba(25, 128, 56, 0.12);
+    background-color: color-mix(in srgb, var(--state-success) 12%, var(--bg-surface));
     color: var(--state-success);
   }
 
   &.fl-badge--error {
-    background-color: rgba(218, 30, 40, 0.10);
+    background-color: color-mix(in srgb, var(--state-error) 10%, var(--bg-surface));
     color: var(--state-error);
   }
 
@@ -429,6 +434,26 @@ body {
     background-color: currentColor;
     flex-shrink: 0;
   }
+}
+
+.fl-stock-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fl-stock-cell__quantity {
+  color: var(--state-success);
+  font-weight: 600;
+
+  &.fl-stock-cell__quantity--low {
+    color: var(--state-error);
+  }
+}
+
+.fl-stock-tag.cds--tag {
+  background-color: var(--state-error);
+  color: var(--bg-surface);
 }
 
 // ── Carbon DataTable overrides ────────────────────────────────────────────────
@@ -464,7 +489,7 @@ body {
 
 // Low-stock / alert row highlight
 .fl-row--low-stock {
-  background-color: rgba(218, 30, 40, 0.08) !important;
+  background-color: color-mix(in srgb, var(--state-error) 8%, var(--bg-surface)) !important;
   border-left: 3px solid var(--state-error) !important;
 }
 
@@ -500,6 +525,11 @@ body {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .fl-toolbar__filter {
+    min-height: 32px;
   }
 
   .fl-toolbar__count {
@@ -507,7 +537,7 @@ body {
     font-size: 12px;
     color: var(--text-muted);
     border: 1px solid var(--border-default);
-    border-radius: 9999px;
+    border-radius: var(--radius-sm);
     padding: 3px 10px;
     white-space: nowrap;
   }
@@ -575,6 +605,10 @@ body {
 // ── Responsive ────────────────────────────────────────────────────────────────
 
 @media (max-width: 1024px) {
+  .fl-stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .fl-sidenav {
     display: none;  // Collapse to overlay on narrow viewports (full mobile nav TBD)
   }
@@ -583,7 +617,22 @@ body {
     margin-left: 0;
   }
 
+  .cds--content.fl-workspace {
+    margin-inline-start: 0 !important;
+  }
+
   .fl-page {
     padding: 16px;
   }
+}
+
+@media (max-width: 640px) {
+  .fl-stat-row {
+    grid-template-columns: 1fr;
+  }
+
+  .fl-page-header {
+    align-items: flex-start;
+  }
+
 }

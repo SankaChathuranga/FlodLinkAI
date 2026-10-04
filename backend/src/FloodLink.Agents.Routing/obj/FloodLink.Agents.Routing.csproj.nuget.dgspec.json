@@ -1,18 +1,19 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\FloodLink.Agents.Routing.csproj": {}
+    "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\FloodLink.Agents.Routing.csproj": {}
   },
   "projects": {
-    "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\FloodLink.Agents.Routing.csproj": {
+    "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\FloodLink.Agents.Routing.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\FloodLink.Agents.Routing.csproj",
+        "projectUniqueName": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\FloodLink.Agents.Routing.csproj",
         "projectName": "FloodLink.Agents.Routing",
-        "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\FloodLink.Agents.Routing.csproj",
+        "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\FloodLink.Agents.Routing.csproj",
         "packagesPath": "C:\\Users\\dusha\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\obj\\",
+        "outputPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Agents.Routing\\obj\\",
         "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
         "configFilePaths": [
           "C:\\Users\\dusha\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
@@ -26,8 +27,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj": {
-                "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj"
+              "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj": {
+                "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj"
               }
             }
           }
@@ -47,6 +48,19 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "centralPackageVersions": {
+            "coverlet.collector": "6.0.4",
+            "Microsoft.AspNetCore.OpenApi": "9.0.1",
+            "Microsoft.EntityFrameworkCore": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Design": "9.0.1",
+            "Microsoft.EntityFrameworkCore.InMemory": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Tools": "9.0.1",
+            "Microsoft.NET.Test.Sdk": "17.12.0",
+            "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4",
+            "Swashbuckle.AspNetCore": "7.2.0",
+            "xunit": "2.9.3",
+            "xunit.runner.visualstudio": "2.8.2"
+          },
           "imports": [
             "net461",
             "net462",
@@ -67,15 +81,16 @@
         }
       }
     },
-    "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj": {
+    "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj",
+        "projectUniqueName": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj",
         "projectName": "FloodLink.Contracts",
-        "projectPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj",
+        "projectPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\FloodLink.Contracts.csproj",
         "packagesPath": "C:\\Users\\dusha\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\dusha\\OneDrive\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\obj\\",
+        "outputPath": "C:\\Users\\dusha\\Desktop\\project\\Inventory-Depot-Management\\FlodLinkAI\\backend\\src\\FloodLink.Contracts\\obj\\",
         "projectStyle": "PackageReference",
+        "centralPackageVersionsManagementEnabled": true,
         "configFilePaths": [
           "C:\\Users\\dusha\\AppData\\Roaming\\NuGet\\NuGet.Config"
         ],
@@ -106,6 +121,19 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "centralPackageVersions": {
+            "coverlet.collector": "6.0.4",
+            "Microsoft.AspNetCore.OpenApi": "9.0.1",
+            "Microsoft.EntityFrameworkCore": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Design": "9.0.1",
+            "Microsoft.EntityFrameworkCore.InMemory": "9.0.1",
+            "Microsoft.EntityFrameworkCore.Tools": "9.0.1",
+            "Microsoft.NET.Test.Sdk": "17.12.0",
+            "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4",
+            "Swashbuckle.AspNetCore": "7.2.0",
+            "xunit": "2.9.3",
+            "xunit.runner.visualstudio": "2.8.2"
+          },
           "imports": [
             "net461",
             "net462",

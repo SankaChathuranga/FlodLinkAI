@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FloodLink.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b4f821950a1641bd60cf13e9f760687473eebd63")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8dde56ef5abe95d90ed46f794cd245ac26d16808")]
 [assembly: System.Reflection.AssemblyProductAttribute("FloodLink.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FloodLink.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

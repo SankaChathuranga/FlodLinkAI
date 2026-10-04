@@ -21,6 +21,7 @@ import {
   TableToolbarSearch,
   Button,
   Tag,
+  Tile,
 } from '@carbon/react';
 import { Add, Download } from '@carbon/icons-react';
 
@@ -73,15 +74,14 @@ function StockCell({ item }: { item: InventoryItem }) {
   const variant = isLow ? 'error' : 'success';
 
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ color: isLow ? 'var(--state-error)' : 'var(--state-success)', fontWeight: 600 }}>
+    <span className="fl-stock-cell">
+      <span className={`fl-stock-cell__quantity${isLow ? ' fl-stock-cell__quantity--low' : ''}`}>
         {item.quantity.toLocaleString()} {item.unit}
       </span>
       {isLow && (
-        <span className={`fl-badge fl-badge--${variant}`} aria-label="Low stock">
-          <span className="fl-badge__dot" aria-hidden="true" />
+        <Tag type="red" className={`fl-stock-tag fl-badge--${variant}`} aria-label="Low stock">
           Low
-        </span>
+        </Tag>
       )}
     </span>
   );
@@ -147,26 +147,26 @@ export default function InventoryDashboard() {
 
       {/* ── Stat Tiles ──────────────────────────────────────────────────── */}
       <div className="fl-stat-row" aria-label="Inventory summary">
-        <div className="fl-stat-tile">
+        <Tile className="fl-stat-tile">
           <span className="fl-stat-tile__label">Total Items</span>
           <span className="fl-stat-tile__value">{totalItems}</span>
           <span className="fl-stat-tile__delta">Across {depotCount} depots</span>
-        </div>
-        <div className={`fl-stat-tile${lowStockCount > 0 ? ' fl-stat-tile--error' : ' fl-stat-tile--success'}`}>
+        </Tile>
+        <Tile className={`fl-stat-tile${lowStockCount > 0 ? ' fl-stat-tile--error' : ' fl-stat-tile--success'}`}>
           <span className="fl-stat-tile__label">Low Stock Alerts</span>
           <span className="fl-stat-tile__value">{lowStockCount}</span>
           <span className="fl-stat-tile__delta">Below minimum threshold</span>
-        </div>
-        <div className="fl-stat-tile fl-stat-tile--info">
+        </Tile>
+        <Tile className="fl-stat-tile fl-stat-tile--info">
           <span className="fl-stat-tile__label">Active Depots</span>
           <span className="fl-stat-tile__value">{depotCount}</span>
           <span className="fl-stat-tile__delta">Reporting stock</span>
-        </div>
-        <div className="fl-stat-tile">
+        </Tile>
+        <Tile className="fl-stat-tile">
           <span className="fl-stat-tile__label">Categories</span>
           <span className="fl-stat-tile__value">{categories.length - 1}</span>
           <span className="fl-stat-tile__delta">Tracked supply types</span>
-        </div>
+        </Tile>
       </div>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
@@ -182,25 +182,16 @@ export default function InventoryDashboard() {
         </div>
         <div className="fl-toolbar__filters" role="group" aria-label="Category filter">
           {categories.map(cat => (
-            <button
+            <Button
               key={cat}
+              className="fl-toolbar__filter"
+              kind={categoryFilter === cat ? 'primary' : 'tertiary'}
+              size="sm"
               onClick={() => setCategoryFilter(cat)}
               aria-pressed={categoryFilter === cat}
-              style={{
-                padding: '4px 12px',
-                border: '1px solid',
-                borderColor: categoryFilter === cat ? 'var(--accent-primary)' : 'var(--border-default)',
-                borderRadius: 'var(--radius-sm)',
-                background: categoryFilter === cat ? 'var(--accent-primary)' : 'transparent',
-                color: categoryFilter === cat ? 'var(--bg-surface)' : 'var(--text-primary)',
-                font: 'inherit',
-                fontSize: 12,
-                cursor: 'pointer',
-                transition: 'background 70ms, border-color 70ms, color 70ms',
-              }}
             >
               {cat}
-            </button>
+            </Button>
           ))}
         </div>
         <span className="fl-toolbar__count" aria-live="polite">

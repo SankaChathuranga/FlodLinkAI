@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FloodLink.Agents.Validation")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3c4c4edc9eff778ad8ef36ce203d0d343609d85a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8dde56ef5abe95d90ed46f794cd245ac26d16808")]
 [assembly: System.Reflection.AssemblyProductAttribute("FloodLink.Agents.Validation")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FloodLink.Agents.Validation")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

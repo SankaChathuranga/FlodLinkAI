@@ -11,6 +11,8 @@
 //       --state-info (#0043CE) is ONLY for the in-progress states above.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { Tag } from '@carbon/react';
+
 export type WorkflowState =
   | 'Triage'
   | 'Matching'
@@ -46,9 +48,9 @@ export function WorkflowStateBadge({ state, dot = true }: WorkflowStateBadgeProp
   const variant = STATE_VARIANT[state];
 
   return (
-    <span className={`fl-badge fl-badge--${variant}`} aria-label={`Status: ${state}`}>
+    <Tag type="blue" className={`fl-badge fl-badge--${variant}`} aria-label={`Status: ${state}`}>
       {dot && <span className="fl-badge__dot" aria-hidden="true" />}
       {state}
-    </span>
+    </Tag>
   );
 }
