@@ -26,7 +26,7 @@ jobs:
         with:
           # Reads the SDK version from FloodLink/global.json automatically.
           # global-json-file must point to the file relative to the repo root.
-          global-json-file: FloodLink/global.json
+          global-json-file:' ../global.json'
 
       - name: Restore NuGet packages
         run: dotnet restore ../FloodLink.sln
@@ -57,7 +57,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: FloodLink/web/package-lock.json
+          cache-dependency-path: FlodLinkAI/web/package-lock.json
 
       - name: Install dependencies
         run: npm ci
