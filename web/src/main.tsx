@@ -1,8 +1,7 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { AppProvider } from './context/AppContext'
-import App from './App'
-<<<<<<< HEAD
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { AppProvider } from './context/AppContext';
+import App from './App';
 
 // ── Global styles ─────────────────────────────────────────────────────────────
 // index.scss loads in this order:
@@ -12,11 +11,7 @@ import App from './App'
 //   4. FloodLink design token layer (CSS custom properties)
 // styles.css has been superseded by index.scss — do not re-import it.
 // ─────────────────────────────────────────────────────────────────────────────
-import './index.scss'
-=======
-import './index.css'
-import './styles.css'
->>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
+import './index.scss';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -29,4 +24,4 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <App />
     </AppProvider>
   </React.StrictMode>,
-)
+);

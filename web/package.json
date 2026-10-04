@@ -10,7 +10,6 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
-<<<<<<< HEAD
     "@carbon/icons-react": "^11.89.0",
     "@carbon/react": "^1.117.0",
     "@carbon/styles": "^1.116.0",
@@ -18,10 +17,6 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "sass": "^1.105.1"
-=======
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
->>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
   },
   "devDependencies": {
     "@types/react": "^18.3.5",
@@ -29,18 +24,12 @@
     "@typescript-eslint/eslint-plugin": "^7.15.0",
     "@typescript-eslint/parser": "^7.15.0",
     "@vitejs/plugin-react": "^4.3.1",
-<<<<<<< HEAD
-    "eslint": "^8.57.0",
-    "eslint-plugin-react-hooks": "^4.6.2",
-    "eslint-plugin-react-refresh": "^0.4.7",
-=======
     "autoprefixer": "^10.4.19",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
     "postcss": "^8.4.40",
     "tailwindcss": "^3.4.7",
->>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
     "typescript": "^5.5.3",
     "vite": "^5.4.21"
   }
