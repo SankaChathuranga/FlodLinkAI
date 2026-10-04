@@ -44,6 +44,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CurrentState)
                   .HasConversion<string>()
                   .HasMaxLength(50);
+            entity.Property(e => e.FailedAtState)
+                  .HasConversion<string?>()
+                  .HasMaxLength(50)
+                  .IsRequired(false);
         });
 
         // ── AgentExecutionLog ──────────────────────────────────────────────────

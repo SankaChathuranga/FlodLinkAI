@@ -55,6 +55,7 @@ namespace FloodLink.Infrastructure.Migrations
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
                 b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
                 b.Property<string>("CurrentState").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)");
+                b.Property<string?>("FailedAtState").HasMaxLength(50).HasColumnType("character varying(50)");
                 b.Property<string>("Objective").IsRequired().HasMaxLength(1000).HasColumnType("character varying(1000)");
                 b.Property<string>("PlanJson").HasColumnType("jsonb");
                 b.Property<DateTime>("UpdatedAt").HasColumnType("timestamp with time zone");
