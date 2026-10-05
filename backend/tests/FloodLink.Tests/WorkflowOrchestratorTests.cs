@@ -2,7 +2,6 @@ using FloodLink.Contracts;
 using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
-using AllocationProposal = FloodLink.Contracts.AllocationProposal;
 using Xunit;
 
 namespace FloodLink.Tests;
