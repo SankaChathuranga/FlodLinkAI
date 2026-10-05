@@ -8,4 +8,3 @@ linter:
     # Enforce Provider usage over direct state in widgets
     use_build_context_synchronously: true
     prefer_const_constructors: true
-    prefer_const_widgets: true

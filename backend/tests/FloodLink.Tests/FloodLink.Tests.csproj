@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\FloodLink.Api\FloodLink.Api.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Domain\FloodLink.Domain.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Contracts\FloodLink.Contracts.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Infrastructure\FloodLink.Infrastructure.csproj" />
@@ -24,5 +25,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
   </ItemGroup>
 </Project>

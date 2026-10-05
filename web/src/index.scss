@@ -1,0 +1,638 @@
+// ── FloodLink AI — Global Styles ──────────────────────────────────────────────
+//
+// Loading order matters:
+//  1. IBM Carbon g10 theme variables
+//  2. Carbon component styles (Sass)
+//  3. FloodLink design token overrides (CSS custom properties on :root)
+//  4. IBM Plex fonts
+//
+// Do NOT import Tailwind here. Tailwind has been removed from this project.
+// Do NOT use @carbon/styles with Tailwind — they conflict at the PostCSS layer.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use '@carbon/styles/scss/config' with (
+  $font-path: '../node_modules/@ibm/plex'
+);
+
+// 1. Carbon g10 (light) theme
+@use '@carbon/styles/scss/theme' with (
+  $theme: (
+    // Remap Carbon's interactive-01 to our operational blue
+    interactive-01: #0f62fe,
+    interactive-02: #0043ce,
+    interactive-03: #0f62fe,
+    interactive-04: #0f62fe,
+    // Surface colours matching our spec
+    ui-background: #f4f4f4,
+    ui-01: #ffffff,
+    ui-02: #f4f4f4,
+    // Text
+    text-01: #161616,
+    text-02: #6f6f6f,
+    text-03: #a8a8a8,
+    // Support / semantic colours
+    support-01: #da1e28,  // error
+    support-02: #198038,  // success
+    support-03: #f1c21b,  // warning
+    support-04: #0043ce,  // info
+    // Border
+    ui-03: #c6c6c6,
+    ui-04: #8d8d8d,
+    // Focus ring
+    focus: #0f62fe,
+  )
+);
+
+// 2. Carbon base + all component styles
+@use '@carbon/styles';
+
+// ── FloodLink Design Token Layer ─────────────────────────────────────────────
+// All components MUST reference these variables — never hardcoded hex values.
+
+:root {
+  // Backgrounds
+  --bg-base:     #F4F4F4;
+  --bg-surface:  #FFFFFF;
+
+  // Text
+  --text-primary: #161616;
+  --text-muted:   #6F6F6F;
+
+  // Accent (interactive elements only — buttons, links, active nav, focus rings)
+  --accent-primary: #0F62FE;
+
+  // Border
+  --border-default: #C6C6C6;
+
+  // Semantic state colours
+  --state-error:   #DA1E28;
+  --state-warning: #F1C21B;
+  --state-success: #198038;
+  --state-info:    #0043CE;
+
+  // Shell / chrome
+  --header-bg:     #161616;
+  --header-text:   #F4F4F4;
+  --header-muted:  #A8A8A8;
+  --nav-bg:       #F4F4F4;
+  --nav-hover:    #E8E8E8;
+  --nav-active:   #E5E5E5;
+
+  // Typography
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  // Border radius
+  --radius-sm: 2px;
+  --radius-md: 4px;
+}
+
+// ── Base Reset ────────────────────────────────────────────────────────────────
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ── FloodLink App Shell ───────────────────────────────────────────────────────
+
+.fl-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+// Top header bar (Carbon Header pattern)
+.cds--header {
+  height: 48px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--header-muted);
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 20;
+}
+
+.fl-header {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 16px;
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--header-muted);
+}
+
+.fl-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  width: 240px;
+  flex-shrink: 0;
+  color: var(--header-text);
+}
+
+.fl-header__mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-md);
+  background-color: var(--accent-primary);
+  color: var(--bg-surface);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: var(--font-sans);
+  flex-shrink: 0;
+}
+
+.fl-header__name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--header-text);
+  letter-spacing: -0.02em;
+}
+
+.fl-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+}
+
+.fl-header__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  font-size: 12px;
+  color: var(--header-text);
+}
+
+.fl-header__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--state-success);
+  flex-shrink: 0;
+}
+
+.fl-header__icon-btn {
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  color: var(--header-text);
+}
+
+// Left sidebar nav (Carbon SideNav pattern)
+.cds--side-nav {
+  top: 48px;
+  width: 240px;
+  background: var(--nav-bg);
+  border-right: 1px solid var(--border-default);
+}
+
+.fl-sidenav {
+  position: fixed;
+  top: 48px;
+  left: 0;
+  bottom: 0;
+  width: 240px;
+  background-color: var(--nav-bg);
+  border-right: 1px solid var(--border-default);
+  overflow-y: auto;
+  z-index: 7000;
+}
+
+.fl-sidenav__section {
+  padding: 12px 0 8px;
+}
+
+.fl-sidenav__section:not(:first-child) {
+  border-top: 1px solid var(--border-default);
+  margin-top: 8px;
+}
+
+.fl-sidenav__label {
+  padding: 0 16px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.fl-sidenav__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0 16px;
+  min-height: 36px;
+  border: none;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 70ms ease, border-color 70ms ease;
+}
+
+.fl-sidenav__item:hover {
+  background-color: var(--nav-hover);
+}
+
+.fl-sidenav__item[aria-current='page'],
+.fl-sidenav__item.cds--side-nav__link--current,
+.fl-sidenav__item.isActive {
+  background-color: var(--nav-active);
+  border-left-color: transparent;
+  font-weight: 600;
+}
+
+.fl-sidenav__badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background-color: var(--state-error);
+  color: var(--bg-surface);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+// Main workspace (right of sidenav, below header)
+.fl-workspace {
+  margin-top: 48px;
+  margin-left: 240px;
+  min-height: calc(100vh - 48px);
+  background-color: var(--bg-base);
+}
+
+.cds--content.fl-workspace {
+  margin-inline-start: 240px !important;
+}
+
+.fl-page {
+  padding: 20px 28px 24px;
+  max-width: 1400px;
+}
+
+// ── Page Header ───────────────────────────────────────────────────────────────
+
+.fl-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-default);
+
+  .fl-page-header__eyebrow {
+    display: none;
+  }
+
+  .fl-page-header__title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+
+  .fl-page-header__subtitle {
+    margin: 4px 0 0;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .fl-page-header__actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+}
+
+// ── Stat Tiles row ─────────────────────────────────────────────────────────────
+
+.fl-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background-color: var(--border-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.fl-stat-tile {
+  background-color: var(--bg-surface);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 92px;
+
+  .fl-stat-tile__label {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .fl-stat-tile__value {
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--text-primary);
+    line-height: 1.1;
+  }
+
+  .fl-stat-tile__delta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  &.fl-stat-tile--error .fl-stat-tile__value { color: var(--state-error); }
+  &.fl-stat-tile--warning .fl-stat-tile__value { color: var(--text-primary); }
+  &.fl-stat-tile--success .fl-stat-tile__value { color: var(--state-success); }
+  &.fl-stat-tile--info .fl-stat-tile__value { color: var(--state-info); }
+}
+
+// ── WorkflowState Badges ──────────────────────────────────────────────────────
+// Semantic mapping (from spec):
+//   Triage / Matching / Routing / Validating → --state-info
+//   PendingApproval / RevisionRequested       → --state-warning  (dark text, yellow bg)
+//   Approved                                  → --state-success
+//   Rejected / Failed                         → --state-error
+
+.fl-badge {
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;  // rounded-full
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+  line-height: 1.4;
+
+  &.fl-badge--info {
+    background-color: color-mix(in srgb, var(--state-info) 12%, var(--bg-surface));
+    color: var(--state-info);
+  }
+
+  &.fl-badge--warning {
+    background-color: var(--state-warning);
+    color: var(--text-primary);
+  }
+
+  &.fl-badge--success {
+    background-color: color-mix(in srgb, var(--state-success) 12%, var(--bg-surface));
+    color: var(--state-success);
+  }
+
+  &.fl-badge--error {
+    background-color: color-mix(in srgb, var(--state-error) 10%, var(--bg-surface));
+    color: var(--state-error);
+  }
+
+  .fl-badge__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: currentColor;
+    flex-shrink: 0;
+  }
+}
+
+.fl-stock-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fl-stock-cell__quantity {
+  color: var(--state-success);
+  font-weight: 600;
+
+  &.fl-stock-cell__quantity--low {
+    color: var(--state-error);
+  }
+}
+
+.fl-stock-tag.cds--tag {
+  background-color: var(--state-error);
+  color: var(--bg-surface);
+}
+
+// ── Carbon DataTable overrides ────────────────────────────────────────────────
+// Carbon's DataTable uses its own class structure; these selectors extend it
+// to honour our design token layer.
+
+.cds--data-table-container {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.cds--table-toolbar {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.cds--data-table th {
+  background: var(--nav-hover);
+}
+
+.cds--data-table td {
+  font-family: var(--font-sans);
+}
+
+// Mono font for IDs and coordinates (per spec)
+.fl-cell--mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+// Low-stock / alert row highlight
+.fl-row--low-stock {
+  background-color: color-mix(in srgb, var(--state-error) 8%, var(--bg-surface)) !important;
+  border-left: 3px solid var(--state-error) !important;
+}
+
+// ── Carbon Button overrides ───────────────────────────────────────────────────
+// Carbon buttons already use our accent via the theme map above.
+// These supplements handle edge cases.
+
+.cds--btn--primary {
+  background-color: var(--accent-primary);
+
+  &:hover {
+    background-color: var(--accent-primary);
+    opacity: 0.92;
+  }
+}
+
+// ── Toolbar / Filter row ──────────────────────────────────────────────────────
+
+.fl-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+
+  .fl-toolbar__search {
+    flex: 1;
+    min-width: 200px;
+    max-width: 320px;
+  }
+
+  .fl-toolbar__filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .fl-toolbar__filter {
+    min-height: 32px;
+  }
+
+  .fl-toolbar__count {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-muted);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+}
+
+// ── Inline Notification ───────────────────────────────────────────────────────
+// Used for agent-failure alerts and system warnings.
+
+.fl-inline-notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border-left: 4px solid;
+  margin-bottom: 16px;
+  font-size: 14px;
+
+  &.fl-inline-notification--error {
+    background-color: rgba(218, 30, 40, 0.08);
+    border-color: var(--state-error);
+    color: var(--state-error);
+  }
+
+  &.fl-inline-notification--warning {
+    background-color: var(--state-warning);
+    border-color: var(--state-warning);
+    color: var(--text-primary);
+  }
+
+  &.fl-inline-notification--success {
+    background-color: rgba(25, 128, 56, 0.08);
+    border-color: var(--state-success);
+    color: var(--state-success);
+  }
+
+  &.fl-inline-notification--info {
+    background-color: rgba(0, 67, 206, 0.08);
+    border-color: var(--state-info);
+    color: var(--state-info);
+  }
+
+  .fl-inline-notification__body {
+    color: var(--text-primary);
+    flex: 1;
+
+    strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+  }
+}
+
+// ── State messages (empty / loading / error) ─────────────────────────────────
+
+.fl-state-message {
+  padding: 48px 24px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 14px;
+}
+
+// ── Responsive ────────────────────────────────────────────────────────────────
+
+@media (max-width: 1024px) {
+  .fl-stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fl-sidenav {
+    display: none;  // Collapse to overlay on narrow viewports (full mobile nav TBD)
+  }
+
+  .fl-workspace {
+    margin-left: 0;
+  }
+
+  .cds--content.fl-workspace {
+    margin-inline-start: 0 !important;
+  }
+
+  .fl-page {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .fl-stat-row {
+    grid-template-columns: 1fr;
+  }
+
+  .fl-page-header {
+    align-items: flex-start;
+  }
+
+}

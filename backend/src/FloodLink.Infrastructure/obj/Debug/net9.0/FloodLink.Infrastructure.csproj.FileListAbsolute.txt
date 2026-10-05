@@ -1,0 +1,54 @@
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.deps.json
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.runtimeconfig.json
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.dll
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.pdb
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Domain.dll
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Domain.pdb
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.csproj.AssemblyReference.cache
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.AssemblyInfoInputs.cache
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.AssemblyInfo.cs
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.sourcelink.json
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLin.3DC765E8.Up2Date
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.dll
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\refint\FloodLink.Infrastructure.dll
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.pdb
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.genruntimeconfig.cache
+C:\Users\dusha\OneDrive\Desktop\project\Inventory & Depot Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\ref\FloodLink.Infrastructure.dll
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.deps.json
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.runtimeconfig.json
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.dll
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.pdb
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Domain.dll
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Domain.pdb
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.csproj.AssemblyReference.cache
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.AssemblyInfoInputs.cache
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.AssemblyInfo.cs
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.sourcelink.json
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLin.3DC765E8.Up2Date
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.dll
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\refint\FloodLink.Infrastructure.dll
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.pdb
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.genruntimeconfig.cache
+C:\Users\dusha\OneDrive\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\ref\FloodLink.Infrastructure.dll
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.deps.json
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.runtimeconfig.json
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.dll
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Infrastructure.pdb
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Domain.dll
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\bin\Debug\net9.0\FloodLink.Domain.pdb
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.csproj.AssemblyReference.cache
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.AssemblyInfoInputs.cache
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.AssemblyInfo.cs
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.csproj.CoreCompileInputs.cache
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.sourcelink.json
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLin.3DC765E8.Up2Date
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.dll
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\refint\FloodLink.Infrastructure.dll
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.pdb
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\FloodLink.Infrastructure.genruntimeconfig.cache
+C:\Users\dusha\Desktop\project\Inventory-Depot-Management\FlodLinkAI\backend\src\FloodLink.Infrastructure\obj\Debug\net9.0\ref\FloodLink.Infrastructure.dll

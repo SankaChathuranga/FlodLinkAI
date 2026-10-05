@@ -1,0 +1,5 @@
+<<<<<<< HEAD
+Microsoft Edge settings and storage represent user-selected preferences and information and MUST not be extracted, overwritten or modified except through Microsoft Edge defined APIs.
+=======
+Google Chrome settings and storage represent user-selected preferences and information and MUST not be extracted, overwritten or modified except through Google Chrome defined APIs.
+>>>>>>> 6c8d2ece674506c5f8db44076b4aeabe57cf9f87
