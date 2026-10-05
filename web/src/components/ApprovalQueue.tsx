@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppContext } from '../context/AppContext'
 import {
   approveRun,
@@ -11,14 +11,14 @@ import { describeApiError } from '../lib/apiError'
 import type { ValidationReport, WorkflowRunQueueItem } from '../api/types'
 
 /**
- * Approval Queue — Member D (Ijini) coordinator screen.
+ * Approval Queue – Member D (Ijini) coordinator screen.
  *
  * Shows every workflow run that has passed the Validation/Safety Agent and is
  * waiting for a human decision. The coordinator can inspect the safety checks,
  * then Approve, Reject (reason required) or send back for Revision (notes required).
  *
  * Auth note: the backend endpoints carry [Authorize(Roles="Coordinator")]. Until
- * JWT auth is wired (Week 2+), they return 401 — this component surfaces that
+ * JWT auth is wired (Week 2+), they return 401 – this component surfaces that
  * clearly so a demo is not silently broken.
  */
 
@@ -78,9 +78,13 @@ function ApprovalQueue() {
       setState((s) => ({ ...s, expandedId: null, mode: null, notes: '' }))
       return
     }
-
-    setState((s) => ({ ...s, expandedId: item.workflowRunId, mode: null, notes: '' }))
-
+    setState((s) => ({
+      ...s,
+      expandedId: item.workflowRunId,
+      mode: null,
+      notes: '',
+      error: null,
+    }))
     if (!state.reports[item.workflowRunId]) {
       try {
         const report = await getValidationReport(apiBaseUrl, item.workflowRunId)
@@ -89,48 +93,36 @@ function ApprovalQueue() {
           ...s,
           reports: { ...s.reports, [item.workflowRunId]: report },
         }))
-      } catch (err) {
-        if (!mountedRef.current) return
-        setState((s) => ({ ...s, error: describeApiError(err) }))
+      } catch {
+        /* report fetch failure is non-fatal; UI shows a placeholder */
       }
     }
   }
 
   const submitAction = async (item: WorkflowRunQueueItem): Promise<void> => {
     const { mode, notes } = state
-    if (mode === null) return
-
-    if (mode !== 'approve' && notes.trim().length === 0) {
-      setState((s) => ({ ...s, error: mode === 'reject' ? 'A rejection reason is required.' : 'Revision notes are required.' }))
+    if (!mode) return
+    if ((mode === 'reject' || mode === 'revision') && !notes.trim()) {
+      setState((s) => ({
+        ...s,
+        error: mode === 'reject' ? 'Rejection reason is required.' : 'Revision notes are required.',
+      }))
       return
     }
-
     setState((s) => ({ ...s, busyId: item.workflowRunId, error: null, notice: null }))
-
     try {
-      switch (mode) {
-        case 'approve':
-          await approveRun(apiBaseUrl, item.workflowRunId, notes.trim() || undefined)
-          break
-        case 'reject':
-          await rejectRun(apiBaseUrl, item.workflowRunId, notes.trim())
-          break
-        case 'revision':
-          await requestRevision(apiBaseUrl, item.workflowRunId, notes.trim())
-          break
-      }
-
-      if (!mountedRef.current) return
-      const label = mode === 'approve' ? 'approved' : mode === 'reject' ? 'rejected' : 'sent for revision'
+      if (mode === 'approve') await approveRun(apiBaseUrl, item.workflowRunId, notes.trim() || undefined)
+      else if (mode === 'reject') await rejectRun(apiBaseUrl, item.workflowRunId, notes.trim())
+      else await requestRevision(apiBaseUrl, item.workflowRunId, notes.trim())
       setState((s) => ({
         ...s,
         busyId: null,
+        expandedId: null,
         mode: null,
         notes: '',
-        expandedId: null,
-        notice: `Plan for "${item.objective}" ${label}.`,
+        notice: `Decision recorded for run ${item.workflowRunId.slice(0, 8)}…`,
       }))
-      await refresh()
+      void refresh()
     } catch (err) {
       if (!mountedRef.current) return
       setState((s) => ({ ...s, busyId: null, error: describeApiError(err) }))
@@ -138,21 +130,31 @@ function ApprovalQueue() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      {state.notice && <Banner tone="ok" text={state.notice} />}
-      {state.error && <Banner tone="error" text={state.error} />}
+    <div>
+      <h1 className="fl-section-title">Approval Queue</h1>
+      <p className="fl-section-desc">
+        Workflow runs awaiting coordinator decision — all have passed safety validation.
+      </p>
+
+      {state.notice && (
+        <div className="fl-notification fl-notification-success" style={{ marginBottom: '1rem' }}>
+          {state.notice}
+        </div>
+      )}
+      {state.error && (
+        <div className="fl-notification fl-notification-error" style={{ marginBottom: '1rem' }}>
+          {state.error}
+        </div>
+      )}
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Loading approval queue…</p>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Loading queue…</p>
       ) : state.items.length === 0 ? (
-        <div className="bg-white rounded-xl shadow p-8 text-center text-sm text-gray-500">
-          No plans are awaiting approval.
-          <p className="text-xs text-gray-400 mt-2">
-            Push a workflow run to PendingApproval (via the API) and it will appear here.
-          </p>
+        <div className="fl-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+          No runs are pending approval right now.
         </div>
       ) : (
-        <ul className="space-y-4">
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {state.items.map((item) => (
             <QueueCard
               key={item.workflowRunId}
@@ -171,19 +173,6 @@ function ApprovalQueue() {
           ))}
         </ul>
       )}
-    </div>
-  )
-}
-
-function Banner({ tone, text }: { tone: 'ok' | 'error'; text: string }) {
-  const styles =
-    tone === 'ok'
-      ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-      : 'bg-red-50 border-red-300 text-red-800'
-
-  return (
-    <div className={`mb-4 border rounded-lg px-3 py-2 text-sm ${styles}`}>
-      {text}
     </div>
   )
 }
@@ -214,44 +203,49 @@ function QueueCard({
   onSubmit: () => void
 }) {
   return (
-    <li className="bg-white rounded-xl shadow border border-gray-100">
-      <div className="flex items-start justify-between px-4 py-3">
-        <div className="min-w-0">
-          <p className="font-semibold text-gray-900 truncate">{item.objective}</p>
-          <p className="text-xs text-gray-400 mt-1">
+    <li className="fl-card" style={{ overflow: 'hidden' }}>
+      {/* Card header row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '0.875rem 1rem', gap: '0.75rem' }}>
+        <div style={{ minWidth: 0 }}>
+          <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {item.objective}
+          </p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
             Created {new Date(item.createdAt).toLocaleString()}
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-mono bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
-            {item.state}
-          </span>
-          <button
-            type="button"
-            onClick={onToggle}
-            disabled={busy}
-            className="text-sm text-blue-700 hover:underline disabled:opacity-50"
-          >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexShrink: 0 }}>
+          {/* PendingApproval → warning token per spec */}
+          <span className="fl-badge fl-badge-warning">{item.state}</span>
+          <button type="button" onClick={onToggle} disabled={busy} className="fl-btn-ghost">
             {expanded ? 'Collapse' : 'Inspect & decide'}
           </button>
         </div>
       </div>
 
       {expanded && (
-        <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+        <div style={{ borderTop: '1px solid var(--border-default)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <ValidationChecks report={report} />
 
+          {/* Action buttons */}
           <div>
-            <div className="flex items-center gap-2">
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => onModeChange('approve')}
                 disabled={busy}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 ${
-                  mode === 'approve'
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50'
-                }`}
+                style={{
+                  background: mode === 'approve' ? 'var(--state-success)' : 'var(--bg-surface)',
+                  color: mode === 'approve' ? '#fff' : 'var(--state-success)',
+                  border: `1px solid var(--state-success)`,
+                  borderRadius: '4px',
+                  padding: '0.375rem 0.875rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  opacity: busy ? 0.5 : 1,
+                  fontFamily: 'var(--font-sans)',
+                }}
               >
                 Approve
               </button>
@@ -259,11 +253,18 @@ function QueueCard({
                 type="button"
                 onClick={() => onModeChange('reject')}
                 disabled={busy}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 ${
-                  mode === 'reject'
-                    ? 'bg-red-600 text-white border-red-600'
-                    : 'bg-white text-red-700 border-red-300 hover:bg-red-50'
-                }`}
+                style={{
+                  background: mode === 'reject' ? 'var(--state-error)' : 'var(--bg-surface)',
+                  color: mode === 'reject' ? '#fff' : 'var(--state-error)',
+                  border: `1px solid var(--state-error)`,
+                  borderRadius: '4px',
+                  padding: '0.375rem 0.875rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  opacity: busy ? 0.5 : 1,
+                  fontFamily: 'var(--font-sans)',
+                }}
               >
                 Reject
               </button>
@@ -271,19 +272,26 @@ function QueueCard({
                 type="button"
                 onClick={() => onModeChange('revision')}
                 disabled={busy}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-50 ${
-                  mode === 'revision'
-                    ? 'bg-sky-600 text-white border-sky-600'
-                    : 'bg-white text-sky-700 border-sky-300 hover:bg-sky-50'
-                }`}
+                style={{
+                  background: mode === 'revision' ? 'var(--accent-primary)' : 'var(--bg-surface)',
+                  color: mode === 'revision' ? '#fff' : 'var(--accent-primary)',
+                  border: `1px solid var(--accent-primary)`,
+                  borderRadius: '4px',
+                  padding: '0.375rem 0.875rem',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  opacity: busy ? 0.5 : 1,
+                  fontFamily: 'var(--font-sans)',
+                }}
               >
                 Request revision
               </button>
             </div>
 
             {mode && (
-              <div className="mt-3 space-y-2">
-                <label className="block text-xs text-gray-500">
+              <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   {mode === 'approve'
                     ? 'Optional approval notes'
                     : mode === 'reject'
@@ -295,30 +303,21 @@ function QueueCard({
                   onChange={(e) => onNotesChange(e.target.value)}
                   disabled={busy}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  className="fl-input"
+                  style={{ resize: 'vertical' }}
                   placeholder={
                     mode === 'approve'
-                      ? 'e.g. Supply route confirmed — good to go.'
+                      ? 'e.g. Supply route confirmed – good to go.'
                       : mode === 'reject'
                         ? 'e.g. Shelter #12 already serviced by another run.'
                         : 'e.g. Vehicle capacity underestimated; re-match with bigger truck.'
                   }
                 />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={onSubmit}
-                    disabled={busy}
-                    className="px-4 py-1.5 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50"
-                  >
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" onClick={onSubmit} disabled={busy} className="fl-btn-primary">
                     {busy ? 'Submitting…' : 'Submit decision'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={onCancel}
-                    disabled={busy}
-                    className="px-4 py-1.5 rounded-lg text-sm font-medium bg-white text-gray-600 border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
-                  >
+                  <button type="button" onClick={onCancel} disabled={busy} className="fl-btn-secondary">
                     Cancel
                   </button>
                 </div>
@@ -333,42 +332,46 @@ function QueueCard({
 
 function ValidationChecks({ report }: { report: ValidationReport | undefined }) {
   if (!report) {
-    return <p className="text-xs text-gray-400">Loading safety checks…</p>
+    return <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loading safety checks…</p>
   }
 
   if (!report.hasRunValidation) {
     return (
-      <p className="text-xs text-amber-700">
+      <div className="fl-notification fl-notification-warning">
         No safety checks recorded for this run yet.
-      </p>
+      </div>
     )
   }
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-sm font-medium text-gray-700">Safety checks</span>
-        <span
-          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            report.overallPassed
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-red-100 text-red-700'
-          }`}
-        >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Safety checks</span>
+        <span className={`fl-badge ${report.overallPassed ? 'fl-badge-success' : 'fl-badge-error'}`}>
           {report.overallPassed ? 'Overall PASS' : 'Overall FAIL'}
         </span>
       </div>
-      <ul className="space-y-1.5">
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
         {report.checks.map((check) => (
           <li
             key={check.checkName}
-            className="flex items-start justify-between gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2"
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '0.5rem',
+              fontSize: '0.875rem',
+              backgroundColor: check.passed ? 'var(--bg-base)' : '#FFF1F1',
+              border: `1px solid ${check.passed ? 'var(--border-default)' : '#FFBDBD'}`,
+              borderRadius: '4px',
+              padding: '0.5rem 0.75rem',
+            }}
           >
-            <span className={check.passed ? 'text-gray-800' : 'text-red-800'}>
+            <span style={{ color: check.passed ? 'var(--text-primary)' : 'var(--state-error)' }}>
               {check.passed ? '✓' : '✗'} {check.checkName}
             </span>
             {!check.passed && check.violationDetail && (
-              <span className="text-xs text-red-600 text-right max-w-[18rem]">
+              <span style={{ fontSize: '0.75rem', color: 'var(--state-error)', textAlign: 'right', maxWidth: '18rem' }}>
                 {check.violationDetail}
               </span>
             )}

@@ -1,3 +1,258 @@
+﻿/* ── FloodLink Design System – IBM Carbon-inspired tokens ─────────────── */
+/* Import IBM Plex fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── CSS custom property tokens ────────────────────────────────────────── */
+:root {
+  --bg-base:         #F4F4F4;
+  --bg-surface:      #FFFFFF;
+  --text-primary:    #161616;
+  --text-muted:      #6F6F6F;
+  --accent-primary:  #0F62FE;
+  --border-default:  #C6C6C6;
+  --state-error:     #DA1E28;
+  --state-warning:   #F1C21B;
+  --state-success:   #198038;
+  --state-info:      #0043CE;
+  --font-sans:       'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:       'IBM Plex Mono', 'Courier New', monospace;
+}
+
+/* ── Base resets ────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ── Utility classes backed by design tokens ───────────────────────────── */
+
+/* Surfaces / layout */
+.fl-surface {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 4px; /* rounded-sm = small UI */
+}
+.fl-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 6px; /* rounded-md = cards/panels */
+}
+
+/* Typography */
+.fl-text-primary  { color: var(--text-primary); }
+.fl-text-muted    { color: var(--text-muted); }
+.fl-mono          { font-family: var(--font-mono); }
+
+/* Buttons */
+.fl-btn-primary {
+  background-color: var(--accent-primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.375rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+.fl-btn-primary:hover:not(:disabled) { background-color: #0353E9; }
+.fl-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.fl-btn-secondary {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 0.375rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+.fl-btn-secondary:hover:not(:disabled) { background-color: var(--bg-base); }
+.fl-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.fl-btn-danger {
+  background-color: var(--state-error);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.375rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.fl-btn-danger:hover:not(:disabled) { background-color: #b81922; }
+.fl-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.fl-btn-ghost {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+.fl-btn-ghost:hover:not(:disabled) { color: #0353E9; }
+.fl-btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Status badges (rounded-full per spec) */
+.fl-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.125rem 0.625rem;
+  white-space: nowrap;
+}
+.fl-badge-success  { background-color: #D0E9D7; color: var(--state-success); }
+.fl-badge-error    { background-color: #FFD7D9; color: var(--state-error); }
+.fl-badge-warning  { background-color: #FFF0C1; color: var(--text-primary); } /* dark text on yellow – contrast rule */
+.fl-badge-info     { background-color: #D0E2FF; color: var(--state-info); }
+.fl-badge-neutral  { background-color: #E0E0E0; color: var(--text-primary); }
+
+/* Inline notifications */
+.fl-notification {
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  border-left: 4px solid;
+}
+.fl-notification-error   { background: #FFF1F1; border-color: var(--state-error);   color: var(--text-primary); }
+.fl-notification-success { background: #DEFBE6; border-color: var(--state-success); color: var(--text-primary); }
+.fl-notification-warning { background: #FFF8E1; border-color: var(--state-warning); color: var(--text-primary); }
+.fl-notification-info    { background: #EDF5FF; border-color: var(--state-info);    color: var(--text-primary); }
+
+/* Inputs */
+.fl-input {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 0.375rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  width: 100%;
+}
+.fl-input:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 0;
+  border-color: var(--accent-primary);
+}
+.fl-input:disabled { opacity: 0.5; }
+
+/* Table */
+.fl-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+.fl-table thead tr { border-bottom: 1px solid var(--border-default); }
+.fl-table th {
+  text-align: left;
+  padding: 0.625rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.fl-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #E8E8E8; color: var(--text-primary); }
+.fl-table tbody tr:hover { background-color: #F8F8F8; }
+.fl-table tbody tr:last-child td { border-bottom: none; }
+
+/* Shell header */
+.fl-header {
+  background-color: var(--text-primary); /* Carbon g100 header = near-black */
+  color: #F4F4F4;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid #393939;
+}
+.fl-header-inner {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.fl-header-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #F4F4F4;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+/* Tab navigation */
+.fl-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0 1rem;
+  height: 3rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #C6C6C6;
+  cursor: pointer;
+  transition: color 0.1s, border-color 0.1s;
+  white-space: nowrap;
+}
+.fl-tab:hover { color: #F4F4F4; }
+.fl-tab.active {
+  color: #F4F4F4;
+  border-bottom-color: var(--accent-primary);
+  font-weight: 600;
+}
+
+/* Section heading */
+.fl-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
+}
+.fl-section-desc {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0 0 1.5rem 0;
+}
+
+/* Audit timeline dot */
+.fl-timeline-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: var(--accent-primary);
+  flex-shrink: 0;
+  margin-top: 0.375rem;
+}
+
+/* Bar chart track */
+.fl-bar-track {
+  height: 6px;
+  background-color: #E0E0E0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.fl-bar-fill {
+  height: 100%;
+  background-color: var(--state-error);
+  border-radius: 9999px;
+}

@@ -1,11 +1,11 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import ApprovalQueue from './components/ApprovalQueue'
 import DispatchHistory from './components/DispatchHistory'
 import Analytics from './components/Analytics'
 
 /**
- * App — root component. Coordinator dashboard shell with a simple tab nav.
- * Member D's three screens live behind tabs (no routing library yet — do not
+ * App – root component. Coordinator dashboard shell with a Carbon-style tab nav.
+ * Member D's three screens live behind tabs (no routing library yet – do not
  * add one without team agreement; see CONTRIBUTING.md).
  */
 
@@ -21,21 +21,18 @@ function App() {
   const [tab, setTab] = useState<Tab>('queue')
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <h1 className="text-lg font-bold text-gray-900 shrink-0">FloodLink Coordinator</h1>
-          <nav className="flex gap-1 overflow-x-auto">
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-base)' }}>
+      {/* Carbon-style dark top header */}
+      <header className="fl-header">
+        <div className="fl-header-inner">
+          <span className="fl-header-title">FloodLink — Coordinator</span>
+          <nav style={{ display: 'flex', gap: 0, overflow: 'hidden' }}>
             {TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  tab === t.id
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
+                className={`fl-tab${tab === t.id ? ' active' : ''}`}
               >
                 {t.label}
               </button>
@@ -44,7 +41,7 @@ function App() {
         </div>
       </header>
 
-      <main>
+      <main style={{ maxWidth: '80rem', margin: '0 auto', padding: '1.5rem 1rem' }}>
         {tab === 'queue' && <ApprovalQueue />}
         {tab === 'history' && <DispatchHistory />}
         {tab === 'analytics' && <Analytics />}

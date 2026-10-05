@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/dispatch_api.dart';
 import '../api/models.dart';
+import '../main.dart' show FloodLinkColors;
 import '../state/app_state.dart';
 import 'delivery_confirmation_screen.dart';
 
@@ -33,74 +34,56 @@ class _DispatchStatusScreenState extends State<DispatchStatusScreen> {
       setState(() => _error = 'Enter a workflow run id first.');
       return;
     }
-
-    setState(() {
-      _loading = true;
-      _error = null;
-      _status = null;
-    });
-
+    setState(() { _loading = true; _error = null; _status = null; });
     try {
       final api = DispatchApi(context.read<AppState>().apiBaseUrl);
       final status = await api.fetchStatus(runId);
       if (!mounted) return;
-      setState(() {
-        _status = status;
-        _loading = false;
-      });
+      setState(() { _status = status; _loading = false; });
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = e.message;
-      });
+      setState(() { _loading = false; _error = e.message; });
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = 'Could not reach the API. Is the backend running?';
-      });
+      setState(() { _loading = false; _error = 'Could not reach the API. Is the backend running?'; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final status = _status;
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dispatch status'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            controller: _runIdController,
-            decoration: const InputDecoration(
-              labelText: 'Workflow run id',
-              hintText: 'UUID, e.g. 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.search),
+      appBar: AppBar(title: const Text('Dispatch status')),
+      body: Container(
+        color: FloodLinkColors.bgBase,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            TextField(
+              controller: _runIdController,
+              decoration: const InputDecoration(
+                labelText: 'Workflow run id',
+                hintText: 'UUID, e.g. 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+                prefixIcon: Icon(Icons.search, color: FloodLinkColors.textMuted),
+              ),
+              onSubmitted: (_) => _lookup(),
             ),
-            onSubmitted: (_) => _lookup(),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _loading ? null : _lookup,
-            icon: const Icon(Icons.search),
-            label: Text(_loading ? 'Loading…' : 'Look up'),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 16),
-            _Banner(icon: Icons.error_outline, tone: Colors.red, text: _error!),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _loading ? null : _lookup,
+              icon: const Icon(Icons.search),
+              label: Text(_loading ? 'Loading…' : 'Look up'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              _InlineNotification(tone: _NotificationTone.error, text: _error!),
+            ],
+            if (status != null) ...[
+              const SizedBox(height: 16),
+              _StatusCard(status: status),
+            ],
           ],
-          if (status != null) ...[
-            const SizedBox(height: 16),
-            _StatusCard(status: status),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -108,7 +91,6 @@ class _DispatchStatusScreenState extends State<DispatchStatusScreen> {
 
 class _StatusCard extends StatelessWidget {
   const _StatusCard({required this.status});
-
   final DispatchStatus status;
 
   @override
@@ -117,7 +99,8 @@ class _StatusCard extends StatelessWidget {
 
     if (decision == 'Rejected') {
       return _DecisionCard(
-        tone: Colors.red,
+        toneColor: FloodLinkColors.stateError,
+        badgeBg: FloodLinkColors.badgeErrorBg,
         title: 'Rejected',
         icon: Icons.cancel_outlined,
         children: [
@@ -129,7 +112,8 @@ class _StatusCard extends StatelessWidget {
     if (decision == 'Approved') {
       final delivered = status.isDelivered ?? false;
       return _DecisionCard(
-        tone: delivered ? Colors.green : Colors.teal,
+        toneColor: delivered ? FloodLinkColors.stateSuccess : FloodLinkColors.accentPrimary,
+        badgeBg: delivered ? FloodLinkColors.badgeSuccessBg : FloodLinkColors.badgeInfoBg,
         title: delivered ? 'Delivered ✓' : 'Approved',
         icon: delivered ? Icons.check_circle_outline : Icons.local_shipping_outlined,
         children: [
@@ -142,9 +126,7 @@ class _StatusCard extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => DeliveryConfirmationScreen(
-                      workflowRunId: status.workflowRunId,
-                    ),
+                    builder: (_) => DeliveryConfirmationScreen(workflowRunId: status.workflowRunId),
                   ),
                 ),
                 icon: const Icon(Icons.task_alt),
@@ -155,8 +137,10 @@ class _StatusCard extends StatelessWidget {
       );
     }
 
+    // In-progress — info tone (Triage/Matching/Routing/Validating → --state-info)
     return _DecisionCard(
-      tone: Colors.blueGrey,
+      toneColor: FloodLinkColors.stateInfo,
+      badgeBg: FloodLinkColors.badgeInfoBg,
       title: 'In progress',
       icon: Icons.hourglass_top,
       children: [
@@ -169,13 +153,15 @@ class _StatusCard extends StatelessWidget {
 
 class _DecisionCard extends StatelessWidget {
   const _DecisionCard({
-    required this.tone,
+    required this.toneColor,
+    required this.badgeBg,
     required this.title,
     required this.icon,
     required this.children,
   });
 
-  final Color tone;
+  final Color toneColor;
+  final Color badgeBg;
   final String title;
   final IconData icon;
   final List<Widget> children;
@@ -183,7 +169,6 @@ class _DecisionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -191,14 +176,26 @@ class _DecisionCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, color: tone),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: tone,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: toneColor, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: toneColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -214,7 +211,6 @@ class _DecisionCard extends StatelessWidget {
 
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.label, required this.value});
-
   final String label;
   final String value;
 
@@ -225,39 +221,42 @@ class _InfoRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+          Text(label, style: const TextStyle(fontSize: 11, color: FloodLinkColors.textMuted)),
           const SizedBox(height: 2),
-          Text(value),
+          Text(value, style: const TextStyle(fontSize: 14, color: FloodLinkColors.textPrimary)),
         ],
       ),
     );
   }
 }
 
-class _Banner extends StatelessWidget {
-  const _Banner({required this.icon, required this.tone, required this.text});
+enum _NotificationTone { error, success, warning, info }
 
-  final IconData icon;
-  final Color tone;
+class _InlineNotification extends StatelessWidget {
+  const _InlineNotification({required this.tone, required this.text});
+  final _NotificationTone tone;
   final String text;
 
   @override
   Widget build(BuildContext context) {
+    final (bg, border, icon) = switch (tone) {
+      _NotificationTone.error   => (const Color(0xFFFFF1F1), FloodLinkColors.stateError,   Icons.error_outline),
+      _NotificationTone.success => (const Color(0xFFDEFBE6), FloodLinkColors.stateSuccess, Icons.check_circle_outline),
+      _NotificationTone.warning => (const Color(0xFFFFF8E1), FloodLinkColors.stateWarning, Icons.warning_amber_outlined),
+      _NotificationTone.info    => (const Color(0xFFEDF5FF), FloodLinkColors.stateInfo,    Icons.info_outline),
+    };
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: tone),
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+        border: Border(left: BorderSide(color: border, width: 4)),
       ),
       child: Row(
         children: [
-          Icon(icon, color: tone),
+          Icon(icon, color: border, size: 18),
           const SizedBox(width: 8),
-          Expanded(child: Text(text)),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 14, color: FloodLinkColors.textPrimary))),
         ],
       ),
     );
