@@ -23,6 +23,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddControllers();
 
+// Standard RFC 7807 problem-details responses for all error results.
+builder.Services.AddProblemDetails();
+
 // ── Phase 5: Mapbox client + Route/ETA Agent ─────────────────────────────────
 
 builder.Services.AddHttpClient<IMapboxClient, MapboxClient>(client =>

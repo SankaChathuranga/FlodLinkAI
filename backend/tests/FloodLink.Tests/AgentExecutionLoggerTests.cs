@@ -17,7 +17,7 @@ public class AgentExecutionLoggerTests
     {
         // Using real postgres (docker) since InMemory package download fails due to network
         string dbName = "testdb_" + Guid.NewGuid().ToString().Replace("-", "");
-        string connStr = $"Host=localhost;Port=5432;Database={dbName};Username=postgres;Password=postgres";
+        string connStr = $"Host=localhost;Port=5432;Database={dbName};Username=floodlink;Password=floodlink_dev_pw";
         
         return new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(connStr)
