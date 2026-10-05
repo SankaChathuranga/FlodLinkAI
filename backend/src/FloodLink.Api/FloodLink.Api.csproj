@@ -7,9 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FloodLink.Agents.Routing\FloodLink.Agents.Routing.csproj" />
     <ProjectReference Include="..\FloodLink.Infrastructure\FloodLink.Infrastructure.csproj" />
     <ProjectReference Include="..\FloodLink.Contracts\FloodLink.Contracts.csproj" />
   </ItemGroup>
+
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />

@@ -1,7 +1,10 @@
+using FloodLink.Agents.Routing;
 using FloodLink.Domain;
 using FloodLink.Infrastructure;
+using FloodLink.Infrastructure.Mapbox;
 using Microsoft.EntityFrameworkCore;
 using FloodLink.Api.Services;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,11 +26,22 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddControllers();
 
-// TODO (Week 5–6): Register each agent invoker once the real implementations are built.
-// Each FloodLink.Agents.* project's class implements the matching IXxxAgentInvoker
-// interface from FloodLink.Domain, then gets registered here, e.g.:
+// ── Phase 5: Mapbox client + Route/ETA Agent ─────────────────────────────────
+
+builder.Services.AddHttpClient<IMapboxClient, MapboxClient>(client =>
+{
+    var timeoutSeconds = builder.Configuration.GetValue<int>("Mapbox:TimeoutSeconds", defaultValue: 10);
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+});
+builder.Services.AddScoped<IRouteRepository, RouteRepository>();
+builder.Services.AddScoped<IRoutingAgentInvoker, RoutingAgentInvoker>();
+
+// TODO (Week 5–6): Register remaining agent invokers once real implementations are built.
 //   builder.Services.AddScoped<ITriageAgentInvoker, TriageAgentAdapter>();
+//   builder.Services.AddScoped<IMatchingAgentInvoker, MatchingAgentAdapter>();
+//   builder.Services.AddScoped<IValidationAgentInvoker, ValidationAgentAdapter>();
 // TODO (Week 2): Add JWT authentication / authorization services here.
+
 
 var app = builder.Build();
 

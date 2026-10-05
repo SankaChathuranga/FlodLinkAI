@@ -12,7 +12,9 @@
     <ProjectReference Include="..\..\src\FloodLink.Domain\FloodLink.Domain.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Contracts\FloodLink.Contracts.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Infrastructure\FloodLink.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\FloodLink.Agents.Routing\FloodLink.Agents.Routing.csproj" />
   </ItemGroup>
+
 
   <ItemGroup>
     <PackageReference Include="xunit" />

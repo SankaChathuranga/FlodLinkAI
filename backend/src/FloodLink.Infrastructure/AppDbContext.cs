@@ -74,74 +74,78 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
-            // TODO: AllocationProposalId FK relationship to be wired once Member B
-            //       registers AllocationProposals — add HasOne/WithMany here.
+            entity.Property(e => e.DistanceMeters).IsRequired();
+            entity.Property(e => e.EstimatedDurationSeconds).IsRequired();
+            entity.Property(e => e.PolylineString).IsRequired().HasColumnType("text");
+            entity.HasOne(e => e.WorkflowRun)
+                  .WithMany()
+                  .HasForeignKey(e => e.WorkflowRunId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── Depot, InventoryItem, AllocationProposal ───────────────────────────
+        modelBuilder.Entity<Depot>(entity =>
+        {
+            entity.HasKey(d => d.Id);
 
-         modelBuilder.Entity<Depot>(entity =>
-    {
-        entity.HasKey(d => d.Id);
+            entity.Property(d => d.Name)
+                .IsRequired()
+                .HasMaxLength(200);
 
-        entity.Property(d => d.Name)
-            .IsRequired()
-            .HasMaxLength(200);
+            entity.Property(d => d.Latitude)
+                .HasPrecision(10, 7);
 
-        entity.Property(d => d.Latitude)
-            .HasPrecision(10, 7);
+            entity.Property(d => d.Longitude)
+                .HasPrecision(10, 7);
 
-        entity.Property(d => d.Longitude)
-            .HasPrecision(10, 7);
+            entity.HasMany(d => d.InventoryItems)
+                .WithOne(i => i.Depot)
+                .HasForeignKey(i => i.DepotId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-        entity.HasMany(d => d.InventoryItems)
-            .WithOne(i => i.Depot)
-            .HasForeignKey(i => i.DepotId)
-            .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(d => d.AllocationProposals)
+                .WithOne(a => a.Depot)
+                .HasForeignKey(a => a.DepotId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
-        entity.HasMany(d => d.AllocationProposals)
-            .WithOne(a => a.Depot)
-            .HasForeignKey(a => a.DepotId)
-            .OnDelete(DeleteBehavior.Restrict);
-    });
+        modelBuilder.Entity<InventoryItem>(entity =>
+        {
+            entity.HasKey(i => i.Id);
 
-    modelBuilder.Entity<InventoryItem>(entity =>
-    {
-        entity.HasKey(i => i.Id);
+            entity.Property(i => i.ItemName)
+                .IsRequired()
+                .HasMaxLength(200);
 
-        entity.Property(i => i.ItemName)
-            .IsRequired()
-            .HasMaxLength(200);
+            entity.Property(i => i.Unit)
+                .IsRequired()
+                .HasMaxLength(50);
 
-        entity.Property(i => i.Unit)
-            .IsRequired()
-            .HasMaxLength(50);
+            entity.Property(i => i.QuantityAvailable)
+                .HasPrecision(18, 2);
 
-        entity.Property(i => i.QuantityAvailable)
-            .HasPrecision(18, 2);
+            entity.Property(i => i.QuantityReserved)
+                .HasPrecision(18, 2);
 
-        entity.Property(i => i.QuantityReserved)
-            .HasPrecision(18, 2);
+            entity.Property(i => i.ReorderThreshold)
+                .HasPrecision(18, 2);
+        });
 
-        entity.Property(i => i.ReorderThreshold)
-            .HasPrecision(18, 2);
-    });
+        modelBuilder.Entity<AllocationProposal>(entity =>
+        {
+            entity.HasKey(a => a.Id);
 
-    modelBuilder.Entity<AllocationProposal>(entity =>
-    {
-        entity.HasKey(a => a.Id);
+            entity.Property(a => a.ItemName)
+                .IsRequired()
+                .HasMaxLength(200);
 
-        entity.Property(a => a.ItemName)
-            .IsRequired()
-            .HasMaxLength(200);
+            entity.Property(a => a.Status)
+                .IsRequired()
+                .HasMaxLength(50);
 
-        entity.Property(a => a.Status)
-            .IsRequired()
-            .HasMaxLength(50);
-
-        entity.Property(a => a.Quantity)
-            .HasPrecision(18, 2);
-    });
+            entity.Property(a => a.Quantity)
+                .HasPrecision(18, 2);
+        });
     }
 }
 
