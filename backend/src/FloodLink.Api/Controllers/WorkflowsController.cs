@@ -2,6 +2,7 @@ using FloodLink.Api.Dtos;
 using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FloodLink.Api.Controllers;
@@ -77,26 +78,20 @@ public class WorkflowsController : ControllerBase
     /// <summary>
     /// Submits a coordinator decision on a run that is in PendingApproval.
     /// Accepted values for Decision: "Approved", "Rejected", "RevisionRequested".
-    /// Caller must supply the header X-User-Role: Coordinator.
+    /// Requires a valid JWT with the Coordinator role.
     /// </summary>
     [HttpPost("{id:guid}/decision")]
+    [Authorize(Roles = "Coordinator")]
     [ProducesResponseType(typeof(WorkflowRunResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> MakeDecision(
         Guid id,
         [FromBody] CoordinatorDecisionRequest request,
         CancellationToken ct)
     {
-        // Lightweight role gate — header-based until JWT auth is wired up (Phase 7).
-        var role = Request.Headers["X-User-Role"].FirstOrDefault();
-        if (role != "Coordinator")
-            return Problem(
-                detail: "Only coordinators can submit approval decisions.",
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Unauthorized");
-
         // Only these three states are valid coordinator decisions.
         if (!TryParseCoordinatorDecision(request.Decision, out var decisionState))
             return Problem(
