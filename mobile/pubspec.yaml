@@ -14,7 +14,6 @@ dependencies:
   # State management — Provider only (see CONTRIBUTING.md).
   # Do NOT add Riverpod, BLoC, GetX, or any other state management library.
   provider: ^6.1.2
-  http: ^1.2.0
 
   # UI
   cupertino_icons: ^1.0.8

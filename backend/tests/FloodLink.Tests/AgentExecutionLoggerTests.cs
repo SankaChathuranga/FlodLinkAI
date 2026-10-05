@@ -15,10 +15,12 @@ public class AgentExecutionLoggerTests
 {
     private static DbContextOptions<AppDbContext> CreateNewContextOptions()
     {
+        // Using real postgres (docker) since InMemory package download fails due to network
         string dbName = "testdb_" + Guid.NewGuid().ToString().Replace("-", "");
-
+        string connStr = $"Host=localhost;Port=5432;Database={dbName};Username=postgres;Password=postgres";
+        
         return new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(dbName)
+            .UseNpgsql(connStr)
             .Options;
     }
 

@@ -12,19 +12,21 @@ jobs:
   # ─────────────────────────────────────────────
   backend:
     name: Backend — Build & Test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
+        working-directory: FloodLink/backend
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup .NET (version from global.json)
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@v4
         with:
-          # Resolve global.json from the repository root.
-          global-json-file: global.json
+          # Reads the SDK version from FloodLink/global.json automatically.
+          # global-json-file must point to the file relative to the repo root.
+          global-json-file: FloodLink/global.json
 
       - name: Restore NuGet packages
         run: dotnet restore ../FloodLink.sln
@@ -41,21 +43,21 @@ jobs:
   # ─────────────────────────────────────────────
   web:
     name: Web — Install & Build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: web
+        working-directory: FloodLink/web
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js 24 LTS
-        uses: actions/setup-node@v7
+      - name: Setup Node.js 20 LTS
+        uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "20"
           cache: "npm"
-          cache-dependency-path: ${{ github.workspace }}/web/package-lock.json
+          cache-dependency-path: FloodLink/web/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -69,14 +71,14 @@ jobs:
   # ─────────────────────────────────────────────
   mobile:
     name: Mobile — Analyze
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: mobile
+        working-directory: FloodLink/mobile
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Flutter (stable channel)
         uses: subosito/flutter-action@v2

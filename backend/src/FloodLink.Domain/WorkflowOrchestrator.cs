@@ -80,7 +80,7 @@ public sealed class WorkflowOrchestrator
                 break;
 
             case WorkflowState.Routing:
-                var proposal = ExtractPlan<FloodLink.Contracts.AllocationProposal>(run.PlanJson, "allocationProposal");
+                var proposal = ExtractPlan<AllocationProposal>(run.PlanJson, "allocationProposal");
                 await StepAsync(run, "RoutingAgent",
                     async () => await _routing.ExecuteAsync(proposal, ct),
                     onSuccess: (route) =>
