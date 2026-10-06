@@ -5,11 +5,11 @@ change.
 
 ## Current Phase
 
-- Member B — Inventory, Matching Agent, and client screens — **COMPLETE**
+- Members A, B, C and D — **ALL MERGED TO MAIN** (PR #1 merged 2026-10-06). Backend: 116 tests pass.
 
 ## Current Goal
 
-- Integrate Member B's inventory and matching work with the remaining team components.
+- Verify the full pipeline end to end and replace the Development-only auth fallback with real login.
 
 ## Completed
 
@@ -23,14 +23,22 @@ change.
   placeholders.
 - React Carbon inventory dashboard and Flutter Provider stock check-in screen added.
 
+- Member D (Validation/Safety Agent with SafetyRules, Dispatch/ValidationResult/AuditTrail tables,
+  Dispatch/Audit/Validation controllers, WorkflowStateService, web Approval Queue / Dispatch History /
+  Analytics tabs, mobile dispatch-status and delivery-confirmation screens at `/dispatch`) merged with
+  A, B and C; migration `AddMemberDTables` applied to the shared dev database.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Apply the new migration to the shared development database, then merge and
-  integrate the remaining Validation/Approval work.
+- Run one real workflow end to end (needs a Mapbox key or a seeded PendingApproval run) and approve/reject it.
+- Replace the Development-only `JwtOrDev` auth fallback with a real login flow; D's endpoints return 401
+  in non-Development environments until then.
+- Confirm CI runs on PRs and provides Postgres for the integration tests.
+- Run the mobile dispatch screens on an emulator/device.
 
 ## Open Questions
 
