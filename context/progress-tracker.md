@@ -43,6 +43,10 @@ change.
 
 ## Session Notes
 
+- Local-development CORS now permits the React server on port 5173 and
+  Flutter Web on the fixed port 5174. Run Flutter with
+  `flutter run -d chrome --web-port 5174`.
+
 - Routes table already matches the agreed minimal schema (Id, WorkflowRunId, DistanceMeters,
   EstimatedDurationSeconds, PolylineString, CreatedAt); no migration needed. Build Spec 3.1 and
   Development Plan updated to match. Id and CreatedAt are kept deliberately (PK and audit timestamp).

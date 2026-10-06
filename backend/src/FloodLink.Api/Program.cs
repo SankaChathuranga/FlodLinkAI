@@ -46,7 +46,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowLocalDev", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins(
+                  "http://localhost:5173", // React development server
+                  "http://localhost:5174") // Flutter Web development server
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -103,3 +105,25 @@ builder.Services.AddScoped<ITriageAgentInvoker, TriageAgentInvoker>();
 builder.Services.AddScoped<IMatchingAgentInvoker, MatchingAgentInvoker>();
 builder.Services.AddScoped<IValidationAgentInvoker, ValidationAgentInvoker>();
 
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseCors("AllowLocalDev");
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.MapGet("/health", () =>
+    Results.Ok(new { status = "Healthy", service = "FloodLink API" }));
+
+app.Run();
+
+public partial class Program { }
