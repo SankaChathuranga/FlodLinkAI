@@ -174,7 +174,6 @@ public class WorkflowEngineTests
     [Fact]
     public void Rejected_To_Anything_IsInvalid()
     {
-        // Rejected is a terminal state — no further transitions are allowed
         var run = RunIn(WorkflowState.Rejected);
         Assert.False(WorkflowEngine.TryTransition(run, WorkflowState.Approved));
         Assert.False(WorkflowEngine.TryTransition(run, WorkflowState.Triage));
@@ -218,8 +217,6 @@ public class WorkflowEngineTests
         Assert.Equal(WorkflowState.Validating, run.FailedAtState);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // UpdatedAt — must be set on every successful transition
     // ═══════════════════════════════════════════════════════════════════════════
 
     [Fact]

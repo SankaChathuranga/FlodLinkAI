@@ -200,7 +200,6 @@ public class TriageAgentTests
         // Act
         var result = await agent.ExecuteAsync(workflowRunId);
 
-        // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Single(result.Data.PriorityItems);

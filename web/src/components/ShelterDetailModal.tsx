@@ -43,7 +43,7 @@ export function ShelterDetailModal({ shelterId, onClose, onTriggerTriage }: Shel
 
   if (!shelterId) return null
 
-  // Filter reports timeline
+  // Filter timeline
   const reports = shelter?.reports ?? []
   const filteredReports = reports.filter((r) => {
     if (statusFilter && r.status.toLowerCase() !== statusFilter.toLowerCase()) return false
