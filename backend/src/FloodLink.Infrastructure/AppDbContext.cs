@@ -57,6 +57,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CurrentState)
                   .HasConversion<string>()
                   .HasMaxLength(50);
+            entity.Property(e => e.FailedAtState)
+                  .HasConversion<string?>()
+                  .HasMaxLength(50)
+                  .IsRequired(false);
         });
 
         // ── AgentExecutionLog ──────────────────────────────────────────────────
@@ -76,6 +80,13 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.DistanceMeters).IsRequired();
+            entity.Property(e => e.EstimatedDurationSeconds).IsRequired();
+            entity.Property(e => e.PolylineString).IsRequired().HasColumnType("text");
+            entity.HasOne(e => e.WorkflowRun)
+                  .WithMany()
+                  .HasForeignKey(e => e.WorkflowRunId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── User ───────────────────────────────────────────────────────────────

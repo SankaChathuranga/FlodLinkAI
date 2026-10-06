@@ -4,16 +4,22 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>FloodLink.Api</RootNamespace>
+    <UserSecretsId>floodlink-api-development</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FloodLink.Agents.Routing\FloodLink.Agents.Routing.csproj" />
     <ProjectReference Include="..\FloodLink.Infrastructure\FloodLink.Infrastructure.csproj" />
     <ProjectReference Include="..\FloodLink.Contracts\FloodLink.Contracts.csproj" />
     <ProjectReference Include="..\FloodLink.Domain\FloodLink.Domain.csproj" />
     <ProjectReference Include="..\FloodLink.Agents.Triage\FloodLink.Agents.Triage.csproj" />
+    <ProjectReference Include="..\FloodLink.Agents.Matching\FloodLink.Agents.Matching.csproj" />
+    <ProjectReference Include="..\FloodLink.Agents.Validation\FloodLink.Agents.Validation.csproj" />
   </ItemGroup>
 
+
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>

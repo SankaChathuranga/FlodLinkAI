@@ -39,6 +39,9 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Property<long>("DurationMs")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
                     b.Property<string>("InputJson")
                         .HasColumnType("text");
 
@@ -191,34 +194,25 @@ namespace FloodLink.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("AllocationProposalId")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<double>("DestLat")
-                        .HasColumnType("double precision");
+                    b.Property<int>("DistanceMeters")
+                        .HasColumnType("integer");
 
-                    b.Property<double>("DestLng")
-                        .HasColumnType("double precision");
+                    b.Property<int>("EstimatedDurationSeconds")
+                        .HasColumnType("integer");
 
-                    b.Property<double>("DistanceKm")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("EtaMinutes")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("OriginLat")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("OriginLng")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("RoutePolyline")
+                    b.Property<string>("PolylineString")
+                        .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("WorkflowRunId");
 
                     b.ToTable("Routes");
                 });
@@ -412,6 +406,10 @@ namespace FloodLink.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("FailedAtState")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("Objective")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -456,6 +454,17 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Navigation("Reporter");
 
                     b.Navigation("Shelter");
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.RouteEntity", b =>
+                {
+                    b.HasOne("FloodLink.Domain.Entities.WorkflowRun", "WorkflowRun")
+                        .WithMany()
+                        .HasForeignKey("WorkflowRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkflowRun");
                 });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.Shelter", b =>

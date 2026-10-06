@@ -13,7 +13,8 @@ change.
 
 ## Completed
 
-- None yet.
+- Member C (orchestration, state machine, logger, Route/ETA agent via Mapbox, JWT validation)
+  merged into Member A's branch; conflicts resolved, solution builds, 69 tests pass.
 
 ## In Progress
 
@@ -25,7 +26,10 @@ change.
 
 ## Open Questions
 
-- [Any unresolved product or technical decisions]
+- Routes table (DistanceMeters / EstimatedDurationSeconds / PolylineString, keyed by WorkflowRunId)
+  differs from the shared spec (allocation_proposal_id, distance_km, eta_minutes, route_polyline).
+  Needs team agreement or a mapping back to the contract.
+- `/context` is in .gitignore (from main); existing files stay tracked but new files there are ignored.
 
 ## Architecture Decisions
 
@@ -34,4 +38,8 @@ change.
 
 ## Session Notes
 
-- [Context needed to resume work in the next session]
+- Merge: Program.cs now registers A's services/CORS plus C's JWT, Mapbox, orchestrator.
+  Added AgentInvokerAdapters.cs (Api) bridging ITriageAgent/IMatchingAgent/IValidationAgent to the
+  orchestrator invoker interfaces; Matching and Validation are still stubs (run -> Failed).
+- AppDbContextModelSnapshot.cs was regenerated from the merged model. `dotnet ef` cannot build a host
+  from Program.cs (needs a design-time factory); API needs Jwt__SigningKey set to start.
