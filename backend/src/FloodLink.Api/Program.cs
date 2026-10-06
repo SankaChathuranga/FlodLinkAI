@@ -9,10 +9,12 @@ using FloodLink.Domain.Services;
 using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Mapbox;
 using FloodLink.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 using System.Text;
 
 
@@ -30,7 +32,8 @@ builder.Services.AddScoped<ITriageAgent, TriageAgent>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
 builder.Services.AddScoped<IAgentExecutionLogger, AgentExecutionLogger>();
@@ -68,7 +71,7 @@ var jwtSigningKey = builder.Configuration["Jwt:SigningKey"]
     ?? throw new InvalidOperationException(
         "Jwt:SigningKey configuration is required. Set it through user-secrets or Jwt__SigningKey.");
 
-builder.Services
+var authBuilder = builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -85,6 +88,28 @@ builder.Services
             RoleClaimType = ClaimTypes.Role
         };
     });
+
+// Development-only: requests without a bearer token are auto-authenticated as a
+// Coordinator so Member D's [Authorize(Roles="Coordinator")] endpoints stay demoable
+// before the shared login flow exists. Requests WITH a bearer token still go through
+// real JWT validation. Never registered outside Development.
+if (builder.Environment.IsDevelopment())
+{
+    authBuilder
+        .AddScheme<AuthenticationSchemeOptions, FloodLink.Api.Auth.DevCoordinatorHandler>("Dev", null)
+        .AddPolicyScheme("JwtOrDev", "JWT or dev coordinator", options =>
+        {
+            options.ForwardDefaultSelector = context =>
+                context.Request.Headers.ContainsKey("Authorization")
+                    ? JwtBearerDefaults.AuthenticationScheme
+                    : "Dev";
+        });
+    builder.Services.Configure<AuthenticationOptions>(o =>
+    {
+        o.DefaultAuthenticateScheme = "JwtOrDev";
+        o.DefaultChallengeScheme = "JwtOrDev";
+    });
+}
 builder.Services.AddAuthorization();
 
 // ── Phase 5: Mapbox client + Route/ETA Agent ─────────────────────────────────
@@ -97,10 +122,11 @@ builder.Services.AddHttpClient<IMapboxClient, MapboxClient>(client =>
 builder.Services.AddScoped<IRouteRepository, RouteRepository>();
 builder.Services.AddScoped<IRoutingAgentInvoker, RoutingAgentInvoker>();
 
-// Agent invokers. Matching (B) and Validation (D) are still stubs that throw
-// NotImplementedException; the orchestrator records that as a Failed run until they land.
+// Agent invokers.
 builder.Services.AddScoped<IMatchingAgent, MatchingAgent>();
+// Member D — Validation/Safety Agent + guarded workflow state transitions.
 builder.Services.AddScoped<IValidationAgent, ValidationAgent>();
+builder.Services.AddScoped<IWorkflowStateService, WorkflowStateService>();
 builder.Services.AddScoped<ITriageAgentInvoker, TriageAgentInvoker>();
 builder.Services.AddScoped<IMatchingAgentInvoker, MatchingAgentInvoker>();
 builder.Services.AddScoped<IValidationAgentInvoker, ValidationAgentInvoker>();
@@ -126,4 +152,5 @@ app.MapGet("/health", () =>
 
 app.Run();
 
+// Expose for integration test projects (WebApplicationFactory<Program>)
 public partial class Program { }

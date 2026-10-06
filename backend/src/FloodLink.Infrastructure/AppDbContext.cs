@@ -47,8 +47,16 @@ public class AppDbContext : DbContext
 
     public DbSet<AllocationProposalEntity> AllocationProposals => Set<AllocationProposalEntity>();
 
-    // ── Placeholder DbSets for other members' tables ──────────────────────────
-    // TODO (Member D — Week 2): Register Dispatches, ValidationResults, AuditTrail DbSets here.
+    // ── Member D tables ────────────────────────────────────────────────────────
+
+    /// <summary>Coordinator decisions that commit (or reject) a validated plan.</summary>
+    public DbSet<Dispatch> Dispatches => Set<Dispatch>();
+
+    /// <summary>Persisted per-check outputs of the Validation/Safety Agent.</summary>
+    public DbSet<ValidationResult> ValidationResults => Set<ValidationResult>();
+
+    /// <summary>Append-only audit log for the approval/dispatch lifecycle.</summary>
+    public DbSet<AuditTrail> AuditTrail => Set<AuditTrail>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -188,6 +196,50 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Shelter)
                   .WithMany()
                   .HasForeignKey(e => e.ShelterId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── Dispatch ───────────────────────────────────────────────────────────
+        modelBuilder.Entity<Dispatch>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.Decision)
+                  .HasConversion<string>()
+                  .HasMaxLength(30);
+            entity.Property(e => e.ApprovalNotes).HasMaxLength(2000);
+            entity.HasIndex(e => e.WorkflowRunId).IsUnique();
+            entity.HasOne(e => e.WorkflowRun)
+                  .WithMany()
+                  .HasForeignKey(e => e.WorkflowRunId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── ValidationResult ───────────────────────────────────────────────────
+        modelBuilder.Entity<ValidationResult>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.CheckName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ViolationDetail).HasMaxLength(2000);
+            entity.HasIndex(e => e.WorkflowRunId);
+            entity.HasOne(e => e.WorkflowRun)
+                  .WithMany()
+                  .HasForeignKey(e => e.WorkflowRunId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── AuditTrail ─────────────────────────────────────────────────────────
+        modelBuilder.Entity<AuditTrail>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.Property(e => e.EventType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EventDetailJson).HasColumnType("jsonb");
+            entity.HasIndex(e => e.DispatchId);
+            entity.HasOne(e => e.Dispatch)
+                  .WithMany()
+                  .HasForeignKey(e => e.DispatchId)
                   .OnDelete(DeleteBehavior.Restrict);
         });
 

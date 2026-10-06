@@ -41,6 +41,11 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.local_shipping_outlined, color: Colors.white),
+            tooltip: 'Dispatch & Delivery',
+            onPressed: () => context.push('/dispatch'),
+          ),
+          IconButton(
             icon: const Icon(Icons.inventory_2_outlined, color: Colors.white),
             tooltip: 'Stock Check-in',
             onPressed: () => context.push('/stock-check-in'),
