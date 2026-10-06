@@ -3,10 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart';
 import '../models/inventory.dart';
 
 class InventoryProvider extends ChangeNotifier {
-  final String _apiBaseUrl = 'http://localhost:5000';
+  final String _apiBaseUrl = kApiBaseUrl;
 
   List<Depot> _depots = [];
   List<InventoryItem> _items = [];

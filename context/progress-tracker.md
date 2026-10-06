@@ -70,3 +70,11 @@ change.
   a dev Coordinator principal (`JwtOrDev` policy scheme) so D's endpoints are demoable.
   JSON enums now serialize as strings API-wide. D's migration was regenerated as `AddMemberDTables`
   on top of A/B/C's snapshot. Tests: TestAppFactory supplies a test `Jwt:SigningKey`.
+- Mapbox: the API token now lives in the gitignored `backend/src/FloodLink.Api/appsettings.Development.json`
+  (`Mapbox:ApiKey`). The committed `appsettings.json` keeps the placeholder. For hosted deployments, set
+  the `Mapbox__ApiKey` environment variable. Mapbox is only used by the backend; web and mobile have no token.
+- Mobile API base URL is now set at build time through `--dart-define=FLOODLINK_API_BASE_URL=...`
+  (`mobile/lib/config/api_config.dart`; defaults to `http://localhost:5000`). AppState, ReportProvider and
+  InventoryProvider all read it. The main AndroidManifest now declares INTERNET, which release builds need.
+  `.github/workflows/release-apk.yml` builds a release APK and publishes it as a GitHub Release when a `v*`
+  tag is pushed or the workflow is run manually. It needs the `FLOODLINK_API_BASE_URL` repo secret.

@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 import '../models/shelter.dart';
 import '../models/report.dart';
 
 class ReportProvider extends ChangeNotifier {
-  String _apiBaseUrl = 'http://localhost:5000';
+  String _apiBaseUrl = kApiBaseUrl;
 
   List<Shelter> _shelters = [];
   List<FieldReport> _reports = [];
