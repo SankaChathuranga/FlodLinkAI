@@ -121,16 +121,16 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                               fit: BoxFit.cover,
                             ),
                           )
-                        : Column(
+                        : const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.add_a_photo_outlined,
                                 size: 64,
                                 color: Color(0xFF6F6F6F), // --text-muted
                               ),
-                              const SizedBox(height: 16),
-                              const Text(
+                              SizedBox(height: 16),
+                              Text(
                                 'No Photo Evidence Captured',
                                 style: TextStyle(
                                   fontSize: 16,
@@ -138,8 +138,8 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
                                   color: Color(0xFF161616),
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              const Text(
+                              SizedBox(height: 8),
+                              Text(
                                 'Tap below to capture a photo from camera or select from gallery.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(

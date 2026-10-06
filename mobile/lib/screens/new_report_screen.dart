@@ -194,7 +194,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
                   )
                 else
                   DropdownButtonFormField<int>(
-                    value: _selectedShelterId,
+                    key: ValueKey(_selectedShelterId),
+                    initialValue: _selectedShelterId,
                     decoration: const InputDecoration(
                       fillColor: Color(0xFFFFFFFF),
                       filled: true,
@@ -233,7 +234,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
                 ),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  value: _selectedNeedType,
+                  key: ValueKey(_selectedNeedType),
+                  initialValue: _selectedNeedType,
                   decoration: const InputDecoration(
                     fillColor: Color(0xFFFFFFFF),
                     filled: true,
