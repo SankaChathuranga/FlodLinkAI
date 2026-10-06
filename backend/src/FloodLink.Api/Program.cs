@@ -20,6 +20,13 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Hosting platforms (Render, Railway, Fly) hand the listening port to the app via PORT.
+var hostedPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(hostedPort))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{hostedPort}");
+}
+
 // ── Services ──────────────────────────────────────────────────────────────────
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -49,9 +56,16 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowLocalDev", policy =>
     {
+        // Extra origins for hosted deployments, comma-separated (Cors__AllowedOrigins).
+        var extraOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(o => o.TrimEnd('/'));
         policy.WithOrigins(
-                  "http://localhost:5173", // React development server
-                  "http://localhost:5174") // Flutter Web development server
+                  new[]
+                  {
+                      "http://localhost:5173", // React development server
+                      "http://localhost:5174"  // Flutter Web development server
+                  }.Concat(extraOrigins).ToArray())
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -132,6 +146,13 @@ builder.Services.AddScoped<IMatchingAgentInvoker, MatchingAgentInvoker>();
 builder.Services.AddScoped<IValidationAgentInvoker, ValidationAgentInvoker>();
 
 var app = builder.Build();
+
+// Hosted environments start with an empty database; opt in with Database__MigrateOnStartup=true.
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+}
 
 if (app.Environment.IsDevelopment())
 {
