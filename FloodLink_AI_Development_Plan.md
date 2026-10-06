@@ -268,12 +268,10 @@ _Owns the backbone that ties all four agents together: the workflow state machin
 - **Routes** 
 
     - id (PK) 
-    - allocation\_proposal\_id (FK -\> Member B) 
-    - origin\_lat, origin\_lng 
-    - dest\_lat, dest\_lng 
-    - distance\_km 
-    - eta\_minutes 
-    - route\_polyline 
+    - workflow\_run\_id (FK -\> WorkflowRuns) 
+    - distance\_meters (int) 
+    - estimated\_duration\_seconds (int) 
+    - polyline\_string (text) 
     - created\_at 
 
 2. **Backend API — endpoints you build (ASP.NET Core Web API)** 

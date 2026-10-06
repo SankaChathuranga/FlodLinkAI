@@ -39,8 +39,15 @@ public class AppDbContext : DbContext
     /// <summary>Generated triage plans.</summary>
     public DbSet<TriagePlanEntity> TriagePlans => Set<TriagePlanEntity>();
 
+    // ── Member B tables ───────────────────────────────────────────────────────
+
+    public DbSet<Depot> Depots => Set<Depot>();
+
+    public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+
+    public DbSet<AllocationProposalEntity> AllocationProposals => Set<AllocationProposalEntity>();
+
     // ── Placeholder DbSets for other members' tables ──────────────────────────
-    // TODO (Member B — Week 2): Register Depots, InventoryItems, AllocationProposals DbSets here.
     // TODO (Member D — Week 2): Register Dispatches, ValidationResults, AuditTrail DbSets here.
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -145,6 +152,45 @@ public class AppDbContext : DbContext
                   .OnDelete(DeleteBehavior.SetNull);
         });
 
+        // ── Member B inventory ────────────────────────────────────────────────
+        modelBuilder.Entity<Depot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+        });
+
+        modelBuilder.Entity<InventoryItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ItemName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Unit).IsRequired().HasMaxLength(30);
+            entity.HasOne(e => e.Depot)
+                  .WithMany(depot => depot.InventoryItems)
+                  .HasForeignKey(e => e.DepotId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.DepotId, e.ItemName }).IsUnique();
+        });
+
+        modelBuilder.Entity<AllocationProposalEntity>(entity =>
+        {
+            entity.ToTable("AllocationProposals");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ItemName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.HasOne(e => e.WorkflowRun)
+                  .WithMany()
+                  .HasForeignKey(e => e.WorkflowRunId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Depot)
+                  .WithMany()
+                  .HasForeignKey(e => e.DepotId)
+                  .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Shelter)
+                  .WithMany()
+                  .HasForeignKey(e => e.ShelterId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // ── Seed Data ──────────────────────────────────────────────────────────
         SeedData(modelBuilder);
     }
@@ -214,6 +260,18 @@ public class AppDbContext : DbContext
                 CreatedAt = fixedDate,
                 UpdatedAt = fixedDate
             }
+        );
+
+        modelBuilder.Entity<Depot>().HasData(
+            new Depot { Id = 1, Name = "Colombo Central Depot", Latitude = 6.9271, Longitude = 79.8612, CreatedAt = fixedDate },
+            new Depot { Id = 2, Name = "Kaduwela Supply Depot", Latitude = 6.9344, Longitude = 79.9841, CreatedAt = fixedDate }
+        );
+
+        modelBuilder.Entity<InventoryItem>().HasData(
+            new InventoryItem { Id = 1, DepotId = 1, ItemName = "Water", Unit = "bottles", QuantityAvailable = 600, UpdatedAt = fixedDate },
+            new InventoryItem { Id = 2, DepotId = 1, ItemName = "Food", Unit = "packs", QuantityAvailable = 250, UpdatedAt = fixedDate },
+            new InventoryItem { Id = 3, DepotId = 2, ItemName = "Water", Unit = "bottles", QuantityAvailable = 400, UpdatedAt = fixedDate },
+            new InventoryItem { Id = 4, DepotId = 2, ItemName = "Medical", Unit = "kits", QuantityAvailable = 50, UpdatedAt = fixedDate }
         );
 
         modelBuilder.Entity<Report>().HasData(

@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\src\FloodLink.Api\FloodLink.Api.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Infrastructure\FloodLink.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Agents.Routing\FloodLink.Agents.Routing.csproj" />
+    <ProjectReference Include="..\..\src\FloodLink.Agents.Matching\FloodLink.Agents.Matching.csproj" />
   </ItemGroup>
 
 

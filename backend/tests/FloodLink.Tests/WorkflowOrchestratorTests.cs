@@ -59,6 +59,7 @@ public class WorkflowOrchestratorTests
     private static readonly AllocationProposal FakeProposal = new()
     {
         WorkflowRunId = RunId,
+        AllocationProposalId = 1,
         Allocations = [new() { DepotId = 1, ShelterId = 1, ItemName = "Water", Quantity = 100 }],
         Unfulfillable = []
     };
@@ -128,6 +129,12 @@ public class WorkflowOrchestratorTests
             => Task.FromResult(AgentResult<TriagePlan>.Fail("TRIAGE_ERROR", "Triage failed"));
     }
 
+    private sealed class FailingMatchingAgent : IMatchingAgentInvoker
+    {
+        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, CancellationToken ct = default)
+            => Task.FromResult(AgentResult<AllocationProposal>.Fail("NO_STOCK_AVAILABLE", "No matching stock"));
+    }
+
     // ── Tests ──────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -173,6 +180,22 @@ public class WorkflowOrchestratorTests
         Assert.Single(logger.Entries);
         Assert.False(logger.Entries[0].Success);
         Assert.Equal("Triage failed", logger.Entries[0].ErrorMessage);
+    }
+
+    [Fact]
+    public async Task MatchingFailure_TransitionsToFailed_AndRecordsMatchingAsFailedStage()
+    {
+        var run = new WorkflowRun { Id = RunId, Objective = "Test" };
+        var logger = new FakeLogger();
+        var sut = BuildOrchestrator(run, logger, matching: new FailingMatchingAgent());
+
+        await sut.AdvanceAsync(RunId); // Triage → Matching
+        await sut.AdvanceAsync(RunId); // Matching → Failed
+
+        Assert.Equal(WorkflowState.Failed, run.CurrentState);
+        Assert.Equal(WorkflowState.Matching, run.FailedAtState);
+        Assert.Equal("MatchingAgent", logger.Entries.Last().AgentName);
+        Assert.False(logger.Entries.Last().Success);
     }
 
     [Fact]

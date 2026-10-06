@@ -44,3 +44,21 @@ export interface PaginatedResult<T> {
   totalItems: number
   totalPages: number
 }
+
+export interface Depot {
+  id: number
+  name: string
+  latitude: number
+  longitude: number
+  createdAt: string
+}
+
+export interface InventoryItem {
+  id: number
+  depotId: number
+  depot?: Depot | null
+  itemName: string
+  unit: string
+  quantityAvailable: number
+  updatedAt: string
+}

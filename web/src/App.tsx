@@ -3,9 +3,10 @@ import { Navbar } from './components/Navbar'
 import { SheltersDashboard } from './components/SheltersDashboard'
 import { ReportsQueue } from './components/ReportsQueue'
 import { TriagePlanViewer } from './components/TriagePlanViewer'
+import { InventoryDashboard } from './components/InventoryDashboard'
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'shelters' | 'reports' | 'triage'>('shelters')
+  const [activeTab, setActiveTab] = useState<'shelters' | 'reports' | 'triage' | 'inventory'>('shelters')
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
@@ -15,6 +16,7 @@ function App() {
         {activeTab === 'shelters' && <SheltersDashboard />}
         {activeTab === 'reports' && <ReportsQueue />}
         {activeTab === 'triage' && <TriagePlanViewer />}
+        {activeTab === 'inventory' && <InventoryDashboard />}
       </main>
     </div>
   )

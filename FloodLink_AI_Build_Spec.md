@@ -107,7 +107,9 @@ AgentExecutionLog \[owned by Member C\]
 
 Routes \[owned by Member C\]
 
- id (PK), allocation\_proposal\_id (FK), origin\_lat, origin\_lng, dest\_lat, dest\_lng, distance\_km, eta\_minutes, route\_polyline, created\_at
+ id (PK), workflow\_run\_id (FK -\> WorkflowRuns), distance\_meters (int), estimated\_duration\_seconds (int), polyline\_string (text), created\_at
+
+ (Agreed minimal schema. The Route agent JSON contract in 3.3 is unchanged: distanceKm / etaMinutes are derived from distance\_meters / estimated\_duration\_seconds when the agent builds its output.)
 
 Dispatches \[owned by Member D\] id (PK), workflow\_run\_id (FK), allocation\_proposal\_id (FK),
 

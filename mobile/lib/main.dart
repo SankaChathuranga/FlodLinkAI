@@ -3,12 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/report_provider.dart';
+import 'providers/inventory_provider.dart';
 import 'screens/reports_list_screen.dart';
 import 'screens/new_report_screen.dart';
 import 'screens/camera_capture_screen.dart';
 import 'screens/gps_capture_screen.dart';
 
 import 'screens/my_submitted_reports_screen.dart';
+import 'screens/stock_check_in_screen.dart';
 
 void main() {
   runApp(
@@ -16,6 +18,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AppState()),
         ChangeNotifierProvider(create: (_) => ReportProvider()),
+        ChangeNotifierProvider(create: (_) => InventoryProvider()),
       ],
       child: const FloodLinkApp(),
     ),
@@ -32,6 +35,10 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/',
       builder: (context, state) => const ReportsListScreen(),
+    ),
+    GoRoute(
+      path: '/stock-check-in',
+      builder: (context, state) => const StockCheckInScreen(),
     ),
     GoRoute(
       path: '/my-submitted-reports',
@@ -105,4 +112,3 @@ class FloodLinkApp extends StatelessWidget {
     );
   }
 }
-

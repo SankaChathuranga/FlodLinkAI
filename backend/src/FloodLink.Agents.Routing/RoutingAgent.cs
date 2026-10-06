@@ -1,7 +1,9 @@
 using FloodLink.Contracts;
 using FloodLink.Domain;
 using FloodLink.Domain.Entities;
+using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Mapbox;
+using Microsoft.EntityFrameworkCore;
 
 namespace FloodLink.Agents.Routing;
 
@@ -11,26 +13,17 @@ namespace FloodLink.Agents.Routing;
 /// persists the result to the <c>Routes</c> table, and returns a
 /// <see cref="AgentResult{Route}"/> — never throwing for anticipated failures.
 /// </summary>
-/// <remarks>
-/// Design decisions:
-/// <list type="bullet">
-///   <item>Coordinates come from the first allocation item's depot/shelter.
-///   If the <see cref="AllocationProposal"/> contains no allocations the agent
-///   returns <c>AgentResult.Fail</c> with code <c>NO_ALLOCATIONS</c>.</item>
-///   <item>Depot and shelter coordinates are looked up via hardcoded placeholder
-///   values here. In a production system these would come from a Depots/Shelters
-///   table. The TODO below marks this for a future team task.</item>
-/// </list>
-/// </remarks>
 public sealed class RoutingAgentInvoker : IRoutingAgentInvoker
 {
     private readonly IMapboxClient _mapbox;
     private readonly IRouteRepository _routes;
+    private readonly AppDbContext _context;
 
-    public RoutingAgentInvoker(IMapboxClient mapbox, IRouteRepository routes)
+    public RoutingAgentInvoker(IMapboxClient mapbox, IRouteRepository routes, AppDbContext context)
     {
         _mapbox = mapbox;
         _routes = routes;
+        _context = context;
     }
 
     /// <inheritdoc />
@@ -43,17 +36,21 @@ public sealed class RoutingAgentInvoker : IRoutingAgentInvoker
                 "NO_ALLOCATIONS",
                 "AllocationProposal contains no allocations — cannot compute a route.");
 
-        // TODO (team): Replace hardcoded coordinates with a lookup against
-        // a Depots/Shelters table once Member B's entities are registered in AppDbContext.
-        // For now we use the first allocation's depot and shelter IDs as lookup keys
-        // in a placeholder dictionary so the agent is testable end-to-end.
         var first = proposal.Allocations[0];
-        var (originLng, originLat) = GetDepotCoords(first.DepotId);
-        var (destLng, destLat) = GetShelterCoords(first.ShelterId);
+        var depot = await _context.Depots.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == first.DepotId, ct);
+        var shelter = await _context.Shelters.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == first.ShelterId, ct);
+
+        if (depot is null || shelter is null)
+            return AgentResult<Route>.Fail(
+                "ROUTING_LOCATION_NOT_FOUND",
+                $"Depot {first.DepotId} or shelter {first.ShelterId} does not exist.");
 
         try
         {
-            var result = await _mapbox.GetRouteAsync(originLng, originLat, destLng, destLat, ct);
+            var result = await _mapbox.GetRouteAsync(
+                depot.Longitude, depot.Latitude, shelter.Longitude, shelter.Latitude, ct);
 
             if (result is null)
                 return AgentResult<Route>.Fail(
@@ -73,7 +70,7 @@ public sealed class RoutingAgentInvoker : IRoutingAgentInvoker
             var contractRoute = new Route
             {
                 WorkflowRunId = proposal.WorkflowRunId,
-                AllocationProposalId = first.DepotId, // placeholder until Member B's ID is real
+                AllocationProposalId = proposal.AllocationProposalId,
                 DistanceKm = result.DistanceMeters / 1000.0,
                 EtaMinutes = result.DurationSeconds / 60.0,
                 Polyline = result.EncodedPolyline
@@ -103,21 +100,4 @@ public sealed class RoutingAgentInvoker : IRoutingAgentInvoker
         }
     }
 
-    // ── Coordinate helpers ─────────────────────────────────────────────────────
-    // ponytail: hardcoded placeholder — replace with DB lookup once Member B's
-    // Depots/Shelters tables exist. Using Colombo area coordinates for Sri Lanka context.
-
-    private static (double Lng, double Lat) GetDepotCoords(int depotId) => depotId switch
-    {
-        1 => (79.8612, 6.9271),  // Colombo central depot (placeholder)
-        2 => (80.6337, 7.2906),  // Kandy depot (placeholder)
-        _ => (79.8612, 6.9271)   // Default to Colombo
-    };
-
-    private static (double Lng, double Lat) GetShelterCoords(int shelterId) => shelterId switch
-    {
-        1 => (80.0000, 7.1000),  // Shelter 1 (placeholder)
-        2 => (80.3000, 7.5000),  // Shelter 2 (placeholder)
-        _ => (80.0000, 7.1000)   // Default
-    };
 }
