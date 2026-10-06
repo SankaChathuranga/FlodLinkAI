@@ -55,3 +55,10 @@ change.
   orchestrator invoker interfaces; Validation is still a stub (run -> Failed).
 - Member B added an `IDesignTimeDbContextFactory`, so EF Core migrations use
   `ConnectionStrings__DefaultConnection` and no longer need the API host or JWT configuration.
+- Merge (Member D): Validation agent is now real (SafetyRules), plus Dispatch/ValidationResult/AuditTrail
+  entities, Dispatch/Audit/Validation controllers, WorkflowStateService, and the web Approval Queue /
+  Dispatch History / Analytics tabs and mobile dispatch-status/delivery screens (route `/dispatch`).
+  Auth: JWT stays the default; in Development only, requests with no Authorization header fall back to
+  a dev Coordinator principal (`JwtOrDev` policy scheme) so D's endpoints are demoable.
+  JSON enums now serialize as strings API-wide. D's migration was regenerated as `AddMemberDTables`
+  on top of A/B/C's snapshot. Tests: TestAppFactory supplies a test `Jwt:SigningKey`.

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:floodlink_mobile/main.dart';
+import 'package:floodlink_mobile/state/app_state.dart';
 import 'package:floodlink_mobile/providers/inventory_provider.dart';
 import 'package:floodlink_mobile/providers/report_provider.dart';
 

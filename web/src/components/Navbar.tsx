@@ -1,7 +1,22 @@
+export type TabId =
+  | 'shelters'
+  | 'reports'
+  | 'triage'
+  | 'inventory'
+  | 'approvals'
+  | 'dispatches'
+  | 'analytics'
+
 interface NavbarProps {
-  activeTab: 'shelters' | 'reports' | 'triage' | 'inventory'
-  setActiveTab: (tab: 'shelters' | 'reports' | 'triage' | 'inventory') => void
+  activeTab: TabId
+  setActiveTab: (tab: TabId) => void
 }
+
+const MEMBER_D_TABS: { id: TabId; label: string }[] = [
+  { id: 'approvals', label: 'Approval Queue' },
+  { id: 'dispatches', label: 'Dispatch History' },
+  { id: 'analytics', label: 'Analytics' },
+]
 
 export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   return (
@@ -75,6 +90,20 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             >
               <span>Inventory</span>
             </button>
+
+            {MEMBER_D_TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                  activeTab === t.id
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </nav>
         </div>
       </div>

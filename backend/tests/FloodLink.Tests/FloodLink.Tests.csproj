@@ -14,12 +14,14 @@
     <ProjectReference Include="..\..\src\FloodLink.Infrastructure\FloodLink.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Agents.Routing\FloodLink.Agents.Routing.csproj" />
     <ProjectReference Include="..\..\src\FloodLink.Agents.Matching\FloodLink.Agents.Matching.csproj" />
+    <ProjectReference Include="..\..\src\FloodLink.Agents.Validation\FloodLink.Agents.Validation.csproj" />
   </ItemGroup>
 
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <PackageReference Include="Moq" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>
