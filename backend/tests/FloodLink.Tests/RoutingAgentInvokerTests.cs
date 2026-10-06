@@ -3,6 +3,8 @@ using FloodLink.Contracts;
 using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Infrastructure.Mapbox;
+using FloodLink.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace FloodLink.Tests;
@@ -71,6 +73,7 @@ public class RoutingAgentInvokerTests
     private static AllocationProposal MakeProposal() => new()
     {
         WorkflowRunId = RunId,
+        AllocationProposalId = 1,
         Allocations = [new() { DepotId = 1, ShelterId = 1, ItemName = "Water", Quantity = 100 }],
         Unfulfillable = []
     };
@@ -82,13 +85,25 @@ public class RoutingAgentInvokerTests
         EncodedPolyline = "abc123polyline"
     };
 
+    private static AppDbContext CreateContext()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        var context = new AppDbContext(options);
+        context.Depots.Add(new Depot { Id = 1, Name = "Test Depot", Latitude = 6.9271, Longitude = 79.8612 });
+        context.Shelters.Add(new Shelter { Id = 1, Name = "Test Shelter", Latitude = 6.9344, Longitude = 79.9841 });
+        context.SaveChanges();
+        return context;
+    }
+
     // ── Tests ──────────────────────────────────────────────────────────────────
 
     [Fact]
     public async Task Success_ReturnsOkResult_WithCorrectValues()
     {
         var repo = new FakeRouteRepository();
-        var sut = new RoutingAgentInvoker(new ReturnsRouteClient(FakeMapboxResult), repo);
+        var sut = new RoutingAgentInvoker(new ReturnsRouteClient(FakeMapboxResult), repo, CreateContext());
 
         var result = await sut.ExecuteAsync(MakeProposal());
 
@@ -104,7 +119,7 @@ public class RoutingAgentInvokerTests
     public async Task Success_PersistsRouteEntity_WithCorrectValues()
     {
         var repo = new FakeRouteRepository();
-        var sut = new RoutingAgentInvoker(new ReturnsRouteClient(FakeMapboxResult), repo);
+        var sut = new RoutingAgentInvoker(new ReturnsRouteClient(FakeMapboxResult), repo, CreateContext());
 
         await sut.ExecuteAsync(MakeProposal());
 
@@ -120,11 +135,12 @@ public class RoutingAgentInvokerTests
     public async Task NoAllocations_ReturnsFailWithNoAllocationsCode()
     {
         var repo = new FakeRouteRepository();
-        var sut = new RoutingAgentInvoker(new ReturnsRouteClient(FakeMapboxResult), repo);
+        var sut = new RoutingAgentInvoker(new ReturnsRouteClient(FakeMapboxResult), repo, CreateContext());
 
         var emptyProposal = new AllocationProposal
         {
             WorkflowRunId = RunId,
+            AllocationProposalId = 1,
             Allocations = [],
             Unfulfillable = []
         };
@@ -140,7 +156,7 @@ public class RoutingAgentInvokerTests
     public async Task MapboxReturnsNull_ReturnsFailWithNoRouteCode()
     {
         var repo = new FakeRouteRepository();
-        var sut = new RoutingAgentInvoker(new ReturnsNullClient(), repo);
+        var sut = new RoutingAgentInvoker(new ReturnsNullClient(), repo, CreateContext());
 
         var result = await sut.ExecuteAsync(MakeProposal());
 
@@ -153,7 +169,7 @@ public class RoutingAgentInvokerTests
     public async Task MapboxTimeout_ReturnsFailWithTimeoutCode()
     {
         var repo = new FakeRouteRepository();
-        var sut = new RoutingAgentInvoker(new ThrowsTimeoutClient(), repo);
+        var sut = new RoutingAgentInvoker(new ThrowsTimeoutClient(), repo, CreateContext());
 
         var result = await sut.ExecuteAsync(MakeProposal());
 
@@ -165,7 +181,7 @@ public class RoutingAgentInvokerTests
     public async Task MapboxHttpError_ReturnsFailWithHttpErrorCode()
     {
         var repo = new FakeRouteRepository();
-        var sut = new RoutingAgentInvoker(new ThrowsHttpErrorClient(), repo);
+        var sut = new RoutingAgentInvoker(new ThrowsHttpErrorClient(), repo, CreateContext());
 
         var result = await sut.ExecuteAsync(MakeProposal());
 

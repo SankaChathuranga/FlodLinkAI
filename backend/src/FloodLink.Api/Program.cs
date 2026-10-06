@@ -1,7 +1,14 @@
+using FloodLink.Agents.Matching;
 using FloodLink.Agents.Routing;
+using FloodLink.Agents.Triage;
+using FloodLink.Agents.Validation;
+using FloodLink.Api.Middleware;
+using FloodLink.Api;
 using FloodLink.Domain;
+using FloodLink.Domain.Services;
 using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Mapbox;
+using FloodLink.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -16,6 +23,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped<IUrgencyScoringService, UrgencyScoringService>();
+builder.Services.AddScoped<IPhotoStorageService, PhotoStorageService>();
+builder.Services.AddScoped<ITriageAgent, TriageAgent>();
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
+
 builder.Services.AddScoped<IAgentExecutionLogger, AgentExecutionLogger>();
 builder.Services.AddScoped<IWorkflowRunRepository, WorkflowRunRepository>();
 builder.Services.AddScoped<WorkflowOrchestrator>();
@@ -25,7 +42,17 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "FloodLink AI API", Version = "v1" });
 });
-builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalDev", policy =>
+    {
+        policy.WithOrigins(
+                  "http://localhost:5173", // React development server
+                  "http://localhost:5174") // Flutter Web development server
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 // Standard RFC 7807 problem-details responses for all error results.
 builder.Services.AddProblemDetails();
@@ -70,16 +97,15 @@ builder.Services.AddHttpClient<IMapboxClient, MapboxClient>(client =>
 builder.Services.AddScoped<IRouteRepository, RouteRepository>();
 builder.Services.AddScoped<IRoutingAgentInvoker, RoutingAgentInvoker>();
 
-// TODO (Week 5–6): Register remaining agent invokers once real implementations are built.
-//   builder.Services.AddScoped<ITriageAgentInvoker, TriageAgentAdapter>();
-//   builder.Services.AddScoped<IMatchingAgentInvoker, MatchingAgentAdapter>();
-//   builder.Services.AddScoped<IValidationAgentInvoker, ValidationAgentAdapter>();
-// TODO (Week 2): Add JWT authentication / authorization services here.
-
+// Agent invokers. Matching (B) and Validation (D) are still stubs that throw
+// NotImplementedException; the orchestrator records that as a Failed run until they land.
+builder.Services.AddScoped<IMatchingAgent, MatchingAgent>();
+builder.Services.AddScoped<IValidationAgent, ValidationAgent>();
+builder.Services.AddScoped<ITriageAgentInvoker, TriageAgentInvoker>();
+builder.Services.AddScoped<IMatchingAgentInvoker, MatchingAgentInvoker>();
+builder.Services.AddScoped<IValidationAgentInvoker, ValidationAgentInvoker>();
 
 var app = builder.Build();
-
-// ── Middleware ────────────────────────────────────────────────────────────────
 
 if (app.Environment.IsDevelopment())
 {
@@ -87,26 +113,17 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseCors("AllowLocalDev");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
-// ── Endpoints ─────────────────────────────────────────────────────────────────
-
-/// <summary>
-/// Health check endpoint. Returns HTTP 200 with a simple JSON payload.
-/// Used by CI, Docker healthchecks, and load balancer probes.
-/// </summary>
-app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "FloodLink API" }))
-   .WithName("HealthCheck")
-   .WithTags("Health")
-   .WithOpenApi();
-
-// TODO (Week 2-3): Controllers / minimal-API endpoints per member's area will be
-// added here. See CONTRIBUTING.md for ownership details.
+app.MapGet("/health", () =>
+    Results.Ok(new { status = "Healthy", service = "FloodLink API" }));
 
 app.Run();
 
-// Expose for integration test projects (WebApplicationFactory<Program>)
 public partial class Program { }
