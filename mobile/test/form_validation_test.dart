@@ -44,7 +44,7 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Clear quantity input text box
+    // Clear  text box where quantity input
     final quantityField = find.byType(TextFormField).first;
     await tester.enterText(quantityField, '');
     await tester.pumpAndSettle();

@@ -4,16 +4,12 @@ using Xunit;
 
 namespace FloodLink.Tests;
 
-/// <summary>
 /// Placeholder test class confirming the test project compiles and xUnit is wired up.
 /// Real tests will be added per member's scope starting Week 3-5.
-/// </summary>
 public class PlaceholderTests
 {
-    /// <summary>
     /// Trivial smoke test: confirms the test runner works and the Domain/Contracts
     /// projects can be referenced. This test must always pass.
-    /// </summary>
     [Fact]
     public void WorkflowState_HasExpectedValues()
     {
@@ -34,9 +30,7 @@ public class PlaceholderTests
         Assert.Contains(WorkflowState.Failed, states);
     }
 
-    /// <summary>
     /// Confirms <see cref="AgentResult{T}.Ok"/> factory creates a successful result.
-    /// </summary>
     [Fact]
     public void AgentResult_Ok_SetsSuccessTrue()
     {
