@@ -49,8 +49,10 @@ public class UrgencyScoringService : IUrgencyScoringService
                 break;
             case "shelter-repair":
             case "shelterrepair":
+            case "shelter repair":
                 score += 15;
                 break;
+
             default:
                 score += 10;
                 break;

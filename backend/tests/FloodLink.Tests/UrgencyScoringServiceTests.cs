@@ -167,4 +167,20 @@ public class UrgencyScoringServiceTests
         int oldScore = _service.CalculateUrgencyScore(shelter, "Other", DateTime.UtcNow.AddHours(-60));
         Assert.Equal(40, oldScore); // 5 + 10 + 25 = 40
     }
+
+    [Fact]
+    public void CalculateUrgencyScore_ShelterRepairWithSpace_ScoresAsShelterRepair()
+    {
+        var shelter = new Shelter
+        {
+            Capacity = 100,
+            CurrentOccupancy = 50
+        };
+
+        DateTime lastResupply = DateTime.UtcNow.AddHours(-10);
+        int score = _service.CalculateUrgencyScore(shelter, "Shelter Repair", lastResupply);
+
+        Assert.Equal(35, score);
+    }
 }
+
