@@ -7,6 +7,12 @@ namespace FloodLink.Contracts;
 /// </summary>
 public record AllocationProposal
 {
+    /// <summary>
+    /// ID of the first persisted allocation record for this routing request.
+    /// Routes use this to identify the concrete allocation they were calculated for.
+    /// </summary>
+    public required int AllocationProposalId { get; init; }
+
     /// <summary>The workflow run this proposal belongs to.</summary>
     public required Guid WorkflowRunId { get; init; }
 

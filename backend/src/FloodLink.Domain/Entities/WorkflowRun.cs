@@ -35,4 +35,11 @@ public class WorkflowRun
 
     /// <summary>UTC timestamp of the last state change.</summary>
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// The stage that was active when this run transitioned to
+    /// <see cref="WorkflowState.Failed"/>. Null for runs that have not failed.
+    /// Set automatically by <c>WorkflowEngine.TryTransition</c> — do not set directly.
+    /// </summary>
+    public WorkflowState? FailedAtState { get; set; }
 }

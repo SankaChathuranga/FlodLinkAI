@@ -39,6 +39,9 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Property<long>("DurationMs")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
                     b.Property<string>("InputJson")
                         .HasColumnType("text");
 
@@ -61,6 +64,168 @@ namespace FloodLink.Infrastructure.Migrations
                     b.HasIndex("WorkflowRunId");
 
                     b.ToTable("AgentExecutionLogs");
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.AllocationProposalEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DepotId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<double>("Quantity")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("ShelterId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepotId");
+
+                    b.HasIndex("ShelterId");
+
+                    b.HasIndex("WorkflowRunId");
+
+                    b.ToTable("AllocationProposals", (string)null);
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.Depot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Depots");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Latitude = 6.9271000000000003,
+                            Longitude = 79.861199999999997,
+                            Name = "Colombo Central Depot"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Latitude = 6.9344000000000001,
+                            Longitude = 79.984099999999998,
+                            Name = "Kaduwela Supply Depot"
+                        });
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.InventoryItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DepotId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<double>("QuantityAvailable")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepotId", "ItemName")
+                        .IsUnique();
+
+                    b.ToTable("InventoryItems");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            DepotId = 1,
+                            ItemName = "Water",
+                            QuantityAvailable = 600.0,
+                            Unit = "bottles",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 2,
+                            DepotId = 1,
+                            ItemName = "Food",
+                            QuantityAvailable = 250.0,
+                            Unit = "packs",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 3,
+                            DepotId = 2,
+                            ItemName = "Water",
+                            QuantityAvailable = 400.0,
+                            Unit = "bottles",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 4,
+                            DepotId = 2,
+                            ItemName = "Medical",
+                            QuantityAvailable = 50.0,
+                            Unit = "kits",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
                 });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.Report", b =>
@@ -191,34 +356,25 @@ namespace FloodLink.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("AllocationProposalId")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<double>("DestLat")
-                        .HasColumnType("double precision");
+                    b.Property<int>("DistanceMeters")
+                        .HasColumnType("integer");
 
-                    b.Property<double>("DestLng")
-                        .HasColumnType("double precision");
+                    b.Property<int>("EstimatedDurationSeconds")
+                        .HasColumnType("integer");
 
-                    b.Property<double>("DistanceKm")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("EtaMinutes")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("OriginLat")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("OriginLng")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("RoutePolyline")
+                    b.Property<string>("PolylineString")
+                        .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("WorkflowRunId");
 
                     b.ToTable("Routes");
                 });
@@ -412,6 +568,10 @@ namespace FloodLink.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("FailedAtState")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<string>("Objective")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -439,6 +599,44 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Navigation("WorkflowRun");
                 });
 
+            modelBuilder.Entity("FloodLink.Domain.Entities.AllocationProposalEntity", b =>
+                {
+                    b.HasOne("FloodLink.Domain.Entities.Depot", "Depot")
+                        .WithMany()
+                        .HasForeignKey("DepotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FloodLink.Domain.Entities.Shelter", "Shelter")
+                        .WithMany()
+                        .HasForeignKey("ShelterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FloodLink.Domain.Entities.WorkflowRun", "WorkflowRun")
+                        .WithMany()
+                        .HasForeignKey("WorkflowRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Depot");
+
+                    b.Navigation("Shelter");
+
+                    b.Navigation("WorkflowRun");
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.InventoryItem", b =>
+                {
+                    b.HasOne("FloodLink.Domain.Entities.Depot", "Depot")
+                        .WithMany("InventoryItems")
+                        .HasForeignKey("DepotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Depot");
+                });
+
             modelBuilder.Entity("FloodLink.Domain.Entities.Report", b =>
                 {
                     b.HasOne("FloodLink.Domain.Entities.User", "Reporter")
@@ -456,6 +654,17 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Navigation("Reporter");
 
                     b.Navigation("Shelter");
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.RouteEntity", b =>
+                {
+                    b.HasOne("FloodLink.Domain.Entities.WorkflowRun", "WorkflowRun")
+                        .WithMany()
+                        .HasForeignKey("WorkflowRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkflowRun");
                 });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.Shelter", b =>
@@ -476,6 +685,11 @@ namespace FloodLink.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("CreatedByAgentRun");
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.Depot", b =>
+                {
+                    b.Navigation("InventoryItems");
                 });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.Shelter", b =>

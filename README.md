@@ -56,6 +56,9 @@ This starts a `postgres:16` container on port **5432** with:
 ```bash
 cd backend/src/FloodLink.Api
 
+# First time only: supply a local JWT signing key (do not commit it)
+dotnet user-secrets set "Jwt:SigningKey" "replace-with-a-long-random-development-secret"
+
 # First time only: apply EF Core migrations
 dotnet ef database update --project ../FloodLink.Infrastructure
 
@@ -66,6 +69,10 @@ dotnet run
 > Health check: `GET http://localhost:5000/health` → `{"status":"Healthy"}`
 >
 > Swagger UI: `http://localhost:5000/swagger`
+
+Protected endpoints expect `Authorization: Bearer <token>`. The shared
+authentication component is responsible for issuing tokens; coordinator
+decisions additionally require a `role` claim of `Coordinator`.
 
 #### Run Backend Tests
 

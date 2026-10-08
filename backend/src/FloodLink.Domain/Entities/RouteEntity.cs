@@ -1,52 +1,36 @@
 namespace FloodLink.Domain.Entities;
 
 /// <summary>
-/// Stores the routing output for a specific allocation proposal.
+/// Stores the routing output produced by the Route/ETA Agent for a single workflow run.
 /// Owned by Member C. Maps to the <c>Routes</c> table.
 /// </summary>
 /// <remarks>
-/// TODO (Member C — Week 2/3): Confirm whether <see cref="RoutePolyline"/> should be
-/// stored as a raw encoded string, GeoJSON, or a PostGIS geometry type.
-/// Coordinate precision (decimal places) should be agreed with the team before
-/// the first migration that includes this table.
+/// Fixed schema per Phase 5 architecture decision:
+/// WorkflowRunId (FK), DistanceMeters (int), EstimatedDurationSeconds (int),
+/// PolylineString (text). No additional columns without a concrete downstream need.
 /// </remarks>
 public class RouteEntity
 {
-    /// <summary>Primary key.</summary>
+    /// <summary>Primary key (UUID).</summary>
     public Guid Id { get; set; }
 
-    /// <summary>FK → AllocationProposals (owned by Member B).</summary>
-    public int AllocationProposalId { get; set; }
+    /// <summary>FK → WorkflowRuns.Id. Identifies which pipeline run this route belongs to.</summary>
+    public Guid WorkflowRunId { get; set; }
 
-    // ── Origin (depot) coordinates ────────────────────────────────────────────
+    /// <summary>Navigation property for the owning workflow run.</summary>
+    public WorkflowRun WorkflowRun { get; set; } = null!;
 
-    /// <summary>Depot latitude. TODO: confirm decimal precision with the team.</summary>
-    public double OriginLat { get; set; }
+    /// <summary>Driving distance in metres as returned by the Mapbox Directions API.</summary>
+    public int DistanceMeters { get; set; }
 
-    /// <summary>Depot longitude. TODO: confirm decimal precision with the team.</summary>
-    public double OriginLng { get; set; }
-
-    // ── Destination (shelter) coordinates ─────────────────────────────────────
-
-    /// <summary>Shelter latitude. TODO: confirm decimal precision with the team.</summary>
-    public double DestLat { get; set; }
-
-    /// <summary>Shelter longitude. TODO: confirm decimal precision with the team.</summary>
-    public double DestLng { get; set; }
-
-    // ── Routing API output ────────────────────────────────────────────────────
-
-    /// <summary>Road distance in kilometres as returned by the routing API.</summary>
-    public double DistanceKm { get; set; }
-
-    /// <summary>Estimated travel time in minutes as returned by the routing API.</summary>
-    public double EtaMinutes { get; set; }
+    /// <summary>Estimated driving duration in seconds as returned by the Mapbox Directions API.</summary>
+    public int EstimatedDurationSeconds { get; set; }
 
     /// <summary>
-    /// Encoded route polyline string for map display (e.g. Google Encoded Polyline format).
-    /// TODO: decide encoding format with the team before finalising schema.
+    /// Mapbox-encoded polyline string (Polyline5 format) for map display.
+    /// Empty string if the API response did not include geometry.
     /// </summary>
-    public string? RoutePolyline { get; set; }
+    public string PolylineString { get; set; } = string.Empty;
 
     /// <summary>UTC timestamp when this route record was created.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
