@@ -1,4 +1,4 @@
-using System.Text.Json;
+using FloodLink.Api.Auth;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
 using FloodLink.Infrastructure;
@@ -33,91 +33,26 @@ public sealed class DispatchController : ControllerBase
     public sealed record ConfirmDeliveryRequest(string? Notes, string? PhotoReference);
 
     private readonly AppDbContext _db;
-    private readonly IWorkflowStateService _workflow;
+    private readonly DispatchService _dispatches;
 
-    public DispatchController(AppDbContext db, IWorkflowStateService workflow)
+    public DispatchController(AppDbContext db, DispatchService dispatches)
     {
         _db = db;
-        _workflow = workflow;
+        _dispatches = dispatches;
     }
 
-    /// <summary>Approves a validated plan: commits stock, records the dispatch and audit entry.</summary>
+    /// <summary>Approves a validated plan: commits its reserved stock, records the dispatch and audit entry.</summary>
     [HttpPost("{workflowRunId:guid}/approve")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ApproveAsync(Guid workflowRunId, [FromBody] ApproveRequest? request, CancellationToken ct)
     {
-        var run = await _db.WorkflowRuns
-            .FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
-
-        if (run is null)
-        {
-            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
-        }
-
-        if (run.CurrentState != WorkflowState.PendingApproval)
-        {
-            return Conflict(new
-            {
-                error = "INVALID_STATE",
-                message = $"Only a PendingApproval plan can be approved; current state is {run.CurrentState}."
-            });
-        }
-
-        // Commit the proposed stock: the Matching Agent only proposes, approval is what takes
-        // items out of the depot. Refuse the approval if stock has since dropped below the proposal.
-        var proposals = await _db.AllocationProposals
-            .Where(p => p.WorkflowRunId == run.Id && p.Status == "Proposed")
-            .ToListAsync(ct);
-        foreach (var proposal in proposals)
-        {
-            var item = await _db.InventoryItems
-                .FirstOrDefaultAsync(i => i.DepotId == proposal.DepotId && i.ItemName == proposal.ItemName, ct);
-            if (item is null || item.QuantityAvailable < proposal.Quantity)
-            {
-                return Conflict(new
-                {
-                    error = "INSUFFICIENT_STOCK",
-                    message = $"Depot {proposal.DepotId} no longer has {proposal.Quantity} {proposal.ItemName} available."
-                });
-            }
-
-            item.QuantityAvailable -= proposal.Quantity;
-            item.UpdatedAt = DateTime.UtcNow;
-            proposal.Status = "Committed";
-        }
-
-        var dispatch = new Dispatch
-        {
-            Id = Guid.NewGuid(),
-            WorkflowRunId = run.Id,
-            Decision = DispatchDecision.Approved,
-            ApprovalNotes = request?.Notes,
-            DispatchedAt = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _db.Dispatches.Add(dispatch);
-        _db.AuditTrail.Add(new AuditTrail
-        {
-            DispatchId = dispatch.Id,
-            EventType = "DispatchApproved",
-            EventDetailJson = JsonSerializer.Serialize(new { workflowRunId, notes = dispatch.ApprovalNotes })
-        });
-
-        var transition = await _workflow.TryTransitionAsync(run.Id, WorkflowState.Approved, ct);
-        if (!transition.Succeeded)
-        {
-            return Conflict(new { error = transition.ErrorCode, message = "Approve failed to advance the workflow state." });
-        }
-
-        await _db.SaveChangesAsync(ct);
-
-        return Ok(new DispatchResponse(dispatch.Id, run.Id, dispatch.Decision, dispatch.ApprovalNotes, dispatch.DispatchedAt, WorkflowState.Approved));
+        var outcome = await _dispatches.ApproveAsync(workflowRunId, request?.Notes, User.GetUserId(), ct);
+        return outcome.Status == DispatchOutcomeStatus.Ok ? Ok(ToResponse(outcome)) : Error(outcome);
     }
 
-    /// <summary>Rejects a plan with a mandatory reason; records the rejection.</summary>
+    /// <summary>Rejects a plan with a mandatory reason; releases its stock and records the rejection.</summary>
     [HttpPost("{workflowRunId:guid}/reject")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -125,57 +60,14 @@ public sealed class DispatchController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RejectAsync(Guid workflowRunId, [FromBody] RejectRequest? request, CancellationToken ct)
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.Reason))
-        {
-            return BadRequest(new { error = "REASON_REQUIRED", message = "A rejection reason is mandatory." });
-        }
-
-        var run = await _db.WorkflowRuns
-            .FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
-
-        if (run is null)
-        {
-            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
-        }
-
-        if (run.CurrentState != WorkflowState.PendingApproval)
-        {
-            return Conflict(new
-            {
-                error = "INVALID_STATE",
-                message = $"Only a PendingApproval plan can be rejected; current state is {run.CurrentState}."
-            });
-        }
-
-        var dispatch = new Dispatch
-        {
-            Id = Guid.NewGuid(),
-            WorkflowRunId = run.Id,
-            Decision = DispatchDecision.Rejected,
-            ApprovalNotes = request.Reason,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _db.Dispatches.Add(dispatch);
-        _db.AuditTrail.Add(new AuditTrail
-        {
-            DispatchId = dispatch.Id,
-            EventType = "DispatchRejected",
-            EventDetailJson = JsonSerializer.Serialize(new { workflowRunId, reason = request.Reason })
-        });
-
-        var transition = await _workflow.TryTransitionAsync(run.Id, WorkflowState.Rejected, ct);
-        if (!transition.Succeeded)
-        {
-            return Conflict(new { error = transition.ErrorCode, message = "Reject failed to advance the workflow state." });
-        }
-
-        await _db.SaveChangesAsync(ct);
-
-        return Ok(new DispatchResponse(dispatch.Id, run.Id, dispatch.Decision, dispatch.ApprovalNotes, dispatch.DispatchedAt, WorkflowState.Rejected));
+        var outcome = await _dispatches.RejectAsync(workflowRunId, request?.Reason, User.GetUserId(), ct);
+        return outcome.Status == DispatchOutcomeStatus.Ok ? Ok(ToResponse(outcome)) : Error(outcome);
     }
 
-    /// <summary>Sends a plan back for re-matching with mandatory coordinator notes.</summary>
+    /// <summary>
+    /// Sends a plan back for re-matching with mandatory coordinator notes. Its stock is released
+    /// and the run is queued; it returns to PendingApproval with a new proposal.
+    /// </summary>
     [HttpPost("{workflowRunId:guid}/request-revision")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -183,59 +75,16 @@ public sealed class DispatchController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RequestRevisionAsync(Guid workflowRunId, [FromBody] RevisionRequest? request, CancellationToken ct)
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.Notes))
-        {
-            return BadRequest(new { error = "NOTES_REQUIRED", message = "Revision notes are mandatory." });
-        }
-
-        var run = await _db.WorkflowRuns
-            .FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
-
-        if (run is null)
-        {
-            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
-        }
-
-        if (run.CurrentState != WorkflowState.PendingApproval)
-        {
-            return Conflict(new
-            {
-                error = "INVALID_STATE",
-                message = $"Only a PendingApproval plan can be sent for revision; current state is {run.CurrentState}."
-            });
-        }
-
-        var dispatch = new Dispatch
-        {
-            Id = Guid.NewGuid(),
-            WorkflowRunId = run.Id,
-            Decision = DispatchDecision.RevisionRequested,
-            ApprovalNotes = request.Notes,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _db.Dispatches.Add(dispatch);
-        _db.AuditTrail.Add(new AuditTrail
-        {
-            DispatchId = dispatch.Id,
-            EventType = "RevisionRequested",
-            EventDetailJson = JsonSerializer.Serialize(new { workflowRunId, notes = request.Notes })
-        });
-
-        var transition = await _workflow.TryTransitionAsync(run.Id, WorkflowState.RevisionRequested, ct);
-        if (!transition.Succeeded)
-        {
-            return Conflict(new { error = transition.ErrorCode, message = "Request-revision failed to advance the workflow state." });
-        }
-
-        await _db.SaveChangesAsync(ct);
+        var outcome = await _dispatches.RequestRevisionAsync(workflowRunId, request?.Notes, User.GetUserId(), ct);
+        if (outcome.Status != DispatchOutcomeStatus.Ok)
+            return Error(outcome);
 
         return Ok(new
         {
-            dispatchId = dispatch.Id,
+            dispatchId = outcome.Dispatch!.Id,
             workflowRunId,
-            decision = dispatch.Decision,
-            notes = dispatch.ApprovalNotes,
+            decision = outcome.Dispatch.Decision,
+            notes = outcome.Dispatch.ApprovalNotes,
             state = WorkflowState.RevisionRequested,
             loopsBackTo = WorkflowState.Matching
         });
@@ -286,7 +135,7 @@ public sealed class DispatchController : ControllerBase
     /// confirmed. The spec fixes exactly 9 workflow states, so delivery does not
     /// advance the state machine — it is recorded as an append-only audit event
     /// ("DeliveryConfirmed") that the dispatch-status endpoint surfaces as
-    /// isDelivered / deliveredAt. State stays Approved (terminal).
+    /// isDelivered / deliveredAt, and the run's reports become Resolved. State stays Approved (terminal).
     /// </summary>
     [HttpPost("{workflowRunId:guid}/confirm-delivery")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -294,47 +143,10 @@ public sealed class DispatchController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ConfirmDeliveryAsync(Guid workflowRunId, [FromBody] ConfirmDeliveryRequest? request, CancellationToken ct)
     {
-        var run = await _db.WorkflowRuns
-            .FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
-
-        if (run is null)
-        {
-            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
-        }
-
-        if (run.CurrentState != WorkflowState.Approved)
-        {
-            return Conflict(new
-            {
-                error = "INVALID_STATE",
-                message = $"Delivery confirmation requires state Approved; current state is {run.CurrentState}."
-            });
-        }
-
-        var dispatch = await _db.Dispatches
-            .Where(d => d.WorkflowRunId == workflowRunId && d.Decision == DispatchDecision.Approved)
-            .OrderByDescending(d => d.CreatedAt)
-            .FirstOrDefaultAsync(ct);
-
-        if (dispatch is null)
-        {
-            return Conflict(new { error = "DISPATCH_NOT_FOUND", message = "No approved dispatch exists for this workflow run." });
-        }
-
-        _db.AuditTrail.Add(new AuditTrail
-        {
-            DispatchId = dispatch.Id,
-            EventType = "DeliveryConfirmed",
-            EventDetailJson = JsonSerializer.Serialize(new
-            {
-                workflowRunId,
-                notes = request?.Notes,
-                photoReference = request?.PhotoReference,
-                deliveredAt = DateTime.UtcNow
-            })
-        });
-
-        await _db.SaveChangesAsync(ct);
+        var outcome = await _dispatches.ConfirmDeliveryAsync(
+            workflowRunId, request?.Notes, request?.PhotoReference, User.GetUserId(), ct);
+        if (outcome.Status != DispatchOutcomeStatus.Ok)
+            return Error(outcome);
 
         return Ok(new { workflowRunId, state = WorkflowState.Approved, isDelivered = true, notes = request?.Notes });
     }
@@ -443,11 +255,32 @@ public sealed class DispatchController : ControllerBase
         });
     }
 
+    private static DispatchResponse ToResponse(DispatchOutcome outcome) => new(
+        outcome.Dispatch!.Id,
+        outcome.Dispatch.WorkflowRunId,
+        outcome.Dispatch.Decision,
+        outcome.Dispatch.ApprovalNotes,
+        outcome.Dispatch.ApprovedById,
+        outcome.Dispatch.DispatchedAt,
+        outcome.State!.Value);
+
+    private IActionResult Error(DispatchOutcome outcome)
+    {
+        var body = new { error = outcome.ErrorCode, message = outcome.Message };
+        return outcome.Status switch
+        {
+            DispatchOutcomeStatus.NotFound => NotFound(body),
+            DispatchOutcomeStatus.BadRequest => BadRequest(body),
+            _ => Conflict(body)
+        };
+    }
+
     private sealed record DispatchResponse(
         Guid DispatchId,
         Guid WorkflowRunId,
         DispatchDecision Decision,
         string? ApprovalNotes,
+        int? ApprovedById,
         DateTime? DispatchedAt,
         WorkflowState State);
 }

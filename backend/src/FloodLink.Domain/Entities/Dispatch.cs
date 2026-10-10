@@ -26,8 +26,11 @@ public class Dispatch
     /// </summary>
     public string? ApprovalNotes { get; set; }
 
-    /// <summary>FK → the Users row of the coordinator who made the decision (nullable until auth is wired).</summary>
-    public Guid? ApprovedById { get; set; }
+    /// <summary>FK → the Users row of the coordinator who made the decision.</summary>
+    public int? ApprovedById { get; set; }
+
+    /// <summary>Navigation property for the deciding coordinator.</summary>
+    public User? ApprovedBy { get; set; }
 
     /// <summary>UTC timestamp the dispatch was executed (set only when Approved).</summary>
     public DateTime? DispatchedAt { get; set; }

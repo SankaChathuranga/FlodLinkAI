@@ -1,7 +1,9 @@
 using FloodLink.Api.DTOs;
+using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Exceptions;
 using FloodLink.Infrastructure;
+using FloodLink.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +12,7 @@ namespace FloodLink.Api.Controllers;
 
 [ApiController]
 [Route("api/inventory")]
-public sealed class InventoryController(AppDbContext context) : ControllerBase
+public sealed class InventoryController(AppDbContext context, StockReservationService stock) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<InventoryItem>>> GetInventory(
@@ -50,7 +52,8 @@ public sealed class InventoryController(AppDbContext context) : ControllerBase
             DepotId = dto.DepotId,
             ItemName = itemName,
             Unit = dto.Unit.Trim(),
-            QuantityAvailable = dto.QuantityAvailable
+            QuantityAvailable = dto.QuantityAvailable,
+            ReorderThreshold = dto.ReorderThreshold
         };
 
         context.InventoryItems.Add(item);
@@ -69,5 +72,35 @@ public sealed class InventoryController(AppDbContext context) : ControllerBase
         item.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync(ct);
         return Ok(item);
+    }
+
+    /// <summary>
+    /// Holds stock of an item so plans can't allocate it (e.g. kept back for a known need).
+    /// Fails with 409 when not enough stock is free, or when another request changed the item first.
+    /// </summary>
+    [HttpPut("{id:int}/reserve")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Reserve(int id, StockQuantityDto dto, CancellationToken ct)
+        => ToResult(await stock.ReserveItemAsync(id, dto.Quantity, ct));
+
+    /// <summary>Releases previously held stock of an item back to free stock.</summary>
+    [HttpPut("{id:int}/release")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Release(int id, StockQuantityDto dto, CancellationToken ct)
+        => ToResult(await stock.ReleaseItemAsync(id, dto.Quantity, ct));
+
+    private IActionResult ToResult((StockOperationResult Result, InventoryItem? Item) outcome)
+    {
+        if (outcome.Result.Succeeded)
+            return Ok(outcome.Item);
+
+        var body = new { error = outcome.Result.ErrorCode, message = outcome.Result.ErrorMessage };
+        return outcome.Result.ErrorCode == "NOT_FOUND" ? NotFound(body) : Conflict(body);
     }
 }

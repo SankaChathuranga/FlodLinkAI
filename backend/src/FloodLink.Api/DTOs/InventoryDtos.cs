@@ -27,10 +27,20 @@ public sealed class CreateInventoryItemDto
 
     [Range(0, double.MaxValue)]
     public double QuantityAvailable { get; init; }
+
+    /// <summary>Reserve floor: plans must leave at least this much free stock.</summary>
+    [Range(0, double.MaxValue)]
+    public double ReorderThreshold { get; init; }
 }
 
 public sealed class StockCheckInDto
 {
     [Range(0.000001, double.MaxValue)]
     public double QuantityReceived { get; init; }
+}
+
+public sealed class StockQuantityDto
+{
+    [Range(0.000001, double.MaxValue)]
+    public double Quantity { get; init; }
 }

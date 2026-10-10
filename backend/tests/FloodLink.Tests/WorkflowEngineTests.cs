@@ -241,4 +241,48 @@ public class WorkflowEngineTests
         WorkflowEngine.TryTransition(run, WorkflowState.Approved); // invalid
         Assert.Equal(before, run.UpdatedAt); // must not mutate the run at all
     }
+
+    // ── Failure from waiting states and retry ──────────────────────────────────
+
+    [Fact]
+    public void PendingApproval_To_Failed_IsValid_AndRecordsStage()
+    {
+        var run = RunIn(WorkflowState.PendingApproval);
+        Assert.True(WorkflowEngine.TryTransition(run, WorkflowState.Failed));
+        Assert.Equal(WorkflowState.PendingApproval, run.FailedAtState);
+    }
+
+    [Fact]
+    public void Failed_To_FailedStage_IsValid_AndClearsFailure()
+    {
+        var run = RunIn(WorkflowState.Matching);
+        WorkflowEngine.TryTransition(run, WorkflowState.Failed);
+        run.FailureReason = "NO_STOCK_AVAILABLE: none";
+
+        Assert.True(WorkflowEngine.TryTransition(run, WorkflowState.Matching));
+        Assert.Equal(WorkflowState.Matching, run.CurrentState);
+        Assert.Null(run.FailedAtState);
+        Assert.Null(run.FailureReason);
+    }
+
+    [Fact]
+    public void Failed_To_OtherStage_IsInvalid()
+    {
+        var run = RunIn(WorkflowState.Matching);
+        WorkflowEngine.TryTransition(run, WorkflowState.Failed);
+
+        Assert.False(WorkflowEngine.TryTransition(run, WorkflowState.Routing));
+        Assert.False(WorkflowEngine.TryTransition(run, WorkflowState.Triage));
+        Assert.Equal(WorkflowState.Failed, run.CurrentState);
+    }
+
+    [Fact]
+    public void Failed_InPendingApproval_CannotBeRetried()
+    {
+        // Only agent stages re-run; a failure while waiting for a human has nothing to retry.
+        var run = RunIn(WorkflowState.PendingApproval);
+        WorkflowEngine.TryTransition(run, WorkflowState.Failed);
+
+        Assert.False(WorkflowEngine.TryTransition(run, WorkflowState.PendingApproval));
+    }
 }

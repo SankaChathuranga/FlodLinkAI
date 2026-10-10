@@ -202,7 +202,7 @@ public class ReportSubmissionAndTriageIntegrationTests
         var plan = Assert.IsType<TriagePlan>(okResult.Value);
 
         Assert.NotNull(plan);
-        Assert.NotEqual(Guid.Empty, plan.WorkflowRunId);
+        Assert.Equal(Guid.Empty, plan.WorkflowRunId); // a preview doesn't start a workflow run
         Assert.Single(plan.PriorityItems);
 
         var priorityItem = plan.PriorityItems[0];
@@ -215,10 +215,11 @@ public class ReportSubmissionAndTriageIntegrationTests
 
         // Step 4: Verify TriagePlanEntity row is persisted in DB
         var persistedEntity = await context.TriagePlans
-            .FirstOrDefaultAsync(tp => tp.CreatedByAgentRunId == plan.WorkflowRunId);
+            .FirstOrDefaultAsync(tp => tp.CreatedByAgentRunId == null);
 
         Assert.NotNull(persistedEntity);
         Assert.Contains(reportId.ToString(), persistedEntity.PlanSummaryJson);
         Assert.Equal(1, persistedEntity.PriorityRank);
+        Assert.Empty(context.WorkflowRuns);
     }
 }

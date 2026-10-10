@@ -8,20 +8,27 @@ namespace FloodLink.Domain;
 
 /// <summary>
 /// Sequences all four agents for a single <see cref="WorkflowRun"/>.
-/// Entry point: <see cref="AdvanceAsync"/> — given a run in its current state,
-/// calls the next agent, logs the result, and transitions the state machine.
+/// <see cref="AdvanceAsync"/> runs one step; <see cref="RunToCompletionAsync"/> keeps going
+/// until the run needs a human (PendingApproval) or has failed safely.
 /// </summary>
 /// <remarks>
-/// Lives in FloodLink.Domain (business logic layer). Depends only on
-/// IAgentExecutionLogger, WorkflowEngine, and the four thin invoker interfaces —
-/// no direct knowledge of any agent's internals.
+/// Lives in FloodLink.Domain (business logic layer). Depends only on the four thin invoker
+/// interfaces, the stock reservation service, the execution logger and the run repository —
+/// no direct knowledge of any agent's internals. Coordinator decisions (approve, reject,
+/// revise) are handled by the dispatch service, not here.
 /// </remarks>
 public sealed class WorkflowOrchestrator
 {
+    /// <summary>Upper bound on steps in one <see cref="RunToCompletionAsync"/> call, as a loop guard.</summary>
+    public const int MaxStepsPerRun = 12;
+
+    private const int MaxFailureReasonLength = 2000;
+
     private readonly ITriageAgentInvoker _triage;
     private readonly IMatchingAgentInvoker _matching;
     private readonly IRoutingAgentInvoker _routing;
     private readonly IValidationAgentInvoker _validation;
+    private readonly IStockReservationService _stock;
     private readonly IAgentExecutionLogger _logger;
     private readonly IWorkflowRunRepository _runs;
 
@@ -30,6 +37,7 @@ public sealed class WorkflowOrchestrator
         IMatchingAgentInvoker matching,
         IRoutingAgentInvoker routing,
         IValidationAgentInvoker validation,
+        IStockReservationService stock,
         IAgentExecutionLogger logger,
         IWorkflowRunRepository runs)
     {
@@ -37,19 +45,38 @@ public sealed class WorkflowOrchestrator
         _matching = matching;
         _routing = routing;
         _validation = validation;
+        _stock = stock;
         _logger = logger;
         _runs = runs;
     }
 
     /// <summary>
-    /// Advances <paramref name="workflowRunId"/> by one step: calls the agent
-    /// appropriate for the run's current state, logs the invocation, and
-    /// transitions to the next state (or Failed on error).
+    /// Advances the run step by step while it is in an automatic state
+    /// (see <see cref="WorkflowEngine.AutomaticStates"/>). Returns as soon as the run reaches
+    /// PendingApproval, a terminal state, or Failed. A run that is already waiting or finished
+    /// is returned unchanged.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The run does not exist.</exception>
+    public async Task<WorkflowRun> RunToCompletionAsync(Guid workflowRunId, CancellationToken ct = default)
+    {
+        var run = await _runs.GetByIdAsync(workflowRunId, ct)
+            ?? throw new InvalidOperationException($"WorkflowRun {workflowRunId} not found.");
+
+        for (var step = 0; step < MaxStepsPerRun && WorkflowEngine.AutomaticStates.Contains(run.CurrentState); step++)
+            run = await AdvanceAsync(workflowRunId, ct);
+
+        return run;
+    }
+
+    /// <summary>
+    /// Advances <paramref name="workflowRunId"/> by one step: calls the agent appropriate for
+    /// the run's current state, logs the invocation, and transitions the state machine
+    /// (to Failed with a recorded reason on error).
     /// </summary>
     /// <returns>The updated <see cref="WorkflowRun"/> after the step.</returns>
     /// <exception cref="InvalidOperationException">
-    /// Thrown only if the run does not exist or is already in a terminal state
-    /// where no agent step is applicable (Approved, Rejected, Failed, PendingApproval).
+    /// The run does not exist, or it is in a state where no automatic step applies
+    /// (PendingApproval, Approved, Rejected, Failed).
     /// </exception>
     public async Task<WorkflowRun> AdvanceAsync(Guid workflowRunId, CancellationToken ct = default)
     {
@@ -60,48 +87,58 @@ public sealed class WorkflowOrchestrator
         {
             case WorkflowState.Triage:
                 await StepAsync(run, "TriageAgent",
-                    async () => await _triage.ExecuteAsync(workflowRunId, ct),
-                    onSuccess: (plan) =>
+                    () => _triage.ExecuteAsync(workflowRunId, ct),
+                    plan =>
                     {
-                        run.PlanJson = MergePlan(run.PlanJson, "triagePlan", plan);
+                        run.PlanJson = WorkflowPlan.Merge(run.PlanJson, WorkflowPlan.TriagePlanKey, plan);
                         WorkflowEngine.TryTransition(run, WorkflowState.Matching);
+                        return Task.CompletedTask;
                     }, ct);
                 break;
 
             case WorkflowState.Matching:
-                var triagePlan = ExtractPlan<TriagePlan>(run.PlanJson, "triagePlan");
                 await StepAsync(run, "MatchingAgent",
-                    async () => await _matching.ExecuteAsync(triagePlan, ct),
-                    onSuccess: (proposal) =>
+                    () => _matching.ExecuteAsync(
+                        WorkflowPlan.Read<TriagePlan>(run.PlanJson, WorkflowPlan.TriagePlanKey), ct),
+                    proposal =>
                     {
-                        run.PlanJson = MergePlan(run.PlanJson, "allocationProposal", proposal);
+                        run.PlanJson = WorkflowPlan.Merge(run.PlanJson, WorkflowPlan.AllocationProposalKey, proposal);
                         WorkflowEngine.TryTransition(run, WorkflowState.Routing);
+                        return Task.CompletedTask;
                     }, ct);
                 break;
 
             case WorkflowState.Routing:
-                var proposal = ExtractPlan<AllocationProposal>(run.PlanJson, "allocationProposal");
                 await StepAsync(run, "RoutingAgent",
-                    async () => await _routing.ExecuteAsync(proposal, ct),
-                    onSuccess: (route) =>
+                    () => _routing.ExecuteAsync(
+                        WorkflowPlan.Read<AllocationProposal>(run.PlanJson, WorkflowPlan.AllocationProposalKey), ct),
+                    route =>
                     {
-                        run.PlanJson = MergePlan(run.PlanJson, "route", route);
+                        run.PlanJson = WorkflowPlan.Merge(run.PlanJson, WorkflowPlan.RouteKey, route);
                         WorkflowEngine.TryTransition(run, WorkflowState.Validating);
+                        return Task.CompletedTask;
                     }, ct);
                 break;
 
             case WorkflowState.Validating:
-                var route = ExtractPlan<Route>(run.PlanJson, "route");
                 await StepAsync(run, "ValidationAgent",
-                    async () => await _validation.ExecuteAsync(route, ct),
-                    onSuccess: (results) =>
+                    () => _validation.ExecuteAsync(
+                        WorkflowPlan.Read<Route>(run.PlanJson, WorkflowPlan.RouteKey), ct),
+                    async results =>
                     {
-                        run.PlanJson = MergePlan(run.PlanJson, "validationResults", results);
-                        var next = results.OverallPassed
-                            ? WorkflowState.PendingApproval
-                            : WorkflowState.Failed;
-                        WorkflowEngine.TryTransition(run, next);
+                        run.PlanJson = WorkflowPlan.Merge(run.PlanJson, WorkflowPlan.ValidationResultsKey, results);
+                        if (!results.OverallPassed)
+                        {
+                            Fail(run, "VALIDATION_FAILED", DescribeFailedChecks(results));
+                            return;
+                        }
+
+                        await ReserveStockAsync(run, ct);
                     }, ct);
+                break;
+
+            case WorkflowState.RevisionRequested:
+                await RequeueForRevisionAsync(run, ct);
                 break;
 
             default:
@@ -114,41 +151,28 @@ public sealed class WorkflowOrchestrator
     }
 
     /// <summary>
-    /// Applies a coordinator decision (Approve / Reject / RevisionRequested) to a run
-    /// that is in <see cref="WorkflowState.PendingApproval"/>. Reuses
-    /// <see cref="WorkflowEngine.TryTransition"/> — no transition logic is duplicated here.
+    /// Prepares a failed run for a coordinator retry: moves it back into the agent stage that
+    /// failed, increments <see cref="WorkflowRun.RetryCount"/> and marks the next execution of
+    /// that stage as a retry. The caller queues the run afterwards.
     /// </summary>
-    /// <remarks>
-    /// On <see cref="WorkflowState.RevisionRequested"/> the run is automatically
-    /// re-queued to <see cref="WorkflowState.Matching"/> per the transition table.
-    /// </remarks>
-    /// <exception cref="ArgumentException">
-    /// <paramref name="decision"/> is not a coordinator-action state.
-    /// </exception>
-    /// <exception cref="InvalidOperationException">
-    /// Run not found, or run is not in PendingApproval.
-    /// </exception>
-    public async Task<WorkflowRun> ApplyCoordinatorDecisionAsync(
-        Guid workflowRunId,
-        WorkflowState decision,
-        CancellationToken ct = default)
+    public async Task<RetryOutcome> PrepareRetryAsync(Guid workflowRunId, int maxRetries, CancellationToken ct = default)
     {
-        if (decision is not (WorkflowState.Approved or WorkflowState.Rejected or WorkflowState.RevisionRequested))
-            throw new ArgumentException($"{decision} is not a valid coordinator decision.", nameof(decision));
+        var run = await _runs.GetByIdAsync(workflowRunId, ct);
+        if (run is null)
+            return RetryOutcome.NotFound;
+        if (run.CurrentState != WorkflowState.Failed)
+            return RetryOutcome.NotFailed;
+        if (run.RetryCount >= maxRetries)
+            return RetryOutcome.LimitReached;
 
-        var run = await _runs.GetByIdAsync(workflowRunId, ct)
-            ?? throw new InvalidOperationException($"WorkflowRun {workflowRunId} not found.");
+        var stage = run.FailedAtState;
+        if (stage is null || !WorkflowEngine.TryTransition(run, stage.Value))
+            return RetryOutcome.NotRetryable;
 
-        if (!WorkflowEngine.TryTransition(run, decision))
-            throw new InvalidOperationException(
-                $"Cannot apply {decision} to a run in state {run.CurrentState}. Run must be in PendingApproval.");
-
-        // Auto re-queue: RevisionRequested → Matching (orchestrator-driven, per transition table).
-        if (decision == WorkflowState.RevisionRequested)
-            WorkflowEngine.TryTransition(run, WorkflowState.Matching);
-
+        run.RetryCount++;
+        run.RetryOfState = stage;
         await _runs.SaveAsync(ct);
-        return run;
+        return RetryOutcome.Ready;
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -157,75 +181,119 @@ public sealed class WorkflowOrchestrator
         WorkflowRun run,
         string agentName,
         Func<Task<AgentResult<T>>> invoke,
-        Action<T> onSuccess,
+        Func<T, Task> onSuccess,
         CancellationToken ct)
     {
+        var isRetry = run.RetryOfState == run.CurrentState;
+        run.RetryOfState = null;
+        var inputJson = run.PlanJson; // current plan is the agent's effective input snapshot
         var sw = Stopwatch.StartNew();
-        AgentResult<T>? result = null;
-        string? inputJson = null;
 
+        AgentResult<T> result;
         try
         {
-            inputJson = run.PlanJson; // current plan is the agent's effective input snapshot
             result = await invoke();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             // Unexpected exception — not an anticipated agent failure. Convert to Failed.
             sw.Stop();
-            await _logger.LogExecutionAsync(workflowRunId: run.Id, agentName: agentName,
-                durationMs: sw.ElapsedMilliseconds, success: false,
-                inputJson: inputJson, errorMessage: ex.Message, cancellationToken: ct);
-            WorkflowEngine.TryTransition(run, WorkflowState.Failed);
+            await _logger.LogExecutionAsync(run.Id, agentName, sw.ElapsedMilliseconds, success: false,
+                isRetry: isRetry, inputJson: inputJson, errorMessage: ex.Message, cancellationToken: ct);
+            Fail(run, "UNEXPECTED_ERROR", ex.Message);
             return;
         }
 
         sw.Stop();
-        var outputJson = result.Data is not null
-            ? JsonSerializer.Serialize(result.Data)
-            : null;
-
         await _logger.LogExecutionAsync(
-            workflowRunId: run.Id,
-            agentName: agentName,
-            durationMs: sw.ElapsedMilliseconds,
-            success: result.Success,
-            inputJson: inputJson,
-            outputJson: outputJson,
-            errorMessage: result.ErrorMessage,
-            cancellationToken: ct);
+            run.Id,
+            agentName,
+            sw.ElapsedMilliseconds,
+            result.Success,
+            isRetry,
+            inputJson,
+            result.Data is not null ? JsonSerializer.Serialize(result.Data) : null,
+            SerializeToolCalls(result.ToolCalls),
+            result.ErrorMessage,
+            ct);
 
         if (result.Success && result.Data is not null)
-            onSuccess(result.Data);
+            await onSuccess(result.Data);
         else
-            WorkflowEngine.TryTransition(run, WorkflowState.Failed);
+            Fail(run, result.ErrorCode ?? "AGENT_FAILED", result.ErrorMessage ?? $"{agentName} failed.");
     }
 
-    // Merges agent output into the plan JSON blob as a named key.
-    private static string MergePlan<T>(string? existing, string key, T value)
+    // A validated plan holds its stock until the coordinator decides, so another plan
+    // can't promise the same supplies in the meantime.
+    private async Task ReserveStockAsync(WorkflowRun run, CancellationToken ct)
     {
-        var dict = existing is not null
-            ? JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(existing) ?? new()
-            : new Dictionary<string, JsonElement>();
+        var sw = Stopwatch.StartNew();
+        var reservation = await _stock.ReserveForRunAsync(run.Id, ct);
+        sw.Stop();
 
-        var doc = JsonDocument.Parse(JsonSerializer.Serialize(value));
-        dict[key] = doc.RootElement.Clone();
-        return JsonSerializer.Serialize(dict);
+        await _logger.LogExecutionAsync(run.Id, "StockReservation", sw.ElapsedMilliseconds,
+            reservation.Succeeded,
+            outputJson: JsonSerializer.Serialize(new { reserved = reservation.Succeeded }),
+            toolCallsJson: SerializeToolCalls(reservation.ToolCalls),
+            errorMessage: reservation.ErrorMessage,
+            cancellationToken: ct);
+
+        if (reservation.Succeeded)
+            WorkflowEngine.TryTransition(run, WorkflowState.PendingApproval);
+        else
+            Fail(run, reservation.ErrorCode ?? "RESERVATION_FAILED", reservation.ErrorMessage ?? "Stock could not be reserved.");
     }
 
-    // Extracts a typed value from the plan JSON blob by key.
-    private static T ExtractPlan<T>(string? planJson, string key)
+    // The coordinator asked for changes: drop the stale route and checks, then re-run Matching.
+    // Stock was already released when the revision was requested.
+    private async Task RequeueForRevisionAsync(WorkflowRun run, CancellationToken ct)
     {
-        if (planJson is null)
-            throw new InvalidOperationException($"PlanJson is null; cannot extract '{key}'.");
+        run.PlanJson = WorkflowPlan.Remove(run.PlanJson, WorkflowPlan.RouteKey);
+        run.PlanJson = WorkflowPlan.Remove(run.PlanJson, WorkflowPlan.ValidationResultsKey);
+        WorkflowEngine.TryTransition(run, WorkflowState.Matching);
 
-        var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(planJson)
-            ?? throw new InvalidOperationException("PlanJson could not be deserialized.");
-
-        if (!dict.TryGetValue(key, out var element))
-            throw new InvalidOperationException($"PlanJson does not contain key '{key}'.");
-
-        return JsonSerializer.Deserialize<T>(element.GetRawText())
-            ?? throw new InvalidOperationException($"Could not deserialize '{key}' as {typeof(T).Name}.");
+        await _logger.LogExecutionAsync(run.Id, "Orchestrator", durationMs: 0, success: true,
+            outputJson: JsonSerializer.Serialize(new { action = "RevisionRequeued", nextState = run.CurrentState.ToString() }),
+            cancellationToken: ct);
     }
+
+    private static void Fail(WorkflowRun run, string code, string message)
+    {
+        if (!WorkflowEngine.TryTransition(run, WorkflowState.Failed))
+            return;
+
+        var reason = $"{code}: {message}";
+        run.FailureReason = reason.Length > MaxFailureReasonLength ? reason[..MaxFailureReasonLength] : reason;
+    }
+
+    private static string DescribeFailedChecks(ValidationResults results)
+    {
+        var failed = results.Checks
+            .Where(check => !check.Passed)
+            .Select(check => $"{check.CheckName}: {check.ViolationDetail}")
+            .ToList();
+        return failed.Count == 0 ? "Validation did not pass." : string.Join("; ", failed);
+    }
+
+    private static string? SerializeToolCalls(IReadOnlyList<ToolCall>? toolCalls)
+        => toolCalls is { Count: > 0 } ? JsonSerializer.Serialize(toolCalls) : null;
+}
+
+/// <summary>Result of <see cref="WorkflowOrchestrator.PrepareRetryAsync"/>.</summary>
+public enum RetryOutcome
+{
+    /// <summary>The run was moved back into its failed stage and can be queued.</summary>
+    Ready,
+
+    /// <summary>No run has that id.</summary>
+    NotFound,
+
+    /// <summary>Only failed runs can be retried.</summary>
+    NotFailed,
+
+    /// <summary>The run has used all its retries.</summary>
+    LimitReached,
+
+    /// <summary>The run did not fail in an agent stage, so there is nothing to re-run.</summary>
+    NotRetryable
 }

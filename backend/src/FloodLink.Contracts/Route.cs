@@ -24,4 +24,30 @@ public record Route
     /// May be an empty string if the routing API did not return one.
     /// </summary>
     public required string Polyline { get; init; }
+
+    /// <summary>
+    /// One leg per distinct depot → shelter pair in the allocation proposal. The top-level
+    /// distance, ETA and polyline describe the longest leg (the last delivery to arrive).
+    /// Empty for routes produced before multi-leg routing.
+    /// </summary>
+    public IReadOnlyList<RouteLeg> Legs { get; init; } = [];
+}
+
+/// <summary>A single depot → shelter delivery leg within a <see cref="Route"/>.</summary>
+public record RouteLeg
+{
+    /// <summary>The depot the truck leaves from.</summary>
+    public required int DepotId { get; init; }
+
+    /// <summary>The shelter the truck delivers to.</summary>
+    public required int ShelterId { get; init; }
+
+    /// <summary>Road distance in kilometres.</summary>
+    public required double DistanceKm { get; init; }
+
+    /// <summary>Estimated travel time in minutes.</summary>
+    public required double EtaMinutes { get; init; }
+
+    /// <summary>Encoded route geometry; may be empty.</summary>
+    public required string Polyline { get; init; }
 }

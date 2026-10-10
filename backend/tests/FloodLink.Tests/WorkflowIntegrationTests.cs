@@ -267,9 +267,14 @@ public sealed class WorkflowIntegrationTests : IClassFixture<TestAppFactory>
         Assert.Equal("RevisionRequested", body["state"]!.GetValue<string>());
         Assert.Equal("Matching", body["loopsBackTo"]!.GetValue<string>());
 
+        // The run is queued for re-matching straight away (this seeded run has no triage plan, so
+        // the runner then fails it safely); the decision and notes are recorded either way.
         await using var db = NewDb();
         var run = await db.WorkflowRuns.SingleAsync(r => r.Id == id);
-        Assert.Equal(WorkflowState.RevisionRequested, run.CurrentState);
+        Assert.NotEqual(WorkflowState.PendingApproval, run.CurrentState);
+        Assert.Contains("Re-route via depot 3", run.PlanJson);
+        var dispatch = await db.Dispatches.SingleAsync(d => d.WorkflowRunId == id);
+        Assert.Equal(DispatchDecision.RevisionRequested, dispatch.Decision);
     }
 
     // ── Approval queue ─────────────────────────────────────────────────────────

@@ -50,6 +50,43 @@ public record PlanDocument
     /// each enriched with the live inventory snapshot used to decide the allocation.
     /// </summary>
     public required IReadOnlyList<PlanAllocationLine> Allocations { get; init; }
+
+    /// <summary>
+    /// One entry per depot → shelter delivery leg, with coordinates and load, so each truck
+    /// can be checked separately. When empty, the single origin/destination above is used.
+    /// </summary>
+    public IReadOnlyList<PlanRouteLeg> Legs { get; init; } = [];
+}
+
+/// <summary>A delivery leg as seen by the Validation/Safety Agent.</summary>
+public record PlanRouteLeg
+{
+    /// <summary>The depot (origin).</summary>
+    public required int DepotId { get; init; }
+
+    /// <summary>The shelter (destination).</summary>
+    public required int ShelterId { get; init; }
+
+    /// <summary>Depot latitude.</summary>
+    public required double OriginLat { get; init; }
+
+    /// <summary>Depot longitude.</summary>
+    public required double OriginLng { get; init; }
+
+    /// <summary>Shelter latitude.</summary>
+    public required double DestLat { get; init; }
+
+    /// <summary>Shelter longitude.</summary>
+    public required double DestLng { get; init; }
+
+    /// <summary>Road distance in kilometres for this leg.</summary>
+    public required double DistanceKm { get; init; }
+
+    /// <summary>Estimated travel time in minutes for this leg.</summary>
+    public required double EtaMinutes { get; init; }
+
+    /// <summary>Total quantity carried on this leg (sum of its allocation lines).</summary>
+    public required double Load { get; init; }
 }
 
 /// <summary>

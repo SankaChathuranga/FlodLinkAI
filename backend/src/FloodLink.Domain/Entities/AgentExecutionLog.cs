@@ -4,10 +4,6 @@ namespace FloodLink.Domain.Entities;
 /// Records one agent's execution within a <see cref="WorkflowRun"/>.
 /// Owned by Member C. Maps to the <c>AgentExecutionLog</c> table.
 /// </summary>
-/// <remarks>
-/// TODO (Member C — Week 2): Finalize JSON column types; confirm whether
-/// <see cref="ToolCallsJson"/> should be <c>jsonb</c> or <c>text</c> in Postgres.
-/// </remarks>
 public class AgentExecutionLog
 {
     /// <summary>Primary key.</summary>
@@ -25,20 +21,23 @@ public class AgentExecutionLog
     /// </summary>
     public required string AgentName { get; set; }
 
-    /// <summary>JSON serialisation of the agent's input. TODO: use jsonb in Postgres.</summary>
+    /// <summary>JSON serialisation of the agent's input.</summary>
     public string? InputJson { get; set; }
 
-    /// <summary>JSON serialisation of the agent's output. TODO: use jsonb in Postgres.</summary>
+    /// <summary>JSON serialisation of the agent's output.</summary>
     public string? OutputJson { get; set; }
 
-    /// <summary>JSON array of any tool calls the agent made. TODO: use jsonb in Postgres.</summary>
+    /// <summary>JSON array of the tool calls the agent made (see <c>Contracts.ToolCall</c>).</summary>
     public string? ToolCallsJson { get; set; }
 
     /// <summary>Wall-clock execution time in milliseconds.</summary>
     public long DurationMs { get; set; }
 
-    /// <summary>Execution status: "Success", "Error", or "Retried".</summary>
+    /// <summary>Execution status: "Success" or "Error".</summary>
     public required string Status { get; set; }
+
+    /// <summary>True when this execution was a coordinator-requested retry of a failed stage.</summary>
+    public bool IsRetry { get; set; }
 
     /// <summary>
     /// Human-readable failure detail when <see cref="Status"/> is "Error" or "Retried".

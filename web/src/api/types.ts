@@ -45,7 +45,7 @@ export interface DispatchListItem {
   workflowRunId: string
   decision: string
   approvalNotes: string | null
-  approvedById: string | null
+  approvedById: number | null
   dispatchedAt: string | null
   createdAt: string
 }

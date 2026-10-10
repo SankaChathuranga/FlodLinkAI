@@ -1,10 +1,10 @@
 using System.Text.Json;
 using FloodLink.Agents.Validation;
 using FloodLink.Contracts;
+using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
 using FloodLink.Infrastructure;
-using FloodLink.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -29,18 +29,19 @@ public sealed class ValidationController : ControllerBase
 
     private readonly AppDbContext _db;
     private readonly IValidationAgent _validationAgent;
-    private readonly IWorkflowStateService _workflow;
+    private readonly IStockReservationService _stock;
 
-    public ValidationController(AppDbContext db, IValidationAgent validationAgent, IWorkflowStateService workflow)
+    public ValidationController(AppDbContext db, IValidationAgent validationAgent, IStockReservationService stock)
     {
         _db = db;
         _validationAgent = validationAgent;
-        _workflow = workflow;
+        _stock = stock;
     }
 
     /// <summary>
-    /// Runs all deterministic safety checks against a completed plan. On overall
-    /// pass the workflow moves to PendingApproval; on fail it moves to Failed.
+    /// Runs all deterministic safety checks against a completed plan. On overall pass the plan's
+    /// stock is reserved and the workflow moves to PendingApproval; on fail (or if the stock can
+    /// no longer be reserved) it moves to Failed with a recorded reason.
     /// </summary>
     [HttpPost("run")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -119,7 +120,24 @@ public sealed class ValidationController : ControllerBase
         });
 
         var targetState = agentResult.Data.OverallPassed ? WorkflowState.PendingApproval : WorkflowState.Failed;
-        await _workflow.TryTransitionAsync(run.Id, targetState, ct);
+        string? failureReason = agentResult.Data.OverallPassed
+            ? null
+            : "VALIDATION_FAILED: " + string.Join("; ", agentResult.Data.Checks
+                .Where(c => !c.Passed).Select(c => $"{c.CheckName}: {c.ViolationDetail}"));
+
+        if (agentResult.Data.OverallPassed)
+        {
+            var reservation = await _stock.ReserveForRunAsync(run.Id, ct);
+            if (!reservation.Succeeded)
+            {
+                targetState = WorkflowState.Failed;
+                failureReason = $"{reservation.ErrorCode}: {reservation.ErrorMessage}";
+            }
+        }
+
+        WorkflowEngine.TryTransition(run, targetState);
+        if (targetState == WorkflowState.Failed)
+            run.FailureReason = failureReason;
         await _db.SaveChangesAsync(ct);
 
         return Ok(new

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using FloodLink.Domain.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace FloodLink.Api.Middleware;
 
@@ -8,11 +9,13 @@ public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionMiddleware> _logger;
+    private readonly IHostEnvironment _environment;
 
-    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger, IHostEnvironment environment)
     {
         _next = next;
         _logger = logger;
+        _environment = environment;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -28,7 +31,7 @@ public class GlobalExceptionMiddleware
         }
     }
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
 
@@ -53,6 +56,10 @@ public class GlobalExceptionMiddleware
                 statusCode = (int)HttpStatusCode.Forbidden; // 403
                 message = forbiddenEx.Message;
                 break;
+            case DbUpdateConcurrencyException:
+                statusCode = (int)HttpStatusCode.Conflict; // 409
+                message = "The record was changed by another request. Reload and try again.";
+                break;
             default:
                 statusCode = (int)HttpStatusCode.InternalServerError; // 500
                 message = "An unexpected error occurred on the server.";
@@ -65,7 +72,8 @@ public class GlobalExceptionMiddleware
         {
             statusCode,
             message,
-            detail = statusCode == 500 ? exception.Message : null
+            // Exception text can reveal internals; only show it to developers.
+            detail = statusCode == 500 && _environment.IsDevelopment() ? exception.Message : null
         };
 
         var jsonOptions = new JsonSerializerOptions

@@ -89,4 +89,23 @@ public class MatchingAgentTests
         Assert.Single(result.Data.Unfulfillable);
         Assert.Contains("40 of 100", result.Data.Unfulfillable[0].Reason);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_OffersOnlyFreeStockAboveTheReserveFloor()
+    {
+        // 100 on hand, 30 held by another plan, floor 20 → only 50 can be allocated.
+        await using var context = CreateContext(new InventoryItem
+        {
+            Id = 1, DepotId = 1, ItemName = "Water", Unit = "bottles",
+            QuantityAvailable = 100, QuantityReserved = 30, ReorderThreshold = 20
+        });
+        var agent = new MatchingAgent(context);
+
+        var result = await agent.ExecuteAsync(Plan(80));
+
+        Assert.True(result.Success);
+        Assert.Equal(50, result.Data!.Allocations.Single().Quantity);
+        Assert.Contains("Only 50 of 80", result.Data.Unfulfillable.Single().Reason);
+        Assert.Contains(result.ToolCalls, call => call.Tool == "db.inventory.read");
+    }
 }

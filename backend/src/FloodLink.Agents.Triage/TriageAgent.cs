@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using FloodLink.Contracts;
 using FloodLink.Domain.Entities;
@@ -24,76 +25,87 @@ public sealed class TriageAgent : ITriageAgent
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Triages the reports the run was started for (<see cref="WorkflowRun.ReportIds"/>), or every
+    /// unresolved report for older runs that have no report list. Fails when the run doesn't exist.
+    /// </remarks>
     public async Task<AgentResult<TriagePlan>> ExecuteAsync(
         Guid workflowRunId,
         CancellationToken cancellationToken = default)
     {
-        return await ExecuteInternalAsync(workflowRunId, targetReportId: null, cancellationToken);
+        WorkflowRun? workflowRun = await _context.WorkflowRuns
+            .FirstOrDefaultAsync(w => w.Id == workflowRunId, cancellationToken);
+        if (workflowRun is null)
+        {
+            return AgentResult<TriagePlan>.Fail(
+                "WORKFLOW_NOT_FOUND", $"No workflow run with id {workflowRunId}.");
+        }
+
+        return await ExecuteInternalAsync(workflowRun, workflowRun.ReportIds, cancellationToken);
     }
 
     /// <summary>
-    /// Executes triage for a specific report ID or all pending reports.
+    /// Previews triage for a single report without starting a workflow run. The plan is persisted
+    /// as a <see cref="TriagePlanEntity"/> with no run, and its <see cref="TriagePlan.WorkflowRunId"/>
+    /// is <see cref="Guid.Empty"/>.
     /// </summary>
     public async Task<AgentResult<TriagePlan>> ExecuteForReportAsync(
         int reportId,
-        Guid? workflowRunId = null,
         CancellationToken cancellationToken = default)
     {
-        Guid effectiveWorkflowId = workflowRunId ?? Guid.NewGuid();
-        return await ExecuteInternalAsync(effectiveWorkflowId, targetReportId: reportId, cancellationToken);
+        return await ExecuteInternalAsync(workflowRun: null, [reportId], cancellationToken);
     }
 
     private async Task<AgentResult<TriagePlan>> ExecuteInternalAsync(
-        Guid workflowRunId,
-        int? targetReportId,
+        WorkflowRun? workflowRun,
+        IReadOnlyCollection<int>? reportIds,
         CancellationToken cancellationToken)
     {
+        var toolCalls = new List<ToolCall>();
         try
         {
-            // Ensure WorkflowRun exists in DB
-            WorkflowRun? workflowRun = await _context.WorkflowRuns
-                .FirstOrDefaultAsync(w => w.Id == workflowRunId, cancellationToken);
-
-            if (workflowRun == null)
-            {
-                workflowRun = new WorkflowRun
-                {
-                    Id = workflowRunId,
-                    Objective = $"Triage Execution for Workflow {workflowRunId:N}",
-                    CurrentState = Domain.Enums.WorkflowState.Triage,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                _context.WorkflowRuns.Add(workflowRun);
-            }
-
-            // Load reports to triage
+            // Tool: read-only report query, scoped to the requested reports.
+            var sw = Stopwatch.StartNew();
             IQueryable<Report> reportsQuery = _context.Reports.Include(r => r.Shelter);
-
-            if (targetReportId.HasValue)
-            {
-                reportsQuery = reportsQuery.Where(r => r.Id == targetReportId.Value);
-            }
-            else
-            {
-                reportsQuery = reportsQuery.Where(r => r.Status != "Resolved");
-            }
+            reportsQuery = reportIds is { Count: > 0 }
+                ? reportsQuery.Where(r => reportIds.Contains(r.Id))
+                : reportsQuery.Where(r => r.Status != "Resolved");
 
             List<Report> reportsToTriage = await reportsQuery.ToListAsync(cancellationToken);
+            toolCalls.Add(new ToolCall
+            {
+                Tool = "db.reports.read",
+                Input = new Dictionary<string, object?> { ["reportIds"] = reportIds?.ToList() },
+                Output = new Dictionary<string, object?> { ["count"] = reportsToTriage.Count },
+                Succeeded = true,
+                DurationMs = sw.ElapsedMilliseconds
+            });
 
             if (reportsToTriage.Count == 0)
             {
                 return AgentResult<TriagePlan>.Fail(
                     "NO_REPORTS_FOUND",
-                    $"No active reports found for triage (TargetReportId: {targetReportId?.ToString() ?? "ALL"}).");
+                    $"No active reports found for triage (reports: {(reportIds is { Count: > 0 } ? string.Join(", ", reportIds) : "ALL")}).")
+                    .WithToolCalls(toolCalls);
+            }
+
+            // Every requested report must exist; a plan must never reference a missing report.
+            if (reportIds is { Count: > 0 })
+            {
+                var missing = reportIds.Except(reportsToTriage.Select(r => r.Id)).ToList();
+                if (missing.Count > 0)
+                {
+                    return AgentResult<TriagePlan>.Fail(
+                        "REPORT_NOT_FOUND", $"Reports not found: {string.Join(", ", missing)}.")
+                        .WithToolCalls(toolCalls);
+                }
             }
 
             var priorityItems = new List<TriagePriorityItem>();
-            var reportIds = new List<int>();
+            sw.Restart();
 
             foreach (var report in reportsToTriage)
             {
-                reportIds.Add(report.Id);
                 Shelter? shelter = report.Shelter;
 
                 // 1. Calculate Rule-Based Urgency Score (0-100)
@@ -127,6 +139,18 @@ public sealed class TriageAgent : ITriageAgent
                 });
             }
 
+            toolCalls.Add(new ToolCall
+            {
+                Tool = "db.shelter_history.read",
+                Input = new Dictionary<string, object?>
+                {
+                    ["shelterIds"] = reportsToTriage.Select(r => r.ShelterId).Distinct().ToList()
+                },
+                Output = new Dictionary<string, object?> { ["scored"] = priorityItems.Count },
+                Succeeded = true,
+                DurationMs = sw.ElapsedMilliseconds
+            });
+
             // Rank priority items by score descending
             var rankedPriorityItems = priorityItems
                 .OrderByDescending(i => i.PriorityScore)
@@ -135,35 +159,36 @@ public sealed class TriageAgent : ITriageAgent
 
             var triagePlan = new TriagePlan
             {
-                WorkflowRunId = workflowRunId,
+                WorkflowRunId = workflowRun?.Id ?? Guid.Empty,
                 PriorityItems = rankedPriorityItems
             };
 
-            // 3. Persist TriagePlanEntity row in DB
+            // 3. Persist TriagePlanEntity row in DB. The orchestrator stores the plan in the run's
+            //    PlanJson under its own key; the agent doesn't write PlanJson itself.
             string planJson = JsonSerializer.Serialize(triagePlan, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
-            var triagePlanEntity = new TriagePlanEntity
+            _context.TriagePlans.Add(new TriagePlanEntity
             {
-                GeneratedFromReportIds = reportIds,
+                GeneratedFromReportIds = reportsToTriage.Select(r => r.Id).ToList(),
                 PriorityRank = 1,
                 PlanSummaryJson = planJson,
-                CreatedByAgentRunId = workflowRunId,
+                CreatedByAgentRunId = workflowRun?.Id,
                 CreatedAt = DateTime.UtcNow
-            };
+            });
 
-            _context.TriagePlans.Add(triagePlanEntity);
-            workflowRun.PlanJson = planJson;
-            workflowRun.UpdatedAt = DateTime.UtcNow;
+            if (workflowRun is not null)
+                workflowRun.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(cancellationToken);
 
-            return AgentResult<TriagePlan>.Ok(triagePlan);
+            return AgentResult<TriagePlan>.Ok(triagePlan).WithToolCalls(toolCalls);
         }
         catch (Exception ex)
         {
             return AgentResult<TriagePlan>.Fail(
                 "TRIAGE_EXECUTION_ERROR",
-                $"An unexpected error occurred during triage execution: {ex.Message}");
+                $"An unexpected error occurred during triage execution: {ex.Message}")
+                .WithToolCalls(toolCalls);
         }
     }
 

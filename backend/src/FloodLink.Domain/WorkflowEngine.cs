@@ -8,59 +8,54 @@ namespace FloodLink.Domain;
 /// This is the ONLY place <see cref="WorkflowRun.CurrentState"/> may be changed.
 /// </summary>
 /// <remarks>
-/// Design: enum + guard-clause switch expression (chosen over the Stateless library
-/// in Phase 1 — 12 transitions fit cleanly in a switch, zero external dependencies,
-/// fully explainable in a viva). See <c>context/architecture.md § Phase 1</c>.
+/// Design: enum + guard-clause switch expression (chosen over the Stateless library —
+/// the transitions fit cleanly in a switch, with zero external dependencies).
 ///
-/// Valid transition table (from Phase 1 design):
+/// Valid transition table:
 /// <code>
 /// Triage            → Matching          (agent success)
-/// Triage            → Failed            (agent failure)
 /// Matching          → Routing           (agent success)
-/// Matching          → Failed            (agent failure)
 /// Routing           → Validating        (agent success)
-/// Routing           → Failed            (agent failure)
-/// Validating        → PendingApproval   (agent success)
-/// Validating        → Failed            (agent failure)
+/// Validating        → PendingApproval   (agent success + stock reserved)
 /// PendingApproval   → Approved          (coordinator action)
 /// PendingApproval   → Rejected          (coordinator action)
 /// PendingApproval   → RevisionRequested (coordinator action)
 /// RevisionRequested → Matching          (orchestrator re-queues)
+/// any non-terminal  → Failed            (unrecoverable error, reason recorded)
+/// Failed            → FailedAtState     (coordinator retry of the failed agent stage)
 /// </code>
-/// All other transitions are invalid and will be rejected by <see cref="TryTransition"/>.
+/// Approved and Rejected are terminal. All other transitions are rejected.
 /// </remarks>
 public static class WorkflowEngine
 {
-    /// <summary>
-    /// Attempts to move <paramref name="run"/> to <paramref name="target"/>.
-    /// </summary>
-    /// <param name="run">The workflow run to transition. Its state will be mutated on success.</param>
-    /// <param name="target">The desired next state.</param>
-    /// <returns>
-    /// <see langword="true"/> if the transition is valid and was applied;
-    /// <see langword="false"/> if the transition is not in the allowed table — the run is
-    /// left unchanged and no exception is thrown.
-    /// </returns>
-    /// <remarks>
-    /// When <paramref name="target"/> is <see cref="WorkflowState.Failed"/>, this method
-    /// additionally sets <see cref="WorkflowRun.FailedAtState"/> to the run's current state
-    /// before changing it — recording which stage the failure occurred in.
-    /// </remarks>
-    public static bool TryTransition(WorkflowRun run, WorkflowState target)
+    /// <summary>The stages in which an agent runs; only these can be retried after a failure.</summary>
+    public static readonly IReadOnlySet<WorkflowState> AgentStages = new HashSet<WorkflowState>
     {
-        bool valid = (run.CurrentState, target) switch
+        WorkflowState.Triage, WorkflowState.Matching, WorkflowState.Routing, WorkflowState.Validating
+    };
+
+    /// <summary>States the background runner keeps advancing without human input.</summary>
+    public static readonly IReadOnlySet<WorkflowState> AutomaticStates = new HashSet<WorkflowState>
+    {
+        WorkflowState.Triage, WorkflowState.Matching, WorkflowState.Routing, WorkflowState.Validating,
+        WorkflowState.RevisionRequested
+    };
+
+    /// <summary>
+    /// Returns true when moving from <paramref name="current"/> to <paramref name="target"/> is legal.
+    /// <paramref name="failedAtState"/> is only consulted for retries out of
+    /// <see cref="WorkflowState.Failed"/>: a run may only re-enter the stage it failed in.
+    /// </summary>
+    public static bool CanTransition(WorkflowState current, WorkflowState target, WorkflowState? failedAtState = null)
+        => (current, target) switch
         {
             // ── Agent-driven transitions (orchestrator calls these) ──────────────
             (WorkflowState.Triage,            WorkflowState.Matching)          => true,
-            (WorkflowState.Triage,            WorkflowState.Failed)            => true,
             (WorkflowState.Matching,          WorkflowState.Routing)           => true,
-            (WorkflowState.Matching,          WorkflowState.Failed)            => true,
             (WorkflowState.Routing,           WorkflowState.Validating)        => true,
-            (WorkflowState.Routing,           WorkflowState.Failed)            => true,
             (WorkflowState.Validating,        WorkflowState.PendingApproval)   => true,
-            (WorkflowState.Validating,        WorkflowState.Failed)            => true,
 
-            // ── Coordinator-driven transitions (API endpoint calls these) ────────
+            // ── Coordinator-driven transitions (API endpoints call these) ────────
             (WorkflowState.PendingApproval,   WorkflowState.Approved)          => true,
             (WorkflowState.PendingApproval,   WorkflowState.Rejected)          => true,
             (WorkflowState.PendingApproval,   WorkflowState.RevisionRequested) => true,
@@ -68,16 +63,44 @@ public static class WorkflowEngine
             // ── Post-revision re-queue (orchestrator calls this automatically) ───
             (WorkflowState.RevisionRequested, WorkflowState.Matching)          => true,
 
+            // ── Safe failure from any non-terminal state ─────────────────────────
+            (WorkflowState.Triage or WorkflowState.Matching or WorkflowState.Routing or
+             WorkflowState.Validating or WorkflowState.PendingApproval or
+             WorkflowState.RevisionRequested, WorkflowState.Failed)            => true,
+
+            // ── Retry: only back into the agent stage that failed ────────────────
+            (WorkflowState.Failed, _) => failedAtState == target && AgentStages.Contains(target),
+
             // ── Everything else is invalid ───────────────────────────────────────
             _ => false
         };
 
-        if (!valid)
+    /// <summary>
+    /// Attempts to move <paramref name="run"/> to <paramref name="target"/>.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> if the transition is valid and was applied;
+    /// <see langword="false"/> if it is not in the allowed table — the run is left unchanged.
+    /// </returns>
+    /// <remarks>
+    /// Moving to <see cref="WorkflowState.Failed"/> records the stage the failure occurred in
+    /// (<see cref="WorkflowRun.FailedAtState"/>). Leaving Failed on a retry clears it, along
+    /// with the recorded failure reason.
+    /// </remarks>
+    public static bool TryTransition(WorkflowRun run, WorkflowState target)
+    {
+        if (!CanTransition(run.CurrentState, target, run.FailedAtState))
             return false;
 
-        // When failing, record which stage the failure occurred in (Phase 1, Task 4).
         if (target == WorkflowState.Failed)
+        {
             run.FailedAtState = run.CurrentState;
+        }
+        else if (run.CurrentState == WorkflowState.Failed)
+        {
+            run.FailedAtState = null;
+            run.FailureReason = null;
+        }
 
         run.CurrentState = target;
         run.UpdatedAt = DateTime.UtcNow;

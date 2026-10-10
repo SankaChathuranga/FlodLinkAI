@@ -42,6 +42,26 @@ public class RoutingAgentInvokerTests
             => Task.FromResult<MapboxRouteResult?>(_result);
     }
 
+    // Returns a longer route for shelter 2 so the longest leg is identifiable.
+    private sealed class PerShelterClient : IMapboxClient
+    {
+        public int Calls { get; private set; }
+
+        public Task<MapboxRouteResult?> GetRouteAsync(
+            double originLng, double originLat, double destLng, double destLat,
+            CancellationToken cancellationToken = default)
+        {
+            Calls++;
+            var far = destLat > 7;
+            return Task.FromResult<MapboxRouteResult?>(new MapboxRouteResult
+            {
+                DistanceMeters = far ? 40_000 : 10_000,
+                DurationSeconds = far ? 3_600 : 900,
+                EncodedPolyline = far ? "far" : "near"
+            });
+        }
+    }
+
     private sealed class ReturnsNullClient : IMapboxClient
     {
         public Task<MapboxRouteResult?> GetRouteAsync(
@@ -187,5 +207,61 @@ public class RoutingAgentInvokerTests
 
         Assert.False(result.Success);
         Assert.Equal("MAPBOX_HTTP_ERROR", result.ErrorCode);
+    }
+
+    [Fact]
+    public async Task MultiplePairs_RoutesEachLegOnce_AndReportsTheLongest()
+    {
+        var context = CreateContext();
+        context.Shelters.Add(new Shelter { Id = 2, Name = "Far Shelter", Latitude = 7.2, Longitude = 80.1 });
+        context.SaveChanges();
+        var repo = new FakeRouteRepository();
+        var mapbox = new PerShelterClient();
+        var sut = new RoutingAgentInvoker(mapbox, repo, context);
+        var proposal = MakeProposal() with
+        {
+            Allocations =
+            [
+                new() { DepotId = 1, ShelterId = 1, ItemName = "Water", Quantity = 100 },
+                new() { DepotId = 1, ShelterId = 1, ItemName = "Food", Quantity = 50 },
+                new() { DepotId = 1, ShelterId = 2, ItemName = "Water", Quantity = 30 }
+            ]
+        };
+
+        var result = await sut.ExecuteAsync(proposal);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, mapbox.Calls);
+        Assert.Equal(2, result.Data!.Legs.Count);
+        Assert.Equal("far", result.Data.Polyline);
+        Assert.Equal(60, result.Data.EtaMinutes, precision: 3);
+        Assert.Equal(2, repo.Saved.Count);
+        Assert.Equal([1, 2], repo.Saved.Select(r => r.ShelterId!.Value).OrderBy(id => id).ToArray());
+        Assert.Equal(2, result.ToolCalls.Count(call => call.Tool == "mapbox.directions" && call.Succeeded));
+    }
+
+    [Fact]
+    public async Task FailedLeg_FailsTheStep_AndPersistsNoRoutes()
+    {
+        var context = CreateContext();
+        context.Shelters.Add(new Shelter { Id = 2, Name = "Far Shelter", Latitude = 7.2, Longitude = 80.1 });
+        context.SaveChanges();
+        var repo = new FakeRouteRepository();
+        var sut = new RoutingAgentInvoker(new ReturnsNullClient(), repo, context);
+        var proposal = MakeProposal() with
+        {
+            Allocations =
+            [
+                new() { DepotId = 1, ShelterId = 1, ItemName = "Water", Quantity = 100 },
+                new() { DepotId = 1, ShelterId = 2, ItemName = "Water", Quantity = 30 }
+            ]
+        };
+
+        var result = await sut.ExecuteAsync(proposal);
+
+        Assert.False(result.Success);
+        Assert.Equal("NO_ROUTE", result.ErrorCode);
+        Assert.Empty(repo.Saved);
+        Assert.False(result.ToolCalls.Single().Succeeded);
     }
 }

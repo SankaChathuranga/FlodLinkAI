@@ -37,15 +37,31 @@ public class WorkflowOrchestratorTests
 
     private sealed class FakeLogger : IAgentExecutionLogger
     {
-        public List<(string AgentName, bool Success, string? ErrorMessage)> Entries { get; } = new();
+        public List<(string AgentName, bool Success, string? ErrorMessage, bool IsRetry, string? ToolCallsJson)> Entries { get; } = new();
 
         public Task LogExecutionAsync(Guid workflowRunId, string agentName, long durationMs,
             bool success, bool isRetry = false, string? inputJson = null, string? outputJson = null,
             string? toolCallsJson = null, string? errorMessage = null, CancellationToken cancellationToken = default)
         {
-            Entries.Add((agentName, success, errorMessage));
+            Entries.Add((agentName, success, errorMessage, isRetry, toolCallsJson));
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FakeStock(bool succeeds = true) : IStockReservationService
+    {
+        public int Reservations { get; private set; }
+
+        public Task<StockOperationResult> ReserveForRunAsync(Guid workflowRunId, CancellationToken cancellationToken = default)
+        {
+            Reservations++;
+            return Task.FromResult(succeeds
+                ? StockOperationResult.Ok()
+                : StockOperationResult.Fail("INSUFFICIENT_STOCK", "Depot 1 has 0 Water free; the plan needs 100."));
+        }
+
+        public Task<StockOperationResult> ReleaseForRunAsync(Guid workflowRunId, CancellationToken cancellationToken = default)
+            => Task.FromResult(StockOperationResult.Ok());
     }
 
     private static readonly Guid RunId = Guid.NewGuid();
@@ -86,12 +102,14 @@ public class WorkflowOrchestratorTests
         ITriageAgentInvoker? triage = null,
         IMatchingAgentInvoker? matching = null,
         IRoutingAgentInvoker? routing = null,
-        IValidationAgentInvoker? validation = null)
+        IValidationAgentInvoker? validation = null,
+        IStockReservationService? stock = null)
         => new(
             triage ?? new SucceedingTriageAgent(),
             matching ?? new SucceedingMatchingAgent(),
             routing ?? new SucceedingRoutingAgent(),
             validation ?? new SucceedingValidationAgent(),
+            stock ?? new FakeStock(),
             logger,
             new FakeRepository(run));
 
@@ -138,7 +156,7 @@ public class WorkflowOrchestratorTests
     // ── Tests ──────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task FullPipeline_AdvancesFromTriageToPendingApproval_WithFourLogEntries()
+    public async Task FullPipeline_AdvancesFromTriageToPendingApproval_WithFiveLogEntries()
     {
         var run = new WorkflowRun { Id = RunId, Objective = "Test" };
         var logger = new FakeLogger();
@@ -157,13 +175,14 @@ public class WorkflowOrchestratorTests
         await sut.AdvanceAsync(RunId);
         Assert.Equal(WorkflowState.PendingApproval, run.CurrentState);
 
-        // One log entry per step, all successful.
-        Assert.Equal(4, logger.Entries.Count);
+        // One log entry per agent plus the stock reservation, all successful.
+        Assert.Equal(5, logger.Entries.Count);
         Assert.All(logger.Entries, e => Assert.True(e.Success));
         Assert.Equal("TriageAgent", logger.Entries[0].AgentName);
         Assert.Equal("MatchingAgent", logger.Entries[1].AgentName);
         Assert.Equal("RoutingAgent", logger.Entries[2].AgentName);
         Assert.Equal("ValidationAgent", logger.Entries[3].AgentName);
+        Assert.Equal("StockReservation", logger.Entries[4].AgentName);
     }
 
     [Fact]
@@ -180,6 +199,7 @@ public class WorkflowOrchestratorTests
         Assert.Single(logger.Entries);
         Assert.False(logger.Entries[0].Success);
         Assert.Equal("Triage failed", logger.Entries[0].ErrorMessage);
+        Assert.Equal("TRIAGE_ERROR: Triage failed", run.FailureReason);
     }
 
     [Fact]
@@ -233,44 +253,158 @@ public class WorkflowOrchestratorTests
 
         Assert.Equal(WorkflowState.Failed, run.CurrentState);
         Assert.Equal(WorkflowState.Validating, run.FailedAtState);
+        Assert.Equal("VALIDATION_FAILED: StockAvailability: Insufficient stock", run.FailureReason);
     }
 
     [Fact]
-    public async Task ApplyCoordinatorDecision_WhenNotInPendingApproval_Throws()
+    public async Task RunToCompletion_StopsAtPendingApproval_AndReservesStock()
     {
-        var run = new WorkflowRun { Id = RunId, Objective = "Test", CurrentState = WorkflowState.Triage };
-        var logger = new FakeLogger();
-        var sut = BuildOrchestrator(run, logger);
+        var run = new WorkflowRun { Id = RunId, Objective = "Test" };
+        var stock = new FakeStock();
+        var sut = BuildOrchestrator(run, new FakeLogger(), stock: stock);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => sut.ApplyCoordinatorDecisionAsync(RunId, WorkflowState.Approved));
-        
-        Assert.Contains("Cannot apply Approved to a run in state Triage", ex.Message);
+        var result = await sut.RunToCompletionAsync(RunId);
+
+        Assert.Equal(WorkflowState.PendingApproval, result.CurrentState);
+        Assert.Equal(1, stock.Reservations);
+        Assert.Null(run.FailureReason);
     }
 
     [Fact]
-    public async Task ApplyCoordinatorDecision_Approved_SetsStateToApproved()
-    {
-        var run = new WorkflowRun { Id = RunId, Objective = "Test", CurrentState = WorkflowState.PendingApproval };
-        var logger = new FakeLogger();
-        var sut = BuildOrchestrator(run, logger);
-
-        await sut.ApplyCoordinatorDecisionAsync(RunId, WorkflowState.Approved);
-
-        Assert.Equal(WorkflowState.Approved, run.CurrentState);
-    }
-
-    [Fact]
-    public async Task ApplyCoordinatorDecision_RevisionRequested_AutoTransitionsToMatching()
+    public async Task RunToCompletion_OnWaitingRun_DoesNothing()
     {
         var run = new WorkflowRun { Id = RunId, Objective = "Test", CurrentState = WorkflowState.PendingApproval };
         var logger = new FakeLogger();
         var sut = BuildOrchestrator(run, logger);
 
-        await sut.ApplyCoordinatorDecisionAsync(RunId, WorkflowState.RevisionRequested);
+        var result = await sut.RunToCompletionAsync(RunId);
 
-        // Orchestrator automatically re-queues to Matching per transition table
+        Assert.Equal(WorkflowState.PendingApproval, result.CurrentState);
+        Assert.Empty(logger.Entries);
+    }
+
+    [Fact]
+    public async Task ReservationFailure_FailsRunAtValidating_WithReason()
+    {
+        var run = new WorkflowRun { Id = RunId, Objective = "Test" };
+        var logger = new FakeLogger();
+        var sut = BuildOrchestrator(run, logger, stock: new FakeStock(succeeds: false));
+
+        await sut.RunToCompletionAsync(RunId);
+
+        Assert.Equal(WorkflowState.Failed, run.CurrentState);
+        Assert.Equal(WorkflowState.Validating, run.FailedAtState);
+        Assert.StartsWith("INSUFFICIENT_STOCK", run.FailureReason);
+        Assert.Equal("StockReservation", logger.Entries.Last().AgentName);
+        Assert.False(logger.Entries.Last().Success);
+    }
+
+    [Fact]
+    public async Task MissingPlanSection_FailsSafely_InsteadOfThrowing()
+    {
+        // A run in Matching with no triage plan in PlanJson: the step fails, the run is Failed.
+        var run = new WorkflowRun { Id = RunId, Objective = "Test", CurrentState = WorkflowState.Matching };
+        var logger = new FakeLogger();
+        var sut = BuildOrchestrator(run, logger);
+
+        await sut.AdvanceAsync(RunId);
+
+        Assert.Equal(WorkflowState.Failed, run.CurrentState);
+        Assert.StartsWith("UNEXPECTED_ERROR", run.FailureReason);
+        Assert.False(logger.Entries.Single().Success);
+    }
+
+    [Fact]
+    public async Task AgentToolCalls_AreWrittenToTheExecutionLog()
+    {
+        var run = new WorkflowRun { Id = RunId, Objective = "Test" };
+        var logger = new FakeLogger();
+        var sut = BuildOrchestrator(run, logger, triage: new ToolCallingTriageAgent());
+
+        await sut.AdvanceAsync(RunId);
+
+        Assert.Contains("db.reports.read", logger.Entries.Single().ToolCallsJson);
+    }
+
+    [Fact]
+    public async Task Revision_RequeuesToMatching_AndReturnsToPendingApproval()
+    {
+        var run = new WorkflowRun { Id = RunId, Objective = "Test" };
+        var logger = new FakeLogger();
+        var sut = BuildOrchestrator(run, logger);
+        await sut.RunToCompletionAsync(RunId);
+
+        // Coordinator requested a revision (the dispatch service sets this state).
+        Assert.True(WorkflowEngine.TryTransition(run, WorkflowState.RevisionRequested));
+        logger.Entries.Clear();
+
+        await sut.RunToCompletionAsync(RunId);
+
+        Assert.Equal(WorkflowState.PendingApproval, run.CurrentState);
+        Assert.Equal(
+            ["Orchestrator", "MatchingAgent", "RoutingAgent", "ValidationAgent", "StockReservation"],
+            logger.Entries.Select(e => e.AgentName).ToArray());
+    }
+
+    [Fact]
+    public async Task PrepareRetry_ReentersFailedStage_AndLogsTheRetry()
+    {
+        var run = new WorkflowRun { Id = RunId, Objective = "Test" };
+        var logger = new FakeLogger();
+        var matching = new FlakyMatchingAgent();
+        var sut = BuildOrchestrator(run, logger, matching: matching);
+        await sut.RunToCompletionAsync(RunId);
+        Assert.Equal(WorkflowState.Failed, run.CurrentState);
+
+        var outcome = await sut.PrepareRetryAsync(RunId, maxRetries: 3);
+
+        Assert.Equal(RetryOutcome.Ready, outcome);
         Assert.Equal(WorkflowState.Matching, run.CurrentState);
+        Assert.Null(run.FailedAtState);
+        Assert.Null(run.FailureReason);
+        Assert.Equal(1, run.RetryCount);
+
+        await sut.RunToCompletionAsync(RunId);
+
+        Assert.Equal(WorkflowState.PendingApproval, run.CurrentState);
+        var retried = logger.Entries.Where(e => e.AgentName == "MatchingAgent").ToList();
+        Assert.False(retried[0].IsRetry);
+        Assert.True(retried[1].IsRetry);
+        Assert.False(logger.Entries.Single(e => e.AgentName == "RoutingAgent").IsRetry);
+    }
+
+    [Fact]
+    public async Task PrepareRetry_RefusesWhenLimitReachedOrNotFailed()
+    {
+        var failed = new WorkflowRun
+        {
+            Id = RunId, Objective = "Test", CurrentState = WorkflowState.Failed,
+            FailedAtState = WorkflowState.Routing, RetryCount = 3
+        };
+        Assert.Equal(RetryOutcome.LimitReached,
+            await BuildOrchestrator(failed, new FakeLogger()).PrepareRetryAsync(RunId, maxRetries: 3));
+
+        var waiting = new WorkflowRun { Id = RunId, Objective = "Test", CurrentState = WorkflowState.PendingApproval };
+        Assert.Equal(RetryOutcome.NotFailed,
+            await BuildOrchestrator(waiting, new FakeLogger()).PrepareRetryAsync(RunId, maxRetries: 3));
+    }
+
+    private sealed class ToolCallingTriageAgent : ITriageAgentInvoker
+    {
+        public Task<AgentResult<TriagePlan>> ExecuteAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult(AgentResult<TriagePlan>.Ok(FakeTriagePlan)
+                .WithToolCalls([new ToolCall { Tool = "db.reports.read", Succeeded = true }]));
+    }
+
+    // Fails the first time (e.g. stock missing), succeeds on retry.
+    private sealed class FlakyMatchingAgent : IMatchingAgentInvoker
+    {
+        private int _calls;
+
+        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, CancellationToken ct = default)
+            => Task.FromResult(++_calls == 1
+                ? AgentResult<AllocationProposal>.Fail("NO_STOCK_AVAILABLE", "No stock")
+                : AgentResult<AllocationProposal>.Ok(FakeProposal));
     }
 
     private sealed class AlwaysPassValidationAgent : IValidationAgentInvoker

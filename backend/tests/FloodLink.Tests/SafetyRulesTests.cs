@@ -298,4 +298,67 @@ public class SafetyRulesTests
         Assert.True(checks.All(c => c.Passed));
         Assert.Equal(4, checks.Count);
     }
+
+    // ── Per-leg checks (multi-depot / multi-shelter plans) ─────────────────────
+
+    private static PlanRouteLeg Leg(int depotId, int shelterId, double load, double distanceKm = 20, double etaMinutes = 40) =>
+        new()
+        {
+            DepotId = depotId,
+            ShelterId = shelterId,
+            OriginLat = 6.9,
+            OriginLng = 79.8,
+            DestLat = 7.0 + shelterId / 100.0,
+            DestLng = 80.0,
+            DistanceKm = distanceKm,
+            EtaMinutes = etaMinutes,
+            Load = load
+        };
+
+    [Fact]
+    public void Legs_EachTruckIsCheckedForCapacity()
+    {
+        var id = Guid.NewGuid();
+        var plan = Plan(id, Line(50, 200, 0, 0)) with
+        {
+            VehicleCapacity = 100,
+            Legs = [Leg(1, 2, load: 80), Leg(1, 3, load: 150)]
+        };
+
+        var checks = SafetyRules.RunAll(plan, Route(id.ToString()));
+
+        var capacity = checks.Where(c => c.CheckName == SafetyRules.VehicleCapacity).ToList();
+        Assert.Equal(2, capacity.Count);
+        Assert.True(capacity[0].Passed);
+        Assert.False(capacity[1].Passed);
+        Assert.Contains("shelter 3", capacity[1].ViolationDetail);
+    }
+
+    [Fact]
+    public void Legs_AllocationWithoutRoute_FailsCompleteness()
+    {
+        var id = Guid.NewGuid();
+        // The allocation line goes depot 1 → shelter 2, but the only leg is depot 1 → shelter 3.
+        var plan = Plan(id, Line(50, 200, 0, 0)) with { Legs = [Leg(1, 3, load: 50)] };
+
+        var checks = SafetyRules.RunAll(plan, Route(id.ToString()));
+
+        var completeness = Assert.Single(checks, c => c.CheckName == SafetyRules.RouteCompleteness);
+        Assert.False(completeness.Passed);
+        Assert.Contains("depot 1 → shelter 2", completeness.ViolationDetail);
+    }
+
+    [Fact]
+    public void Legs_ImplausibleLeg_FailsCoordinateSanity()
+    {
+        var id = Guid.NewGuid();
+        var plan = Plan(id, Line(50, 200, 0, 0)) with
+        {
+            Legs = [Leg(1, 2, load: 50, distanceKm: 0)]
+        };
+
+        var checks = SafetyRules.RunAll(plan, Route(id.ToString()));
+
+        Assert.False(checks.Single(c => c.CheckName == SafetyRules.CoordinateSanity).Passed);
+    }
 }

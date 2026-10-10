@@ -20,6 +20,9 @@ public static class SafetyRules
     /// <summary>Stable check name: route/ETA values and coordinates must be sane.</summary>
     public const string CoordinateSanity = "CoordinateSanity";
 
+    /// <summary>Stable check name: every depot → shelter pair in the allocation has a routed leg.</summary>
+    public const string RouteCompleteness = "RouteCompleteness";
+
     /// <summary>Maximum plausible road distance for a single relief delivery, in km.</summary>
     public const double MaxPlausibleDistanceKm = 400;
 
@@ -31,6 +34,11 @@ public static class SafetyRules
     /// <see cref="ValidationCheck"/> per check. Every check is explicitly listed —
     /// none are silently skipped.
     /// </summary>
+    /// <remarks>
+    /// When the plan has <see cref="PlanDocument.Legs"/>, each leg (one truck) gets its own
+    /// capacity and coordinate check, and route completeness is checked. Otherwise the plan's
+    /// single origin/destination is checked.
+    /// </remarks>
     public static IReadOnlyList<ValidationCheck> RunAll(PlanDocument plan, Route route)
     {
         var checks = new List<ValidationCheck>();
@@ -41,10 +49,66 @@ public static class SafetyRules
             checks.Add(CheckReserveMinimum(line));
         }
 
-        checks.Add(CheckVehicleCapacity(plan));
-        checks.Add(CheckCoordinates(plan, route));
+        if (plan.Legs.Count > 0)
+        {
+            checks.Add(CheckRouteCompleteness(plan));
+            foreach (var leg in plan.Legs)
+            {
+                checks.Add(CheckLegCapacity(leg, plan.VehicleCapacity));
+                checks.Add(CheckLegCoordinates(leg));
+            }
+        }
+        else
+        {
+            checks.Add(CheckVehicleCapacity(plan));
+            checks.Add(CheckCoordinates(plan, route));
+        }
 
         return checks;
+    }
+
+    /// <summary>Rule: every depot → shelter pair that receives an allocation has a routed leg.</summary>
+    public static ValidationCheck CheckRouteCompleteness(PlanDocument plan)
+    {
+        var missing = plan.Allocations
+            .Select(a => (a.DepotId, a.ShelterId))
+            .Distinct()
+            .Where(pair => !plan.Legs.Any(l => l.DepotId == pair.DepotId && l.ShelterId == pair.ShelterId))
+            .ToList();
+        return new ValidationCheck
+        {
+            CheckName = RouteCompleteness,
+            Passed = missing.Count == 0,
+            ViolationDetail = missing.Count == 0
+                ? null
+                : "No route for: " + string.Join(", ", missing.Select(p => $"depot {p.DepotId} → shelter {p.ShelterId}")) + "."
+        };
+    }
+
+    /// <summary>Rule: the load carried on one leg must fit one truck.</summary>
+    public static ValidationCheck CheckLegCapacity(PlanRouteLeg leg, double vehicleCapacity)
+    {
+        var passed = leg.Load <= vehicleCapacity;
+        return new ValidationCheck
+        {
+            CheckName = VehicleCapacity,
+            Passed = passed,
+            ViolationDetail = passed
+                ? null
+                : $"Load {leg.Load} on depot {leg.DepotId} → shelter {leg.ShelterId} exceeds vehicle capacity {vehicleCapacity}."
+        };
+    }
+
+    /// <summary>Rule: one leg's coordinates, distance and ETA must be sane (see <see cref="CheckCoordinates"/>).</summary>
+    public static ValidationCheck CheckLegCoordinates(PlanRouteLeg leg)
+    {
+        var violation = Violation(leg.OriginLat, leg.OriginLng, leg.DestLat, leg.DestLng, leg.DistanceKm, leg.EtaMinutes);
+        return new ValidationCheck
+        {
+            CheckName = CoordinateSanity,
+            Passed = violation is null,
+            ViolationDetail = violation is null ? null : $"Depot {leg.DepotId} → shelter {leg.ShelterId}: {violation}"
+        };
     }
 
     /// <summary>
@@ -107,17 +171,7 @@ public static class SafetyRules
     /// </summary>
     public static ValidationCheck CheckCoordinates(PlanDocument plan, Route route)
     {
-        var violation = (plan, route) switch
-        {
-            _ when IsInvalidLat(plan.OriginLat) || IsInvalidLat(plan.DestLat) => "Origin/destination latitude out of range [-90, 90].",
-            _ when IsInvalidLng(plan.OriginLng) || IsInvalidLng(plan.DestLng) => "Origin/destination longitude out of range [-180, 180].",
-            _ when plan.OriginLat == plan.DestLat && plan.OriginLng == plan.DestLng => "Origin and destination are identical; no journey to deliver.",
-            _ when double.IsNaN(route.DistanceKm) || route.DistanceKm <= 0 => "Routing distance must be positive.",
-            _ when route.DistanceKm > MaxPlausibleDistanceKm => $"Routing distance {route.DistanceKm} km exceeds the plausible maximum {MaxPlausibleDistanceKm} km.",
-            _ when double.IsNaN(route.EtaMinutes) || route.EtaMinutes <= 0 => "Routing ETA must be positive.",
-            _ when route.EtaMinutes > MaxPlausibleEtaMinutes => $"Routing ETA {route.EtaMinutes} minutes exceeds the plausible maximum {MaxPlausibleEtaMinutes} minutes.",
-            _ => null
-        };
+        var violation = Violation(plan.OriginLat, plan.OriginLng, plan.DestLat, plan.DestLng, route.DistanceKm, route.EtaMinutes);
 
         return new ValidationCheck
         {
@@ -126,6 +180,19 @@ public static class SafetyRules
             ViolationDetail = violation
         };
     }
+
+    private static string? Violation(double originLat, double originLng, double destLat, double destLng,
+        double distanceKm, double etaMinutes) => true switch
+    {
+        _ when IsInvalidLat(originLat) || IsInvalidLat(destLat) => "Origin/destination latitude out of range [-90, 90].",
+        _ when IsInvalidLng(originLng) || IsInvalidLng(destLng) => "Origin/destination longitude out of range [-180, 180].",
+        _ when originLat == destLat && originLng == destLng => "Origin and destination are identical; no journey to deliver.",
+        _ when double.IsNaN(distanceKm) || distanceKm <= 0 => "Routing distance must be positive.",
+        _ when distanceKm > MaxPlausibleDistanceKm => $"Routing distance {distanceKm} km exceeds the plausible maximum {MaxPlausibleDistanceKm} km.",
+        _ when double.IsNaN(etaMinutes) || etaMinutes <= 0 => "Routing ETA must be positive.",
+        _ when etaMinutes > MaxPlausibleEtaMinutes => $"Routing ETA {etaMinutes} minutes exceeds the plausible maximum {MaxPlausibleEtaMinutes} minutes.",
+        _ => null
+    };
 
     private static bool IsInvalidLat(double value) => double.IsNaN(value) || value is < -90 or > 90;
 

@@ -4,6 +4,7 @@ using FloodLink.Agents.Triage;
 using FloodLink.Agents.Validation;
 using FloodLink.Api.Middleware;
 using FloodLink.Api;
+using FloodLink.Api.Workflows;
 using FloodLink.Domain;
 using FloodLink.Domain.Services;
 using FloodLink.Infrastructure;
@@ -46,6 +47,16 @@ builder.Services.AddControllers()
 builder.Services.AddScoped<IAgentExecutionLogger, AgentExecutionLogger>();
 builder.Services.AddScoped<IWorkflowRunRepository, WorkflowRunRepository>();
 builder.Services.AddScoped<WorkflowOrchestrator>();
+
+// Background runner: started, retried and revised runs are queued and advanced off the request thread.
+builder.Services.AddSingleton<WorkflowRunQueue>();
+builder.Services.AddSingleton<IWorkflowRunQueue>(sp => sp.GetRequiredService<WorkflowRunQueue>());
+builder.Services.AddHostedService<WorkflowRunnerService>();
+
+// Stock lifecycle (reserve / commit / release) and coordinator decisions.
+builder.Services.AddScoped<StockReservationService>();
+builder.Services.AddScoped<IStockReservationService>(sp => sp.GetRequiredService<StockReservationService>());
+builder.Services.AddScoped<DispatchService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -138,9 +149,8 @@ builder.Services.AddScoped<IRoutingAgentInvoker, RoutingAgentInvoker>();
 
 // Agent invokers.
 builder.Services.AddScoped<IMatchingAgent, MatchingAgent>();
-// Member D — Validation/Safety Agent + guarded workflow state transitions.
+// Member D — Validation/Safety Agent.
 builder.Services.AddScoped<IValidationAgent, ValidationAgent>();
-builder.Services.AddScoped<IWorkflowStateService, WorkflowStateService>();
 builder.Services.AddScoped<ITriageAgentInvoker, TriageAgentInvoker>();
 builder.Services.AddScoped<IMatchingAgentInvoker, MatchingAgentInvoker>();
 builder.Services.AddScoped<IValidationAgentInvoker, ValidationAgentInvoker>();
@@ -154,11 +164,9 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// Swagger is served in every environment so the deployed API documents itself.
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 app.UseCors("AllowLocalDev");

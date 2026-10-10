@@ -113,8 +113,9 @@ public class ReportsController : ControllerBase
 
     /// <summary>
     /// POST /api/reports/{id}/trigger-triage
-    /// Triggers the Triage/Planner Agent for a given report ID.
-    /// Runs urgency scoring and structured reasoning, persisting a TriagePlans row in the database.
+    /// Previews the Triage/Planner Agent for one report: runs urgency scoring and structured
+    /// reasoning and persists a TriagePlans row, without starting a workflow run
+    /// (the returned plan's WorkflowRunId is empty). Use POST /api/workflows to start a run.
     /// </summary>
     [HttpPost("{id:int}/trigger-triage")]
     public async Task<ActionResult<TriagePlan>> TriggerTriage(int id)
@@ -125,17 +126,12 @@ public class ReportsController : ControllerBase
             throw new NotFoundException($"Report with ID {id} was not found.");
         }
 
-        Guid workflowRunId = Guid.NewGuid();
-        AgentResult<TriagePlan> result;
+        if (_triageAgent is not TriageAgent concreteAgent)
+        {
+            throw new BadRequestException("Triage preview is not available.");
+        }
 
-        if (_triageAgent is TriageAgent concreteAgent)
-        {
-            result = await concreteAgent.ExecuteForReportAsync(id, workflowRunId);
-        }
-        else
-        {
-            result = await _triageAgent.ExecuteAsync(workflowRunId);
-        }
+        AgentResult<TriagePlan> result = await concreteAgent.ExecuteForReportAsync(id);
 
         if (!result.Success || result.Data == null)
         {

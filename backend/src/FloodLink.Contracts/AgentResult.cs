@@ -22,6 +22,12 @@ public record AgentResult<T>
     /// </summary>
     public string? ErrorCode { get; init; }
 
+    /// <summary>
+    /// The allow-listed tool calls the agent made while producing this result (database reads,
+    /// routing API calls, LLM calls). Recorded in the execution log for observability.
+    /// </summary>
+    public IReadOnlyList<ToolCall> ToolCalls { get; init; } = [];
+
     /// <summary>Creates a successful result containing the given data.</summary>
     public static AgentResult<T> Ok(T data) =>
         new() { Success = true, Data = data };
@@ -29,4 +35,8 @@ public record AgentResult<T>
     /// <summary>Creates a failure result with an error code and human-readable message.</summary>
     public static AgentResult<T> Fail(string errorCode, string errorMessage) =>
         new() { Success = false, ErrorCode = errorCode, ErrorMessage = errorMessage };
+
+    /// <summary>Returns a copy of this result carrying the given tool calls.</summary>
+    public AgentResult<T> WithToolCalls(IEnumerable<ToolCall> toolCalls) =>
+        this with { ToolCalls = toolCalls.ToList() };
 }

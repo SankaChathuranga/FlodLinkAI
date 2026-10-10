@@ -14,6 +14,12 @@ change.
   Planner/Triage/Matching agents, status tracker, evals, deployment, documents). Review of 2026-10-08 found:
   nothing advances a run past Triage, Validation cannot read the plan the orchestrator stores, approve does not
   touch stock, and there is no login/Users table.
+- Review 2026-10-10: Validation now builds its plan input and approve now commits stock. Still open: runtime
+  stops after Triage, no LLM, no login endpoint or screens, no workflow monitor/status screens, nothing deployed,
+  `Dispatch.ApprovedById` never set (and Guid vs int User.Id). Plan revised in `FloodLink_Finish_Plan.md`
+  with per-member gaps; two teammate branches from 2026-10-08 are still unmerged.
+- 2026-10-10: `FloodLink_Project_Finalization.md` is now the master task list (Phases 0–9, task IDs per
+  member, gates). It supersedes `FloodLink_Finish_Plan.md`.
 
 ## Completed
 
@@ -32,13 +38,29 @@ change.
   Analytics tabs, mobile dispatch-status and delivery-confirmation screens at `/dispatch`) merged with
   A, B and C; migration `AddMemberDTables` applied to the shared dev database.
 
+- 2026-10-10 — **Phase 1 done** (`FloodLink_Project_Finalization.md` 1.01–1.20). Background runner
+  (`Api/Workflows`) advances queued runs to PendingApproval/Failed and re-queues unfinished runs at startup.
+  `POST /api/workflows` takes `reportIds`, returns 202; new `GET /api/workflows` (filter/search/page),
+  `/{id}/logs`, `/{id}/status`, `POST /{id}/retry` (limit `Workflow:MaxRetries`, default 3). Agents return
+  `ToolCall`s, logged in `AgentExecutionLog.ToolCallsJson` (jsonb) with `IsRetry`. Route agent routes every
+  depot→shelter pair (`Route.Legs`, one `Routes` row per leg); Validation checks each leg plus
+  `RouteCompleteness` and uses real `QuantityReserved`/`ReorderThreshold`. Stock lifecycle in
+  `StockReservationService` (reserve after validation, commit on approve, release on reject/revision; `xmin`
+  tokens on `InventoryItem` and `WorkflowRun`). All coordinator decisions go through `DispatchService`; the
+  duplicate `/api/workflows/{id}/decision` endpoint, `ApplyCoordinatorDecisionAsync` and `WorkflowStateService`
+  were removed (`WorkflowEngine` is the only transition table, incl. retry Failed → FailedAtState).
+  `Dispatch.ApprovedById` / `AuditTrail.ActorId` are now `int?` FKs to Users. Reports move
+  New → Triaged → InPlan → Resolved. Swagger is on in every environment; 500 detail only in Development;
+  Mapbox retries 429 with backoff. `trigger-triage` is now a run-free preview. Seed depots moved off the
+  shelter coordinates (they produced 0 km routes). Migrations `WorkflowRunnerAndStockLifecycle`,
+  `SeparateSeedDepotsFromShelters`. Backend tests: 174 pass.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Run one real workflow end to end (needs a Mapbox key or a seeded PendingApproval run) and approve/reject it.
 - Replace the Development-only `JwtOrDev` auth fallback with a real login flow; D's endpoints return 401
   in non-Development environments until then.
 - Confirm CI runs on PRs and provides Postgres for the integration tests.

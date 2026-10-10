@@ -30,7 +30,7 @@ public class AgentExecutionLogger : IAgentExecutionLogger
         string? errorMessage = null,
         CancellationToken cancellationToken = default)
     {
-        var status = isRetry ? "Retried" : (success ? "Success" : "Error");
+        var status = success ? "Success" : "Error";
 
         var log = new AgentExecutionLog
         {
@@ -39,6 +39,7 @@ public class AgentExecutionLogger : IAgentExecutionLogger
             AgentName = agentName,
             DurationMs = durationMs,
             Status = status,
+            IsRetry = isRetry,
             InputJson = inputJson,
             OutputJson = outputJson,
             ToolCallsJson = toolCallsJson,

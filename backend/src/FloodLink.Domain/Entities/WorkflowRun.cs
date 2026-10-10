@@ -42,4 +42,28 @@ public class WorkflowRun
     /// Set automatically by <c>WorkflowEngine.TryTransition</c> — do not set directly.
     /// </summary>
     public WorkflowState? FailedAtState { get; set; }
+
+    /// <summary>
+    /// The field reports this run was started for. Null for runs created before reports were
+    /// scoped per run; the Triage Agent then falls back to every unresolved report.
+    /// </summary>
+    public List<int>? ReportIds { get; set; }
+
+    /// <summary>Machine code and message explaining why the run failed. Null unless Failed.</summary>
+    public string? FailureReason { get; set; }
+
+    /// <summary>How many times a coordinator has retried this run after a failure.</summary>
+    public int RetryCount { get; set; }
+
+    /// <summary>
+    /// Set when a retry re-enters a stage, so that stage's next execution is logged as a retry.
+    /// Cleared once the stage has run.
+    /// </summary>
+    public WorkflowState? RetryOfState { get; set; }
+
+    /// <summary>
+    /// Optimistic-concurrency token (PostgreSQL <c>xmin</c>): two coordinator decisions on the
+    /// same run cannot both be saved.
+    /// </summary>
+    public uint Version { get; set; }
 }

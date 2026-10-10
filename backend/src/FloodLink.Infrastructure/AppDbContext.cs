@@ -76,6 +76,13 @@ public class AppDbContext : DbContext
                   .HasConversion<string?>()
                   .HasMaxLength(50)
                   .IsRequired(false);
+            entity.Property(e => e.RetryOfState)
+                  .HasConversion<string?>()
+                  .HasMaxLength(50)
+                  .IsRequired(false);
+            entity.Property(e => e.FailureReason).HasMaxLength(2000);
+            entity.Property(e => e.Version).IsRowVersion();
+            entity.HasIndex(e => e.CurrentState);
         });
 
         // ── AgentExecutionLog ──────────────────────────────────────────────────
@@ -84,6 +91,7 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.AgentName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ToolCallsJson).HasColumnType("jsonb");
             entity.HasOne(e => e.WorkflowRun)
                   .WithMany()
                   .HasForeignKey(e => e.WorkflowRunId)
@@ -144,6 +152,12 @@ public class AppDbContext : DbContext
                   .WithMany(u => u.SubmittedReports)
                   .HasForeignKey(e => e.ReportedBy)
                   .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.WorkflowRun)
+                  .WithMany()
+                  .HasForeignKey(e => e.WorkflowRunId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => e.Status);
         });
 
         // ── TriagePlanEntity ───────────────────────────────────────────────────
@@ -177,6 +191,9 @@ public class AppDbContext : DbContext
                   .HasForeignKey(e => e.DepotId)
                   .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => new { e.DepotId, e.ItemName }).IsUnique();
+            // Maps to PostgreSQL's xmin system column: concurrent stock writes raise
+            // DbUpdateConcurrencyException instead of silently overwriting each other.
+            entity.Property(e => e.Version).IsRowVersion();
         });
 
         modelBuilder.Entity<AllocationProposalEntity>(entity =>
@@ -197,6 +214,7 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.ShelterId)
                   .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.WorkflowRunId, e.Status });
         });
 
         // ── Dispatch ───────────────────────────────────────────────────────────
@@ -208,11 +226,16 @@ public class AppDbContext : DbContext
                   .HasConversion<string>()
                   .HasMaxLength(30);
             entity.Property(e => e.ApprovalNotes).HasMaxLength(2000);
-            entity.HasIndex(e => e.WorkflowRunId).IsUnique();
+            // Not unique: a run sent for revision gets a new decision after re-matching.
+            entity.HasIndex(e => e.WorkflowRunId);
             entity.HasOne(e => e.WorkflowRun)
                   .WithMany()
                   .HasForeignKey(e => e.WorkflowRunId)
                   .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ApprovedBy)
+                  .WithMany()
+                  .HasForeignKey(e => e.ApprovedById)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── ValidationResult ───────────────────────────────────────────────────
@@ -241,6 +264,10 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.DispatchId)
                   .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Actor)
+                  .WithMany()
+                  .HasForeignKey(e => e.ActorId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── Seed Data ──────────────────────────────────────────────────────────
@@ -315,15 +342,17 @@ public class AppDbContext : DbContext
         );
 
         modelBuilder.Entity<Depot>().HasData(
-            new Depot { Id = 1, Name = "Colombo Central Depot", Latitude = 6.9271, Longitude = 79.8612, CreatedAt = fixedDate },
-            new Depot { Id = 2, Name = "Kaduwela Supply Depot", Latitude = 6.9344, Longitude = 79.9841, CreatedAt = fixedDate }
+            // Depots sit apart from the shelters they serve (Pettah and Malabe), so every
+            // delivery has a real road route.
+            new Depot { Id = 1, Name = "Colombo Central Depot", Latitude = 6.9355, Longitude = 79.8487, CreatedAt = fixedDate },
+            new Depot { Id = 2, Name = "Kaduwela Supply Depot", Latitude = 6.9061, Longitude = 79.9580, CreatedAt = fixedDate }
         );
 
         modelBuilder.Entity<InventoryItem>().HasData(
-            new InventoryItem { Id = 1, DepotId = 1, ItemName = "Water", Unit = "bottles", QuantityAvailable = 600, UpdatedAt = fixedDate },
-            new InventoryItem { Id = 2, DepotId = 1, ItemName = "Food", Unit = "packs", QuantityAvailable = 250, UpdatedAt = fixedDate },
-            new InventoryItem { Id = 3, DepotId = 2, ItemName = "Water", Unit = "bottles", QuantityAvailable = 400, UpdatedAt = fixedDate },
-            new InventoryItem { Id = 4, DepotId = 2, ItemName = "Medical", Unit = "kits", QuantityAvailable = 50, UpdatedAt = fixedDate }
+            new InventoryItem { Id = 1, DepotId = 1, ItemName = "Water", Unit = "bottles", QuantityAvailable = 600, ReorderThreshold = 100, UpdatedAt = fixedDate },
+            new InventoryItem { Id = 2, DepotId = 1, ItemName = "Food", Unit = "packs", QuantityAvailable = 250, ReorderThreshold = 50, UpdatedAt = fixedDate },
+            new InventoryItem { Id = 3, DepotId = 2, ItemName = "Water", Unit = "bottles", QuantityAvailable = 400, ReorderThreshold = 50, UpdatedAt = fixedDate },
+            new InventoryItem { Id = 4, DepotId = 2, ItemName = "Medical", Unit = "kits", QuantityAvailable = 50, ReorderThreshold = 10, UpdatedAt = fixedDate }
         );
 
         modelBuilder.Entity<Report>().HasData(

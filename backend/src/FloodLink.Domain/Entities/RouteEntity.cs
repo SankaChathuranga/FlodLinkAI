@@ -5,9 +5,8 @@ namespace FloodLink.Domain.Entities;
 /// Owned by Member C. Maps to the <c>Routes</c> table.
 /// </summary>
 /// <remarks>
-/// Fixed schema per Phase 5 architecture decision:
-/// WorkflowRunId (FK), DistanceMeters (int), EstimatedDurationSeconds (int),
-/// PolylineString (text). No additional columns without a concrete downstream need.
+/// One row per depot → shelter leg. DepotId and ShelterId were added when routing moved
+/// from "first allocation only" to one leg per distinct pair.
 /// </remarks>
 public class RouteEntity
 {
@@ -31,6 +30,12 @@ public class RouteEntity
     /// Empty string if the API response did not include geometry.
     /// </summary>
     public string PolylineString { get; set; } = string.Empty;
+
+    /// <summary>The depot this leg starts from. Null for routes stored before multi-leg routing.</summary>
+    public int? DepotId { get; set; }
+
+    /// <summary>The shelter this leg delivers to. Null for routes stored before multi-leg routing.</summary>
+    public int? ShelterId { get; set; }
 
     /// <summary>UTC timestamp when this route record was created.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

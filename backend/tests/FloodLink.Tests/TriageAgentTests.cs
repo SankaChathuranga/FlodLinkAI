@@ -32,6 +32,15 @@ public class TriageAgentTests
         return context;
     }
 
+    // The agent triages an existing run; with no report list it covers every unresolved report.
+    private static async Task<Guid> SeedRunAsync(AppDbContext context)
+    {
+        var run = new WorkflowRun { Id = Guid.NewGuid(), Objective = "Triage test" };
+        context.WorkflowRuns.Add(run);
+        await context.SaveChangesAsync();
+        return run.Id;
+    }
+
     [Fact]
     public async Task ExecuteAsync_OvercrowdedShelterCriticalMedicalNeed_ReturnsScoreAbove80AndRankedFirst()
     {
@@ -91,7 +100,7 @@ public class TriageAgentTests
         context.Reports.AddRange(criticalReport, lowReport);
         await context.SaveChangesAsync();
 
-        Guid workflowRunId = Guid.NewGuid();
+        Guid workflowRunId = await SeedRunAsync(context);
 
         // Act
         var result = await agent.ExecuteAsync(workflowRunId);
@@ -137,7 +146,7 @@ public class TriageAgentTests
         context.Reports.AddRange(foodReport, medicalReport, waterReport);
         await context.SaveChangesAsync();
 
-        Guid workflowRunId = Guid.NewGuid();
+        Guid workflowRunId = await SeedRunAsync(context);
 
         // Act
         var result = await agent.ExecuteAsync(workflowRunId);
@@ -195,7 +204,7 @@ public class TriageAgentTests
         context.Reports.Add(report);
         await context.SaveChangesAsync();
 
-        Guid workflowRunId = Guid.NewGuid();
+        Guid workflowRunId = await SeedRunAsync(context);
 
         // Act
         var result = await agent.ExecuteAsync(workflowRunId);
@@ -214,5 +223,39 @@ public class TriageAgentTests
         var persistedPlan = await context.TriagePlans.FirstOrDefaultAsync(p => p.CreatedByAgentRunId == workflowRunId);
         Assert.NotNull(persistedPlan);
         Assert.Contains("301", persistedPlan.PlanSummaryJson);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ScopesToTheRunsReports_AndRecordsToolCalls()
+    {
+        using var context = CreateDbContext();
+        var agent = new TriageAgent(context, new UrgencyScoringService());
+        var shelter = new Shelter { Id = 50, Name = "Scoped", Capacity = 100, CurrentOccupancy = 50, Status = "Active" };
+        context.Shelters.Add(shelter);
+        context.Reports.AddRange(
+            new Report { Id = 501, ShelterId = 50, ReportedBy = 1, NeedType = "Water", QuantityNeeded = 10, Status = "New" },
+            new Report { Id = 502, ShelterId = 50, ReportedBy = 1, NeedType = "Food", QuantityNeeded = 10, Status = "New" });
+        var run = new WorkflowRun { Id = Guid.NewGuid(), Objective = "Scoped", ReportIds = [502] };
+        context.WorkflowRuns.Add(run);
+        await context.SaveChangesAsync();
+
+        var result = await agent.ExecuteAsync(run.Id);
+
+        Assert.True(result.Success);
+        Assert.Equal(502, Assert.Single(result.Data!.PriorityItems).ReportId);
+        Assert.Contains(result.ToolCalls, call => call.Tool == "db.reports.read");
+        Assert.Null(run.PlanJson); // the orchestrator, not the agent, writes the plan
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_UnknownRun_Fails()
+    {
+        using var context = CreateDbContext();
+        var agent = new TriageAgent(context, new UrgencyScoringService());
+
+        var result = await agent.ExecuteAsync(Guid.NewGuid());
+
+        Assert.False(result.Success);
+        Assert.Equal("WORKFLOW_NOT_FOUND", result.ErrorCode);
     }
 }

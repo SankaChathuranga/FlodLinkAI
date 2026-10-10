@@ -4,6 +4,7 @@ using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
 using FloodLink.Infrastructure;
+using FloodLink.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -101,6 +102,7 @@ public class MemberBPipelineIntegrationTests
             new MatchingInvoker(new MatchingAgent(context)),
             new RoutingInvoker(run.Id),
             new ValidationInvoker(run.Id),
+            new StockReservationService(context),
             new Logger(),
             new Repository(run));
 
@@ -110,6 +112,8 @@ public class MemberBPipelineIntegrationTests
         await orchestrator.AdvanceAsync(run.Id); // Validating → PendingApproval
 
         Assert.Equal(WorkflowState.PendingApproval, run.CurrentState);
-        Assert.Single(context.AllocationProposals);
+        var proposal = Assert.Single(context.AllocationProposals);
+        Assert.Equal("Reserved", proposal.Status);
+        Assert.Equal(20, context.InventoryItems.Single().QuantityReserved);
     }
 }

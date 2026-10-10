@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using FloodLink.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FloodLink.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261010113037_WorkflowRunnerAndStockLifecycle")]
+    partial class WorkflowRunnerAndStockLifecycle
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -177,16 +180,16 @@ namespace FloodLink.Infrastructure.Migrations
                         {
                             Id = 1,
                             CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Latitude = 6.9355000000000002,
-                            Longitude = 79.848699999999994,
+                            Latitude = 6.9271000000000003,
+                            Longitude = 79.861199999999997,
                             Name = "Colombo Central Depot"
                         },
                         new
                         {
                             Id = 2,
                             CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Latitude = 6.9061000000000003,
-                            Longitude = 79.957999999999998,
+                            Latitude = 6.9344000000000001,
+                            Longitude = 79.984099999999998,
                             Name = "Kaduwela Supply Depot"
                         });
                 });

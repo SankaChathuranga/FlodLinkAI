@@ -23,7 +23,10 @@ public class AuditTrail
     public string? EventDetailJson { get; set; }
 
     /// <summary>FK → Users row that performed the action; null for system-generated events.</summary>
-    public Guid? ActorId { get; set; }
+    public int? ActorId { get; set; }
+
+    /// <summary>Navigation property for the acting user.</summary>
+    public User? Actor { get; set; }
 
     /// <summary>UTC timestamp when the event occurred.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

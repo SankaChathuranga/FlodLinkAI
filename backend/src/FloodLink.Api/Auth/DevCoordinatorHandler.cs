@@ -31,6 +31,8 @@ public sealed class DevCoordinatorHandler : AuthenticationHandler<Authentication
         var identity = new ClaimsIdentity(
             claims: new[]
             {
+                // Seeded coordinator (Users.Id = 2), so audit entries have an actor in Development.
+                new Claim(ClaimTypes.NameIdentifier, "2"),
                 new Claim(ClaimTypes.Name, "dev-coordinator"),
                 new Claim(ClaimTypes.Role, "Coordinator")
             },

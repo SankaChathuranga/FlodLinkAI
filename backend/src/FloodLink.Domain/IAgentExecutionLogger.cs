@@ -19,10 +19,8 @@ public interface IAgentExecutionLogger
     /// <param name="durationMs">Execution duration in milliseconds.</param>
     /// <param name="success">True if the agent completed successfully, false otherwise.</param>
     /// <param name="isRetry">
-    /// True when this invocation is a retry attempt (not the first try).
-    /// When true, the recorded <c>Status</c> is <c>"Retried"</c> regardless of
-    /// <paramref name="success"/>, so the log distinguishes a retry outcome from
-    /// a clean first-attempt outcome. Defaults to false.
+    /// True when this invocation is a coordinator-requested retry of a failed stage.
+    /// Recorded in <c>IsRetry</c>; <c>Status</c> still reports Success or Error. Defaults to false.
     /// </param>
     /// <param name="inputJson">Serialized input passed to the agent.</param>
     /// <param name="outputJson">Serialized output produced by the agent (null on failure).</param>

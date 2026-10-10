@@ -6,7 +6,7 @@ namespace FloodLink.Tests;
 
 /// <summary>
 /// Tests for the legal workflow state-transition map that guards the
-/// approval/dispatch flow (Member D's endpoints use it via WorkflowStateService).
+/// approval/dispatch flow (it delegates to WorkflowEngine, the single transition table).
 /// </summary>
 public class WorkflowStateTransitionsTests
 {

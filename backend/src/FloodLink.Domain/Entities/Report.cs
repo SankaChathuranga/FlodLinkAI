@@ -37,4 +37,9 @@ public class Report
     public string Status { get; set; } = "New";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>The workflow run currently (or most recently) handling this report.</summary>
+    public Guid? WorkflowRunId { get; set; }
+
+    public WorkflowRun? WorkflowRun { get; set; }
 }
