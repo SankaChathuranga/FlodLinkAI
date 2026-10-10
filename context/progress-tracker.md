@@ -5,11 +5,15 @@ change.
 
 ## Current Phase
 
-- Members A, B, C and D — **ALL MERGED TO MAIN** (PR #1 merged 2026-10-06). Backend: 116 tests pass.
+- Members A, B, C and D — **ALL MERGED TO MAIN** (PR *#1 merged 2026-10-06). Backend: 116 tests pass.
 
 ## Current Goal
 
 - Verify the full pipeline end to end and replace the Development-only auth fallback with real login.
+- Deadline extended to 2026-10-12. Follow `FloodLink_Finish_Plan.md` (pipeline fix, auth, Gemini-backed
+  Planner/Triage/Matching agents, status tracker, evals, deployment, documents). Review of 2026-10-08 found:
+  nothing advances a run past Triage, Validation cannot read the plan the orchestrator stores, approve does not
+  touch stock, and there is no login/Users table.
 
 ## Completed
 
@@ -78,3 +82,12 @@ change.
   InventoryProvider all read it. The main AndroidManifest now declares INTERNET, which release builds need.
   `.github/workflows/release-apk.yml` builds a release APK and publishes it as a GitHub Release when a `v*`
   tag is pushed or the workflow is run manually. It needs the `FLOODLINK_API_BASE_URL` repo secret.
+
+- 2026-10-09 Assignment 2 (testing): added EndToEndWorkflowTests (real agents + Postgres, Mapbox stub),
+  SecurityTests (Testing env, real JWTs), DatabaseTests, PostgresCollection (serialises DB-resetting test
+  classes), React Vitest/RTL setup + ApprovalQueue tests, k6 scripts in testing/performance. Fixed:
+  DEF-001 ValidationAgent now builds PlanDocument from the orchestrator's keyed PlanJson (default vehicle
+  capacity 1000, reserve floor 0 until modelled); DEF-002 approve commits proposed stock (409 if short);
+  DEF-003 [Authorize] on inventory create/check-in, depot create, Coordinator on POST /api/workflows;
+  DEF-004 duplicate inventory item returns 409. Backend 142/142, web 7/7, Flutter 6/6.
+  Report: docs/QM-SE3110-Software-Testing-Report.md; evidence in testing-evidence/. ZAP scan still to run.

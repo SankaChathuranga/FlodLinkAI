@@ -65,6 +65,29 @@ public sealed class DispatchController : ControllerBase
             });
         }
 
+        // Commit the proposed stock: the Matching Agent only proposes, approval is what takes
+        // items out of the depot. Refuse the approval if stock has since dropped below the proposal.
+        var proposals = await _db.AllocationProposals
+            .Where(p => p.WorkflowRunId == run.Id && p.Status == "Proposed")
+            .ToListAsync(ct);
+        foreach (var proposal in proposals)
+        {
+            var item = await _db.InventoryItems
+                .FirstOrDefaultAsync(i => i.DepotId == proposal.DepotId && i.ItemName == proposal.ItemName, ct);
+            if (item is null || item.QuantityAvailable < proposal.Quantity)
+            {
+                return Conflict(new
+                {
+                    error = "INSUFFICIENT_STOCK",
+                    message = $"Depot {proposal.DepotId} no longer has {proposal.Quantity} {proposal.ItemName} available."
+                });
+            }
+
+            item.QuantityAvailable -= proposal.Quantity;
+            item.UpdatedAt = DateTime.UtcNow;
+            proposal.Status = "Committed";
+        }
+
         var dispatch = new Dispatch
         {
             Id = Guid.NewGuid(),

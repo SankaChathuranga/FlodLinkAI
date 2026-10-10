@@ -1,0 +1,25 @@
+  Determining projects to restore...
+/home/sanka-chathuranga/SEF_project/FloodLink/backend/src/FloodLink.Api/FloodLink.Api.csproj : warning NU1903: Package 'Microsoft.OpenApi' 2.3.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-v5pm-xwqc-g5wc [/home/sanka-chathuranga/SEF_project/FloodLink/FloodLink.sln]
+/home/sanka-chathuranga/SEF_project/FloodLink/backend/tests/FloodLink.Tests/FloodLink.Tests.csproj : warning NU1903: Package 'Microsoft.OpenApi' 2.3.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-v5pm-xwqc-g5wc [/home/sanka-chathuranga/SEF_project/FloodLink/FloodLink.sln]
+  All projects are up-to-date for restore.
+
+The following sources were used:
+   https://api.nuget.org/v3/index.json
+
+Project `FloodLink.Api` has the following vulnerable packages
+   [net10.0]: 
+   Transitive Package       Resolved   Severity   Advisory URL                                     
+   > Microsoft.OpenApi      2.3.0      High       https://github.com/advisories/GHSA-v5pm-xwqc-g5wc
+
+The given project `FloodLink.Contracts` has no vulnerable packages given the current sources.
+The given project `FloodLink.Domain` has no vulnerable packages given the current sources.
+The given project `FloodLink.Infrastructure` has no vulnerable packages given the current sources.
+The given project `FloodLink.Agents.Triage` has no vulnerable packages given the current sources.
+The given project `FloodLink.Agents.Matching` has no vulnerable packages given the current sources.
+The given project `FloodLink.Agents.Routing` has no vulnerable packages given the current sources.
+The given project `FloodLink.Agents.Validation` has no vulnerable packages given the current sources.
+Project `FloodLink.Tests` has the following vulnerable packages
+   [net10.0]: 
+   Transitive Package       Resolved   Severity   Advisory URL                                     
+   > Microsoft.OpenApi      2.3.0      High       https://github.com/advisories/GHSA-v5pm-xwqc-g5wc
+

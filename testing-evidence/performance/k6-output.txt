@@ -1,0 +1,382 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: testing/performance/floodlink-load.js
+        output: -
+
+     scenarios: (100.00%) 2 scenarios, 80 max VUs, 2m15s max duration (incl. graceful stop):
+              * dashboard_reads: 30 looping VUs for 1m45s (exec: readDashboards, gracefulStop: 30s)
+              * report_submission: Up to 50 looping VUs for 1m45s over 3 stages (gracefulRampDown: 30s, exec: submitReport, gracefulStop: 30s)
+
+
+dashboard_reads     [   1% ] 30 VUs     0m01.0s/1m45s
+report_submission   [   1% ] 02/50 VUs  0m01.0s/1m45.0s
+
+dashboard_reads     [   2% ] 30 VUs     0m02.0s/1m45s
+report_submission   [   2% ] 04/50 VUs  0m02.0s/1m45.0s
+
+dashboard_reads     [   3% ] 30 VUs     0m03.0s/1m45s
+report_submission   [   3% ] 05/50 VUs  0m03.0s/1m45.0s
+
+dashboard_reads     [   4% ] 30 VUs     0m04.0s/1m45s
+report_submission   [   4% ] 07/50 VUs  0m04.0s/1m45.0s
+
+dashboard_reads     [   5% ] 30 VUs     0m05.0s/1m45s
+report_submission   [   5% ] 09/50 VUs  0m05.0s/1m45.0s
+
+dashboard_reads     [   6% ] 30 VUs     0m06.0s/1m45s
+report_submission   [   6% ] 10/50 VUs  0m06.0s/1m45.0s
+
+dashboard_reads     [   7% ] 30 VUs     0m07.0s/1m45s
+report_submission   [   7% ] 12/50 VUs  0m07.0s/1m45.0s
+
+dashboard_reads     [   8% ] 30 VUs     0m08.0s/1m45s
+report_submission   [   8% ] 14/50 VUs  0m08.0s/1m45.0s
+
+dashboard_reads     [   9% ] 30 VUs     0m09.0s/1m45s
+report_submission   [   9% ] 15/50 VUs  0m09.0s/1m45.0s
+
+dashboard_reads     [  10% ] 30 VUs     0m10.0s/1m45s
+report_submission   [  10% ] 17/50 VUs  0m10.0s/1m45.0s
+
+dashboard_reads     [  10% ] 30 VUs     0m11.0s/1m45s
+report_submission   [  10% ] 18/50 VUs  0m11.0s/1m45.0s
+
+dashboard_reads     [  11% ] 30 VUs     0m12.0s/1m45s
+report_submission   [  11% ] 20/50 VUs  0m12.0s/1m45.0s
+
+dashboard_reads     [  12% ] 30 VUs     0m13.0s/1m45s
+report_submission   [  12% ] 22/50 VUs  0m13.0s/1m45.0s
+
+dashboard_reads     [  13% ] 30 VUs     0m14.0s/1m45s
+report_submission   [  13% ] 23/50 VUs  0m14.0s/1m45.0s
+
+dashboard_reads     [  14% ] 30 VUs     0m15.0s/1m45s
+report_submission   [  14% ] 25/50 VUs  0m15.0s/1m45.0s
+
+dashboard_reads     [  15% ] 30 VUs     0m16.0s/1m45s
+report_submission   [  15% ] 27/50 VUs  0m16.0s/1m45.0s
+
+dashboard_reads     [  16% ] 30 VUs     0m17.0s/1m45s
+report_submission   [  16% ] 28/50 VUs  0m17.0s/1m45.0s
+
+dashboard_reads     [  17% ] 30 VUs     0m18.0s/1m45s
+report_submission   [  17% ] 30/50 VUs  0m18.0s/1m45.0s
+
+dashboard_reads     [  18% ] 30 VUs     0m19.0s/1m45s
+report_submission   [  18% ] 32/50 VUs  0m19.0s/1m45.0s
+
+dashboard_reads     [  19% ] 30 VUs     0m20.0s/1m45s
+report_submission   [  19% ] 33/50 VUs  0m20.0s/1m45.0s
+
+dashboard_reads     [  20% ] 30 VUs     0m21.0s/1m45s
+report_submission   [  20% ] 35/50 VUs  0m21.0s/1m45.0s
+
+dashboard_reads     [  21% ] 30 VUs     0m22.0s/1m45s
+report_submission   [  21% ] 36/50 VUs  0m22.0s/1m45.0s
+
+dashboard_reads     [  22% ] 30 VUs     0m23.0s/1m45s
+report_submission   [  22% ] 38/50 VUs  0m23.0s/1m45.0s
+
+dashboard_reads     [  23% ] 30 VUs     0m24.0s/1m45s
+report_submission   [  23% ] 40/50 VUs  0m24.0s/1m45.0s
+
+dashboard_reads     [  24% ] 30 VUs     0m25.0s/1m45s
+report_submission   [  24% ] 41/50 VUs  0m25.0s/1m45.0s
+
+dashboard_reads     [  25% ] 30 VUs     0m26.0s/1m45s
+report_submission   [  25% ] 43/50 VUs  0m26.0s/1m45.0s
+
+dashboard_reads     [  26% ] 30 VUs     0m27.0s/1m45s
+report_submission   [  26% ] 45/50 VUs  0m27.0s/1m45.0s
+
+dashboard_reads     [  27% ] 30 VUs     0m28.0s/1m45s
+report_submission   [  27% ] 46/50 VUs  0m28.0s/1m45.0s
+
+dashboard_reads     [  28% ] 30 VUs     0m29.0s/1m45s
+report_submission   [  28% ] 48/50 VUs  0m29.0s/1m45.0s
+
+dashboard_reads     [  29% ] 30 VUs     0m30.0s/1m45s
+report_submission   [  29% ] 49/50 VUs  0m30.0s/1m45.0s
+
+dashboard_reads     [  30% ] 30 VUs     0m31.0s/1m45s
+report_submission   [  30% ] 50/50 VUs  0m31.0s/1m45.0s
+
+dashboard_reads     [  30% ] 30 VUs     0m32.0s/1m45s
+report_submission   [  30% ] 50/50 VUs  0m32.0s/1m45.0s
+
+dashboard_reads     [  31% ] 30 VUs     0m33.0s/1m45s
+report_submission   [  31% ] 50/50 VUs  0m33.0s/1m45.0s
+
+dashboard_reads     [  32% ] 30 VUs     0m34.0s/1m45s
+report_submission   [  32% ] 50/50 VUs  0m34.0s/1m45.0s
+
+dashboard_reads     [  33% ] 30 VUs     0m35.0s/1m45s
+report_submission   [  33% ] 50/50 VUs  0m35.0s/1m45.0s
+
+dashboard_reads     [  34% ] 30 VUs     0m36.0s/1m45s
+report_submission   [  34% ] 50/50 VUs  0m36.0s/1m45.0s
+
+dashboard_reads     [  35% ] 30 VUs     0m37.0s/1m45s
+report_submission   [  35% ] 50/50 VUs  0m37.0s/1m45.0s
+
+dashboard_reads     [  36% ] 30 VUs     0m38.0s/1m45s
+report_submission   [  36% ] 50/50 VUs  0m38.0s/1m45.0s
+
+dashboard_reads     [  37% ] 30 VUs     0m39.0s/1m45s
+report_submission   [  37% ] 50/50 VUs  0m39.0s/1m45.0s
+
+dashboard_reads     [  38% ] 30 VUs     0m40.0s/1m45s
+report_submission   [  38% ] 50/50 VUs  0m40.0s/1m45.0s
+
+dashboard_reads     [  39% ] 30 VUs     0m41.0s/1m45s
+report_submission   [  39% ] 50/50 VUs  0m41.0s/1m45.0s
+
+dashboard_reads     [  40% ] 30 VUs     0m42.0s/1m45s
+report_submission   [  40% ] 50/50 VUs  0m42.0s/1m45.0s
+
+dashboard_reads     [  41% ] 30 VUs     0m43.0s/1m45s
+report_submission   [  41% ] 50/50 VUs  0m43.0s/1m45.0s
+
+dashboard_reads     [  42% ] 30 VUs     0m44.0s/1m45s
+report_submission   [  42% ] 50/50 VUs  0m44.0s/1m45.0s
+
+dashboard_reads     [  43% ] 30 VUs     0m45.0s/1m45s
+report_submission   [  43% ] 50/50 VUs  0m45.0s/1m45.0s
+
+dashboard_reads     [  44% ] 30 VUs     0m46.0s/1m45s
+report_submission   [  44% ] 50/50 VUs  0m46.0s/1m45.0s
+
+dashboard_reads     [  45% ] 30 VUs     0m47.0s/1m45s
+report_submission   [  45% ] 50/50 VUs  0m47.0s/1m45.0s
+
+dashboard_reads     [  46% ] 30 VUs     0m48.0s/1m45s
+report_submission   [  46% ] 50/50 VUs  0m48.0s/1m45.0s
+
+dashboard_reads     [  47% ] 30 VUs     0m49.0s/1m45s
+report_submission   [  47% ] 50/50 VUs  0m49.0s/1m45.0s
+
+dashboard_reads     [  48% ] 30 VUs     0m50.0s/1m45s
+report_submission   [  48% ] 50/50 VUs  0m50.0s/1m45.0s
+
+dashboard_reads     [  49% ] 30 VUs     0m51.0s/1m45s
+report_submission   [  49% ] 50/50 VUs  0m51.0s/1m45.0s
+
+dashboard_reads     [  50% ] 30 VUs     0m52.0s/1m45s
+report_submission   [  50% ] 50/50 VUs  0m52.0s/1m45.0s
+
+dashboard_reads     [  50% ] 30 VUs     0m53.0s/1m45s
+report_submission   [  50% ] 50/50 VUs  0m53.0s/1m45.0s
+
+dashboard_reads     [  51% ] 30 VUs     0m54.0s/1m45s
+report_submission   [  51% ] 50/50 VUs  0m54.0s/1m45.0s
+
+dashboard_reads     [  52% ] 30 VUs     0m55.0s/1m45s
+report_submission   [  52% ] 50/50 VUs  0m55.0s/1m45.0s
+
+dashboard_reads     [  53% ] 30 VUs     0m56.0s/1m45s
+report_submission   [  53% ] 50/50 VUs  0m56.0s/1m45.0s
+
+dashboard_reads     [  54% ] 30 VUs     0m57.0s/1m45s
+report_submission   [  54% ] 50/50 VUs  0m57.0s/1m45.0s
+
+dashboard_reads     [  55% ] 30 VUs     0m58.0s/1m45s
+report_submission   [  55% ] 50/50 VUs  0m58.0s/1m45.0s
+
+dashboard_reads     [  56% ] 30 VUs     0m59.0s/1m45s
+report_submission   [  56% ] 50/50 VUs  0m59.0s/1m45.0s
+
+dashboard_reads     [  57% ] 30 VUs     1m00.0s/1m45s
+report_submission   [  57% ] 50/50 VUs  1m00.0s/1m45.0s
+
+dashboard_reads     [  58% ] 30 VUs     1m01.0s/1m45s
+report_submission   [  58% ] 50/50 VUs  1m01.0s/1m45.0s
+
+dashboard_reads     [  59% ] 30 VUs     1m02.0s/1m45s
+report_submission   [  59% ] 50/50 VUs  1m02.0s/1m45.0s
+
+dashboard_reads     [  60% ] 30 VUs     1m03.0s/1m45s
+report_submission   [  60% ] 50/50 VUs  1m03.0s/1m45.0s
+
+dashboard_reads     [  61% ] 30 VUs     1m04.0s/1m45s
+report_submission   [  61% ] 50/50 VUs  1m04.0s/1m45.0s
+
+dashboard_reads     [  62% ] 30 VUs     1m05.0s/1m45s
+report_submission   [  62% ] 50/50 VUs  1m05.0s/1m45.0s
+
+dashboard_reads     [  63% ] 30 VUs     1m06.0s/1m45s
+report_submission   [  63% ] 50/50 VUs  1m06.0s/1m45.0s
+
+dashboard_reads     [  64% ] 30 VUs     1m07.0s/1m45s
+report_submission   [  64% ] 50/50 VUs  1m07.0s/1m45.0s
+
+dashboard_reads     [  65% ] 30 VUs     1m08.0s/1m45s
+report_submission   [  65% ] 50/50 VUs  1m08.0s/1m45.0s
+
+dashboard_reads     [  66% ] 30 VUs     1m09.0s/1m45s
+report_submission   [  66% ] 50/50 VUs  1m09.0s/1m45.0s
+
+dashboard_reads     [  67% ] 30 VUs     1m10.0s/1m45s
+report_submission   [  67% ] 50/50 VUs  1m10.0s/1m45.0s
+
+dashboard_reads     [  68% ] 30 VUs     1m11.0s/1m45s
+report_submission   [  68% ] 50/50 VUs  1m11.0s/1m45.0s
+
+dashboard_reads     [  69% ] 30 VUs     1m12.0s/1m45s
+report_submission   [  69% ] 50/50 VUs  1m12.0s/1m45.0s
+
+dashboard_reads     [  70% ] 30 VUs     1m13.0s/1m45s
+report_submission   [  70% ] 50/50 VUs  1m13.0s/1m45.0s
+
+dashboard_reads     [  70% ] 30 VUs     1m14.0s/1m45s
+report_submission   [  70% ] 50/50 VUs  1m14.0s/1m45.0s
+
+dashboard_reads     [  71% ] 30 VUs     1m15.0s/1m45s
+report_submission   [  71% ] 50/50 VUs  1m15.0s/1m45.0s
+
+dashboard_reads     [  72% ] 30 VUs     1m16.0s/1m45s
+report_submission   [  72% ] 50/50 VUs  1m16.0s/1m45.0s
+
+dashboard_reads     [  73% ] 30 VUs     1m17.0s/1m45s
+report_submission   [  73% ] 50/50 VUs  1m17.0s/1m45.0s
+
+dashboard_reads     [  74% ] 30 VUs     1m18.0s/1m45s
+report_submission   [  74% ] 50/50 VUs  1m18.0s/1m45.0s
+
+dashboard_reads     [  75% ] 30 VUs     1m19.0s/1m45s
+report_submission   [  75% ] 50/50 VUs  1m19.0s/1m45.0s
+
+dashboard_reads     [  76% ] 30 VUs     1m20.0s/1m45s
+report_submission   [  76% ] 50/50 VUs  1m20.0s/1m45.0s
+
+dashboard_reads     [  77% ] 30 VUs     1m21.0s/1m45s
+report_submission   [  77% ] 50/50 VUs  1m21.0s/1m45.0s
+
+dashboard_reads     [  78% ] 30 VUs     1m22.0s/1m45s
+report_submission   [  78% ] 50/50 VUs  1m22.0s/1m45.0s
+
+dashboard_reads     [  79% ] 30 VUs     1m23.0s/1m45s
+report_submission   [  79% ] 50/50 VUs  1m23.0s/1m45.0s
+
+dashboard_reads     [  80% ] 30 VUs     1m24.0s/1m45s
+report_submission   [  80% ] 50/50 VUs  1m24.0s/1m45.0s
+
+dashboard_reads     [  81% ] 30 VUs     1m25.0s/1m45s
+report_submission   [  81% ] 50/50 VUs  1m25.0s/1m45.0s
+
+dashboard_reads     [  82% ] 30 VUs     1m26.0s/1m45s
+report_submission   [  82% ] 50/50 VUs  1m26.0s/1m45.0s
+
+dashboard_reads     [  83% ] 30 VUs     1m27.0s/1m45s
+report_submission   [  83% ] 50/50 VUs  1m27.0s/1m45.0s
+
+dashboard_reads     [  84% ] 30 VUs     1m28.0s/1m45s
+report_submission   [  84% ] 50/50 VUs  1m28.0s/1m45.0s
+
+dashboard_reads     [  85% ] 30 VUs     1m29.0s/1m45s
+report_submission   [  85% ] 50/50 VUs  1m29.0s/1m45.0s
+
+dashboard_reads     [  86% ] 30 VUs     1m30.0s/1m45s
+report_submission   [  86% ] 50/50 VUs  1m30.0s/1m45.0s
+
+dashboard_reads     [  87% ] 30 VUs     1m31.0s/1m45s
+report_submission   [  87% ] 48/50 VUs  1m31.0s/1m45.0s
+
+dashboard_reads     [  88% ] 30 VUs     1m32.0s/1m45s
+report_submission   [  88% ] 46/50 VUs  1m32.0s/1m45.0s
+
+dashboard_reads     [  89% ] 30 VUs     1m33.0s/1m45s
+report_submission   [  89% ] 43/50 VUs  1m33.0s/1m45.0s
+
+dashboard_reads     [  90% ] 30 VUs     1m34.0s/1m45s
+report_submission   [  90% ] 39/50 VUs  1m34.0s/1m45.0s
+
+dashboard_reads     [  90% ] 30 VUs     1m35.0s/1m45s
+report_submission   [  90% ] 35/50 VUs  1m35.0s/1m45.0s
+
+dashboard_reads     [  91% ] 30 VUs     1m36.0s/1m45s
+report_submission   [  91% ] 33/50 VUs  1m36.0s/1m45.0s
+
+dashboard_reads     [  92% ] 30 VUs     1m37.0s/1m45s
+report_submission   [  92% ] 28/50 VUs  1m37.0s/1m45.0s
+
+dashboard_reads     [  93% ] 30 VUs     1m38.0s/1m45s
+report_submission   [  93% ] 25/50 VUs  1m38.0s/1m45.0s
+
+dashboard_reads     [  94% ] 30 VUs     1m39.0s/1m45s
+report_submission   [  94% ] 23/50 VUs  1m39.0s/1m45.0s
+
+dashboard_reads     [  95% ] 30 VUs     1m40.0s/1m45s
+report_submission   [  95% ] 19/50 VUs  1m40.0s/1m45.0s
+
+dashboard_reads     [  96% ] 30 VUs     1m41.0s/1m45s
+report_submission   [  96% ] 15/50 VUs  1m41.0s/1m45.0s
+
+dashboard_reads     [  97% ] 30 VUs     1m42.0s/1m45s
+report_submission   [  97% ] 12/50 VUs  1m42.0s/1m45.0s
+
+dashboard_reads     [  98% ] 30 VUs     1m43.0s/1m45s
+report_submission   [  98% ] 09/50 VUs  1m43.0s/1m45.0s
+
+dashboard_reads     [  99% ] 30 VUs     1m44.0s/1m45s
+report_submission   [  99% ] 05/50 VUs  1m44.0s/1m45.0s
+
+dashboard_reads     [ 100% ] 30 VUs     1m45.0s/1m45s
+report_submission   [ 100% ] 02/50 VUs  1m45.0s/1m45.0s
+
+dashboard_reads   ↓ [ 100% ] 30 VUs     1m45s
+report_submission ✓ [ 100% ] 00/50 VUs  1m45s
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate>0.99' rate=100.00%
+
+    http_req_duration{scenario:dashboard_reads}
+    ✓ 'p(95)<750' p(95)=22.7ms
+
+    http_req_duration{scenario:report_submission}
+    ✓ 'p(95)<1000' p(95)=12.54ms
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 13520   127.545324/s
+    checks_succeeded...: 100.00% 13520 out of 13520
+    checks_failed......: 0.00%   0 out of 13520
+
+    ✓ dashboard read ok (200)
+    ✓ report created (201)
+
+    HTTP
+    http_req_duration..................: avg=8.61ms min=631.1µs med=4.12ms p(90)=12.21ms p(95)=19.76ms p(99)=69.43ms max=513.49ms
+      { expected_response:true }.......: avg=8.61ms min=631.1µs med=4.12ms p(90)=12.21ms p(95)=19.76ms p(99)=69.43ms max=513.49ms
+      { scenario:dashboard_reads }.....: avg=9.32ms min=631.1µs med=2.88ms p(90)=14.24ms p(95)=22.7ms  p(99)=90.55ms max=415.42ms
+      { scenario:report_submission }...: avg=6.99ms min=2.85ms  med=5.87ms p(90)=10.96ms p(95)=12.54ms p(99)=19.58ms max=513.49ms
+    http_req_failed....................: 0.00%  0 out of 13520
+    http_reqs..........................: 13520  127.545324/s
+
+    EXECUTION
+    iteration_duration.................: avg=1s     min=1s      med=1s     p(90)=1.01s   p(95)=1.01s   p(99)=1.04s   max=1.51s   
+    iterations.........................: 7258   68.470707/s
+    vus................................: 4      min=4          max=80
+    vus_max............................: 80     min=80         max=80
+
+    NETWORK
+    data_received......................: 11 MB  99 kB/s
+    data_sent..........................: 1.7 MB 16 kB/s
+
+
+
+
+dashboard_reads   ✓ [ 100% ] 30 VUs     1m45s
+report_submission ✓ [ 100% ] 00/50 VUs  1m45s

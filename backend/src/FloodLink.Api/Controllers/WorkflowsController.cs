@@ -26,6 +26,7 @@ public class WorkflowsController : ControllerBase
     /// the orchestration pipeline for the first agent step.
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = "Coordinator")]
     [ProducesResponseType(typeof(WorkflowRunResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateWorkflowRequest request, CancellationToken ct)

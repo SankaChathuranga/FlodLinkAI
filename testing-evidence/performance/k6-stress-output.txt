@@ -1,0 +1,213 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: testing/performance/floodlink-stress.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 400 max VUs, 1m50s max duration (incl. graceful stop):
+              * default: Up to 400 looping VUs for 1m20s over 4 stages (gracefulRampDown: 30s, gracefulStop: 30s)
+
+
+default   [   1% ] 005/400 VUs  0m00.9s/1m20.0s
+
+default   [   2% ] 010/400 VUs  0m01.9s/1m20.0s
+
+default   [   4% ] 015/400 VUs  0m02.9s/1m20.0s
+
+default   [   5% ] 020/400 VUs  0m04.0s/1m20.0s
+
+default   [   6% ] 025/400 VUs  0m04.9s/1m20.0s
+
+default   [   7% ] 030/400 VUs  0m05.9s/1m20.0s
+
+default   [   9% ] 035/400 VUs  0m07.0s/1m20.0s
+
+default   [  10% ] 040/400 VUs  0m07.9s/1m20.0s
+
+default   [  11% ] 045/400 VUs  0m09.0s/1m20.0s
+
+default   [  12% ] 050/400 VUs  0m09.9s/1m20.0s
+
+default   [  14% ] 055/400 VUs  0m10.9s/1m20.0s
+
+default   [  15% ] 060/400 VUs  0m11.9s/1m20.0s
+
+default   [  16% ] 065/400 VUs  0m12.9s/1m20.0s
+
+default   [  17% ] 070/400 VUs  0m13.9s/1m20.0s
+
+default   [  19% ] 074/400 VUs  0m14.9s/1m20.0s
+
+default   [  20% ] 079/400 VUs  0m15.9s/1m20.0s
+
+default   [  21% ] 084/400 VUs  0m16.9s/1m20.0s
+
+default   [  22% ] 089/400 VUs  0m18.0s/1m20.0s
+
+default   [  24% ] 094/400 VUs  0m18.9s/1m20.0s
+
+default   [  25% ] 099/400 VUs  0m19.9s/1m20.0s
+
+default   [  26% ] 104/400 VUs  0m20.9s/1m20.0s
+
+default   [  27% ] 109/400 VUs  0m22.0s/1m20.0s
+
+default   [  29% ] 114/400 VUs  0m22.9s/1m20.0s
+
+default   [  30% ] 119/400 VUs  0m24.0s/1m20.0s
+
+default   [  31% ] 124/400 VUs  0m24.9s/1m20.0s
+
+default   [  32% ] 129/400 VUs  0m25.9s/1m20.0s
+
+default   [  34% ] 134/400 VUs  0m27.0s/1m20.0s
+
+default   [  35% ] 139/400 VUs  0m28.0s/1m20.0s
+
+default   [  36% ] 144/400 VUs  0m29.0s/1m20.0s
+
+default   [  37% ] 149/400 VUs  0m29.9s/1m20.0s
+
+default   [  39% ] 154/400 VUs  0m30.9s/1m20.0s
+
+default   [  40% ] 159/400 VUs  0m32.0s/1m20.0s
+
+default   [  41% ] 164/400 VUs  0m32.9s/1m20.0s
+
+default   [  42% ] 169/400 VUs  0m33.9s/1m20.0s
+
+default   [  44% ] 174/400 VUs  0m34.9s/1m20.0s
+
+default   [  45% ] 179/400 VUs  0m35.9s/1m20.0s
+
+default   [  46% ] 184/400 VUs  0m36.9s/1m20.0s
+
+default   [  47% ] 189/400 VUs  0m37.9s/1m20.0s
+
+default   [  49% ] 194/400 VUs  0m38.9s/1m20.0s
+
+default   [  50% ] 199/400 VUs  0m40.0s/1m20.0s
+
+default   [  51% ] 209/400 VUs  0m41.0s/1m20.0s
+
+default   [  52% ] 219/400 VUs  0m41.9s/1m20.0s
+
+default   [  54% ] 229/400 VUs  0m42.9s/1m20.0s
+
+default   [  55% ] 239/400 VUs  0m43.9s/1m20.0s
+
+default   [  56% ] 249/400 VUs  0m44.9s/1m20.0s
+
+default   [  57% ] 259/400 VUs  0m45.9s/1m20.0s
+
+default   [  59% ] 269/400 VUs  0m46.9s/1m20.0s
+
+default   [  60% ] 279/400 VUs  0m47.9s/1m20.0s
+
+default   [  61% ] 289/400 VUs  0m48.9s/1m20.0s
+
+default   [  62% ] 299/400 VUs  0m50.0s/1m20.0s
+
+default   [  64% ] 309/400 VUs  0m50.9s/1m20.0s
+
+default   [  65% ] 319/400 VUs  0m51.9s/1m20.0s
+
+default   [  66% ] 329/400 VUs  0m52.9s/1m20.0s
+
+default   [  67% ] 339/400 VUs  0m53.9s/1m20.0s
+
+default   [  69% ] 349/400 VUs  0m54.9s/1m20.0s
+
+default   [  70% ] 359/400 VUs  0m56.0s/1m20.0s
+
+default   [  71% ] 369/400 VUs  0m56.9s/1m20.0s
+
+default   [  72% ] 379/400 VUs  0m57.9s/1m20.0s
+
+default   [  74% ] 389/400 VUs  0m58.9s/1m20.0s
+
+default   [  75% ] 399/400 VUs  0m59.9s/1m20.0s
+
+default   [  76% ] 393/400 VUs  1m00.9s/1m20.0s
+
+default   [  77% ] 373/400 VUs  1m01.9s/1m20.0s
+
+default   [  79% ] 353/400 VUs  1m02.9s/1m20.0s
+
+default   [  80% ] 332/400 VUs  1m03.9s/1m20.0s
+
+default   [  81% ] 308/400 VUs  1m05.0s/1m20.0s
+
+default   [  82% ] 286/400 VUs  1m05.9s/1m20.0s
+
+default   [  84% ] 267/400 VUs  1m06.9s/1m20.0s
+
+default   [  85% ] 249/400 VUs  1m07.9s/1m20.0s
+
+default   [  86% ] 230/400 VUs  1m08.9s/1m20.0s
+
+default   [  87% ] 207/400 VUs  1m09.9s/1m20.0s
+
+default   [  89% ] 187/400 VUs  1m10.9s/1m20.0s
+
+default   [  90% ] 165/400 VUs  1m11.9s/1m20.0s
+
+default   [  91% ] 146/400 VUs  1m12.9s/1m20.0s
+
+default   [  92% ] 125/400 VUs  1m13.9s/1m20.0s
+
+default   [  94% ] 104/400 VUs  1m14.9s/1m20.0s
+
+default   [  95% ] 083/400 VUs  1m15.9s/1m20.0s
+
+default   [  96% ] 063/400 VUs  1m16.9s/1m20.0s
+
+default   [  97% ] 044/400 VUs  1m17.9s/1m20.0s
+
+default   [  99% ] 022/400 VUs  1m18.9s/1m20.0s
+
+default   [ 100% ] 002/400 VUs  1m19.9s/1m20.0s
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✓ 'p(95)<2000' p(95)=873.32ms
+
+    http_req_failed
+    ✓ 'rate<0.05' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 48483   606.008339/s
+    checks_succeeded...: 100.00% 48483 out of 48483
+    checks_failed......: 0.00%   0 out of 48483
+
+    ✓ report created (201)
+
+    HTTP
+    http_req_duration..............: avg=290.58ms med=197.72ms p(90)=730.95ms p(95)=873.32ms p(99)=1.05s max=1.44s
+      { expected_response:true }...: avg=290.58ms med=197.72ms p(90)=730.95ms p(95)=873.32ms p(99)=1.05s max=1.44s
+    http_req_failed................: 0.00% 0 out of 48483
+    http_reqs......................: 48483 606.008339/s
+
+    EXECUTION
+    iteration_duration.............: avg=290.75ms med=197.94ms p(90)=731.12ms p(95)=873.48ms p(99)=1.05s max=1.44s
+    iterations.....................: 48483 606.008339/s
+    vus............................: 2     min=2          max=399
+    vus_max........................: 400   min=400        max=400
+
+    NETWORK
+    data_received..................: 35 MB 438 kB/s
+    data_sent......................: 10 MB 126 kB/s
+
+
+
+
+default ✓ [ 100% ] 000/400 VUs  1m20s

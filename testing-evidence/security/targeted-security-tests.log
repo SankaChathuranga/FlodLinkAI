@@ -1,0 +1,15 @@
+      Failed to determine the https port for redirect.
+  Passed FloodLink.Tests.SecurityTests.SEC005_Approve_AsCoordinator_PassesAuthAndReturns404ForUnknownRun [1 s]
+  Passed FloodLink.Tests.SecurityTests.SEC010_MalformedJson_Returns400WithoutStackTrace [274 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC008_PromptInjectionInNeedType_IsRejectedByValidation [244 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC004_Approve_AsVolunteer_Returns403 [190 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC006_StateChangingEndpoints_WithoutToken_Return401(method: "PUT", url: "/api/inventory/1/check-in", body: "{\"quantityReceived\":1000000}") [202 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC006_StateChangingEndpoints_WithoutToken_Return401(method: "POST", url: "/api/workflows", body: "{\"objective\":\"anonymous run\"}") [285 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC006_StateChangingEndpoints_WithoutToken_Return401(method: "POST", url: "/api/inventory", body: "{\"depotId\":1,\"itemName\":\"Water\",\"unit\":\"b"···) [234 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC003_Approve_WithExpiredToken_Returns401 [194 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC009_XssPayloadInReport_IsReturnedAsJsonNotHtml [188 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC002_Approve_WithTokenSignedByWrongKey_Returns401 [202 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC001_Approve_WithoutToken_Returns401 [181 ms]
+  Passed FloodLink.Tests.SecurityTests.SEC007_SqlInjectionInQueryString_IsTreatedAsData [310 ms]
+Total tests: 12
+     Passed: 12

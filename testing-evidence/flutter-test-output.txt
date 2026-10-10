@@ -1,0 +1,8 @@
+00:00 +0: loading /home/sanka-chathuranga/SEF_project/FloodLink/mobile/test/form_validation_test.dart
+00:00 +0: /home/sanka-chathuranga/SEF_project/FloodLink/mobile/test/widget_test.dart: field reports home screen renders
+00:00 +1: /home/sanka-chathuranga/SEF_project/FloodLink/mobile/test/widget_test.dart: field reports home screen renders
+00:01 +2: /home/sanka-chathuranga/SEF_project/FloodLink/mobile/test/widget_test.dart: field reports home screen renders
+00:01 +3: /home/sanka-chathuranga/SEF_project/FloodLink/mobile/test/form_validation_test.dart: NewReportScreen renders all form fields and action buttons
+00:01 +4: /home/sanka-chathuranga/SEF_project/FloodLink/mobile/test/form_validation_test.dart: NewReportScreen validates empty quantity field on submit
+00:01 +5: /home/sanka-chathuranga/SEF_project/FloodLink/mobile/test/form_validation_test.dart: NewReportScreen validates non-positive quantity on submit
+00:01 +6: All tests passed!

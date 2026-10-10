@@ -17,6 +17,7 @@ namespace FloodLink.Tests;
 /// TestServer, so it exercises routing, auth (Development auto-auth), controllers,
 /// EF, Npgsql and the audit trail exactly as the demo does.
 /// </summary>
+[Collection(PostgresCollection.Name)]
 public sealed class WorkflowIntegrationTests : IClassFixture<TestAppFactory>
 {
     private readonly TestAppFactory _factory;

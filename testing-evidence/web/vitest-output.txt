@@ -1,0 +1,12 @@
+ RUN  v2.1.9 /home/sanka-chathuranga/SEF_project/FloodLink/web
+ ✓ src/components/ApprovalQueue.test.tsx > ApprovalQueue > WEB-001 lists runs waiting for approval
+ ✓ src/components/ApprovalQueue.test.tsx > ApprovalQueue > WEB-002 shows the empty state when nothing is pending
+ ✓ src/components/ApprovalQueue.test.tsx > ApprovalQueue > WEB-003 shows the API error instead of an empty queue
+ ✓ src/components/ApprovalQueue.test.tsx > ApprovalQueue > WEB-004 explains a 401 so the coordinator knows auth is missing
+ ✓ src/components/ApprovalQueue.test.tsx > ApprovalQueue > WEB-005 approve posts the decision and shows a success notice
+ ✓ src/components/ApprovalQueue.test.tsx > ApprovalQueue > WEB-006 reject without a reason is blocked and never calls the API
+ ✓ src/components/ApprovalQueue.test.tsx > ApprovalQueue > WEB-007 a failed approval shows the error and no success notice
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  00:19:29
+   Duration  2.15s (transform 221ms, setup 162ms, collect 257ms, tests 483ms, environment 449ms, prepare 173ms)

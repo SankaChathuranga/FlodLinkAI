@@ -1,0 +1,6 @@
+      Failed to determine the https port for redirect.
+  Passed FloodLink.Tests.EndToEndWorkflowTests.E2E001_ReportToApprovedDispatch_PersistsEveryStage [3 s]
+  Passed FloodLink.Tests.EndToEndWorkflowTests.E2E002_NotEnoughStock_NeverReachesApproval [313 ms]
+  Passed FloodLink.Tests.EndToEndWorkflowTests.E2E001b_Approval_CommitsStockFromDepot [302 ms]
+Total tests: 3
+ Total time: 4.9650 Seconds

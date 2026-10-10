@@ -78,3 +78,19 @@ docker-compose.override.yml
 /context 
 FloodLink_MemberC_Project_Plan.md
 AGENTS.md
+
+# Testing: raw intermediates that can be regenerated (the report evidence in testing-evidence/ is kept)
+testing-evidence/backend/*/coverage.cobertura.xml
+testing-evidence/backend/_*/
+web/coverage/
+mobile/coverage/
+TestResults/
+*.coverage
+
+# Testing: keep the deliverable evidence even though *.log, *.trx and coverage/ are ignored above
+!testing-evidence/**/*.log
+!testing-evidence/**/*.trx
+!testing-evidence/web/coverage/
+
+# Testing: bulky generated coverage pages (regenerate with reportgenerator; see report Appendix B)
+testing-evidence/backend/coverage-report/

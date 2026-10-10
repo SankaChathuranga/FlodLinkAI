@@ -2,6 +2,7 @@ using FloodLink.Api.DTOs;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Exceptions;
 using FloodLink.Infrastructure;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -30,15 +31,24 @@ public sealed class InventoryController(AppDbContext context) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     public async Task<ActionResult<InventoryItem>> CreateItem(CreateInventoryItemDto dto, CancellationToken ct)
     {
         if (!await context.Depots.AnyAsync(depot => depot.Id == dto.DepotId, ct))
             throw new BadRequestException($"Depot with ID {dto.DepotId} does not exist.");
 
+        var itemName = dto.ItemName.Trim();
+        if (await context.InventoryItems.AnyAsync(i => i.DepotId == dto.DepotId && i.ItemName == itemName, ct))
+            return Conflict(new
+            {
+                error = "DUPLICATE_ITEM",
+                message = $"Depot {dto.DepotId} already stocks {itemName}; use check-in to add quantity."
+            });
+
         var item = new InventoryItem
         {
             DepotId = dto.DepotId,
-            ItemName = dto.ItemName.Trim(),
+            ItemName = itemName,
             Unit = dto.Unit.Trim(),
             QuantityAvailable = dto.QuantityAvailable
         };
@@ -49,6 +59,7 @@ public sealed class InventoryController(AppDbContext context) : ControllerBase
     }
 
     [HttpPut("{id:int}/check-in")]
+    [Authorize]
     public async Task<ActionResult<InventoryItem>> CheckIn(int id, StockCheckInDto dto, CancellationToken ct)
     {
         var item = await context.InventoryItems.FindAsync([id], ct)
