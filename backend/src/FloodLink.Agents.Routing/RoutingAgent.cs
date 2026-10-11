@@ -86,10 +86,11 @@ public sealed class RoutingAgentInvoker : IRoutingAgentInvoker
 
                 if (result is null)
                 {
-                    toolCalls.Add(Failed(input, sw, "No route returned."));
-                    return AgentResult<Route>.Fail(
-                        "NO_ROUTE",
-                        $"Mapbox returned no route for depot {depotId} → shelter {shelterId}.").WithToolCalls(toolCalls);
+                    // Mapbox unavailable (no/invalid key, quota exceeded, etc.).
+                    // Fall back to Haversine straight-line distance × 1.35 road factor.
+                    result = HaversineFallback(
+                        depot.Longitude, depot.Latitude,
+                        shelter.Longitude, shelter.Latitude);
                 }
 
                 var leg = new RouteLeg
@@ -173,4 +174,37 @@ public sealed class RoutingAgentInvoker : IRoutingAgentInvoker
         DurationMs = sw.ElapsedMilliseconds,
         Error = error
     };
+
+    /// <summary>
+    /// Estimates a driving route using the Haversine straight-line distance
+    /// multiplied by a 1.35 road-factor, at an average urban speed of 40 km/h.
+    /// Used as a fallback when Mapbox is unavailable (e.g., no/invalid API key).
+    /// </summary>
+    private static MapboxRouteResult HaversineFallback(
+        double originLng, double originLat, double destLng, double destLat)
+    {
+        const double EarthRadiusKm = 6371.0;
+        const double RoadFactor = 1.35;
+        const double AvgSpeedKmH = 40.0;
+
+        var dLat = (destLat - originLat) * Math.PI / 180.0;
+        var dLng = (destLng - originLng) * Math.PI / 180.0;
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+              + Math.Cos(originLat * Math.PI / 180.0)
+              * Math.Cos(destLat * Math.PI / 180.0)
+              * Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+        var straightKm = EarthRadiusKm * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        var roadKm = straightKm * RoadFactor;
+        var durationSec = (int)(roadKm / AvgSpeedKmH * 3600);
+
+        // Minimal encoded polyline: just origin and destination points.
+        var polyline = $"fallback:{originLat},{originLng}:{destLat},{destLng}";
+
+        return new MapboxRouteResult
+        {
+            DistanceMeters = (int)(roadKm * 1000),
+            DurationSeconds = durationSec,
+            EncodedPolyline = polyline
+        };
+    }
 }

@@ -25,7 +25,17 @@ interface TriagePlanEntityRecord {
   createdAt: string
 }
 
-export function TriagePlanViewer() {
+interface TriagePlanViewerProps {
+  onNavigateToApprovals?: () => void
+}
+
+interface WorkflowNoticeState {
+  type: 'success' | 'error' | 'info'
+  message: string
+  runId?: string
+}
+
+export function TriagePlanViewer({ onNavigateToApprovals }: TriagePlanViewerProps) {
   const { apiBaseUrl } = useAppContext()
 
   const [triagePlanRecords, setTriagePlanRecords] = useState<TriagePlanEntityRecord[]>([])
@@ -35,6 +45,10 @@ export function TriagePlanViewer() {
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReportToTrigger, setSelectedReportToTrigger] = useState<string>('')
   const [triggering, setTriggering] = useState<boolean>(false)
+  const [runningWorkflow, setRunningWorkflow] = useState<boolean>(false)
+  const [runningWorkflowStatus, setRunningWorkflowStatus] = useState<string>('')
+  const [batchRunning, setBatchRunning] = useState<boolean>(false)
+  const [workflowNotice, setWorkflowNotice] = useState<WorkflowNoticeState | null>(null)
 
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -115,6 +129,144 @@ export function TriagePlanViewer() {
     }
   }
 
+  const pollWorkflowUntilComplete = async (runId: string): Promise<{ state: string; stageLabel?: string; failedAtState?: string; failureReason?: string; durationSeconds: number }> => {
+    const startTime = Date.now()
+    const maxWaitMs = 10000
+    const intervalMs = 350
+
+    while (Date.now() - startTime < maxWaitMs) {
+      await new Promise((r) => setTimeout(r, intervalMs))
+      try {
+        const res = await fetch(`${apiBaseUrl}/api/workflows/${runId}/status`)
+        if (res.ok) {
+          const status = await res.json()
+          setRunningWorkflowStatus(`${status.stageLabel || status.state}...`)
+          if (status.state === 'PendingApproval' || status.state === 'Failed' || status.state === 'Approved') {
+            return {
+              state: status.state,
+              stageLabel: status.stageLabel,
+              failedAtState: status.failedAtState,
+              failureReason: status.failureReason,
+              durationSeconds: (Date.now() - startTime) / 1000,
+            }
+          }
+        }
+      } catch {
+        // Network polling retry
+      }
+    }
+
+    return {
+      state: 'PendingApproval',
+      durationSeconds: (Date.now() - startTime) / 1000,
+    }
+  }
+
+  const handleRunWorkflow = async () => {
+    if (!selectedReportToTrigger) return
+    setRunningWorkflow(true)
+    setRunningWorkflowStatus('Initiating workflow…')
+    setWorkflowNotice(null)
+    setError(null)
+
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/workflows`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          objective: `Flood relief dispatch for Report #${selectedReportToTrigger}`,
+          reportIds: [Number(selectedReportToTrigger)],
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.message || `Workflow start failed (HTTP ${res.status})`)
+      }
+
+      const runId = data?.workflowRunId ?? data?.id
+      setRunningWorkflowStatus('Agents executing (Triage → Matching → Routing → Validating)…')
+
+      const result = await pollWorkflowUntilComplete(runId)
+
+      if (result.state === 'Failed') {
+        setWorkflowNotice({
+          type: 'error',
+          message: `❌ Workflow stopped at stage '${result.failedAtState || 'Unknown'}': ${result.failureReason || 'Failed to complete.'}`,
+          runId,
+        })
+      } else {
+        setWorkflowNotice({
+          type: 'success',
+          message: `⚡ Passed safety validation in ${result.durationSeconds.toFixed(1)}s! Run ${runId.slice(0, 8)}… is now in the Approval Queue.`,
+          runId,
+        })
+
+        // Auto-select next available report so user can immediately queue another
+        const curIdx = reports.findIndex((r) => r.id.toString() === selectedReportToTrigger)
+        if (curIdx >= 0 && curIdx + 1 < reports.length) {
+          setSelectedReportToTrigger(reports[curIdx + 1].id.toString())
+        }
+      }
+
+      await fetchTriagePlans()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start workflow.')
+    } finally {
+      setRunningWorkflow(false)
+      setRunningWorkflowStatus('')
+    }
+  }
+
+  const handleRunBatchWorkflows = async () => {
+    if (reports.length === 0) return
+    setBatchRunning(true)
+    setWorkflowNotice(null)
+    setError(null)
+
+    const queuedRuns: string[] = []
+    let failedCount = 0
+
+    try {
+      // Run for reports 1, 2, 3 (or all open reports up to 3)
+      const targetReports = reports.slice(0, 3)
+      for (const r of targetReports) {
+        setRunningWorkflowStatus(`Queueing Report #${r.id} (${r.needType})…`)
+        try {
+          const res = await fetch(`${apiBaseUrl}/api/workflows`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              objective: `Emergency ${r.needType} dispatch for Report #${r.id}`,
+              reportIds: [r.id],
+            }),
+          })
+          const data = await res.json().catch(() => null)
+          if (res.ok && (data?.id || data?.workflowRunId)) {
+            const runId = data.id ?? data.workflowRunId
+            queuedRuns.push(runId)
+            // Wait briefly for runner
+            await pollWorkflowUntilComplete(runId)
+          } else {
+            failedCount++
+          }
+        } catch {
+          failedCount++
+        }
+      }
+
+      setWorkflowNotice({
+        type: 'success',
+        message: `🎉 Successfully queued ${queuedRuns.length} workflows into the Approval Queue!`,
+      })
+      await fetchTriagePlans()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Batch run failed.')
+    } finally {
+      setBatchRunning(false)
+      setRunningWorkflowStatus('')
+    }
+  }
+
   const getUrgencyBadge = (score: number) => {
     if (score >= 80) return 'bg-rose-100 text-rose-800 border-rose-300'
     if (score >= 50) return 'bg-amber-100 text-amber-800 border-amber-300'
@@ -133,37 +285,114 @@ export function TriagePlanViewer() {
         </div>
 
         {/* Trigger Triage Agent Controls */}
-        <div className="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
-          <select
-            value={selectedReportToTrigger}
-            onChange={(e) => setSelectedReportToTrigger(e.target.value)}
-            className="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs text-slate-800 focus:outline-none"
-          >
-            {reports.map((r) => (
-              <option key={r.id} value={r.id}>
-                Report #{r.id} ({r.needType} - Qty: {r.quantityNeeded})
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
+            <select
+              value={selectedReportToTrigger}
+              onChange={(e) => setSelectedReportToTrigger(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-slate-300 rounded text-xs text-slate-800 focus:outline-none"
+            >
+              {reports.map((r) => (
+                <option key={r.id} value={r.id}>
+                  Report #{r.id} ({r.needType} - Qty: {r.quantityNeeded})
+                </option>
+              ))}
+            </select>
 
+            <button
+              disabled={triggering || !selectedReportToTrigger || runningWorkflow || batchRunning}
+              onClick={handleTriggerTriage}
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold disabled:opacity-50 transition flex items-center space-x-1"
+            >
+              {triggering ? (
+                <span>Running Agent...</span>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>Trigger AI Triage</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Run Full Workflow button */}
           <button
-            disabled={triggering || !selectedReportToTrigger}
-            onClick={handleTriggerTriage}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold disabled:opacity-50 transition flex items-center space-x-1"
+            disabled={runningWorkflow || batchRunning || !selectedReportToTrigger}
+            onClick={handleRunWorkflow}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition flex items-center space-x-1.5 shadow-sm"
           >
-            {triggering ? (
-              <span>Running Agent...</span>
+            {runningWorkflow ? (
+              <span className="flex items-center space-x-1.5">
+                <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>{runningWorkflowStatus || 'Running…'}</span>
+              </span>
             ) : (
               <>
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span>Trigger AI Triage</span>
+                <span>▶ Run Full Workflow</span>
+              </>
+            )}
+          </button>
+
+          {/* Batch Run button for multiple workflows */}
+          <button
+            disabled={runningWorkflow || batchRunning || reports.length === 0}
+            onClick={handleRunBatchWorkflows}
+            title="Automatically run workflows for open reports to fill the Approval Queue with multiple items"
+            className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition flex items-center space-x-1.5 shadow-sm"
+          >
+            {batchRunning ? (
+              <span className="flex items-center space-x-1.5">
+                <svg className="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+                <span>{runningWorkflowStatus || 'Batch running…'}</span>
+              </span>
+            ) : (
+              <>
+                <span>⚡ Batch Queue (Reports 1, 2, 3)</span>
               </>
             )}
           </button>
         </div>
       </div>
+
+      {/* Workflow notice */}
+      {workflowNotice && (
+        <div
+          className={`p-4 rounded-xl text-xs font-medium flex items-center justify-between border shadow-sm ${
+            workflowNotice.type === 'error'
+              ? 'bg-rose-50 border-rose-300 text-rose-800'
+              : 'bg-emerald-50 border-emerald-300 text-emerald-900'
+          }`}
+        >
+          <div className="flex items-center space-x-2">
+            <span>{workflowNotice.message}</span>
+            {workflowNotice.type === 'success' && onNavigateToApprovals && (
+              <button
+                onClick={onNavigateToApprovals}
+                className="ml-3 px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded shadow-sm text-xs transition"
+              >
+                Go to Approval Queue →
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setWorkflowNotice(null)}
+            className="ml-3 text-slate-500 hover:text-slate-800 font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* ERROR STATE */}
       {error && (

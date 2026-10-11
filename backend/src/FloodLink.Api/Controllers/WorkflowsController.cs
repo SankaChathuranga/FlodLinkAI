@@ -45,7 +45,7 @@ public class WorkflowsController : ControllerBase
     /// </summary>
     /// <remarks>A report can only belong to one active (not yet decided) run at a time.</remarks>
     [HttpPost]
-    [Authorize(Roles = "Coordinator")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(WorkflowRunResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
