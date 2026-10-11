@@ -105,7 +105,8 @@ public sealed class ValidationAgent : IValidationAgent
         string planJson, Route route, List<ToolCall> toolCalls, CancellationToken ct)
     {
         using var doc = JsonDocument.Parse(planJson);
-        if (!doc.RootElement.TryGetProperty("allocationProposal", out var proposalJson))
+        if (!doc.RootElement.TryGetProperty("allocationProposal", out var proposalJson) &&
+            !doc.RootElement.TryGetProperty("AllocationProposal", out proposalJson))
             return null;
 
         var proposal = proposalJson.Deserialize<AllocationProposal>(JsonOptions)
