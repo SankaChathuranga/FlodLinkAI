@@ -17,7 +17,7 @@ namespace FloodLink.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/dispatches")]
-[AllowAnonymous]
+[Authorize(Roles = "Coordinator")]
 public sealed class DispatchController : ControllerBase
 {
     /// <summary>Body contract for POST /api/dispatches/{id}/approve.</summary>

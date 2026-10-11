@@ -19,7 +19,7 @@ namespace FloodLink.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/validations")]
-[AllowAnonymous]
+[Authorize(Roles = "Coordinator")]
 public sealed class ValidationController : ControllerBase
 {
     /// <summary>Body contract for POST /api/validations/run.</summary>
