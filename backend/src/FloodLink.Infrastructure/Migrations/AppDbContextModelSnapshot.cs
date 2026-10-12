@@ -618,6 +618,10 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("HashedPassword")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -640,6 +644,9 @@ namespace FloodLink.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
                     b.ToTable("Users");
 
                     b.HasData(
@@ -647,7 +654,8 @@ namespace FloodLink.Infrastructure.Migrations
                         {
                             Id = 1,
                             CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
-                            HashedPassword = "hashed_password_1",
+                            Email = "volunteer@floodlink.lk",
+                            HashedPassword = "!",
                             Name = "John Doe",
                             Phone = "+94771234567",
                             Role = "Volunteer"
@@ -656,10 +664,31 @@ namespace FloodLink.Infrastructure.Migrations
                         {
                             Id = 2,
                             CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
-                            HashedPassword = "hashed_password_2",
+                            Email = "coordinator@floodlink.lk",
+                            HashedPassword = "!",
                             Name = "Jane Smith",
                             Phone = "+94779876543",
                             Role = "Coordinator"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "depot@floodlink.lk",
+                            HashedPassword = "!",
+                            Name = "Kamal Perera",
+                            Phone = "+94775550101",
+                            Role = "DepotManager"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "admin@floodlink.lk",
+                            HashedPassword = "!",
+                            Name = "Admin User",
+                            Phone = "+94775550100",
+                            Role = "Admin"
                         });
                 });
 

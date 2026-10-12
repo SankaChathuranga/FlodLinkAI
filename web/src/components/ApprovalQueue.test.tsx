@@ -62,11 +62,11 @@ describe('ApprovalQueue', () => {
     expect(await screen.findByText(/Request failed \(500 SERVER_ERROR\): Database unavailable/)).toBeInTheDocument()
   })
 
-  it('WEB-004 explains a 401 so the coordinator knows auth is missing', async () => {
+  it('WEB-004 explains a 401 as an expired session', async () => {
     mockApi(() => ({ status: 401, body: null }))
     renderQueue()
 
-    expect(await screen.findByText(/401 Unauthorized/)).toBeInTheDocument()
+    expect(await screen.findByText(/session has expired/i)).toBeInTheDocument()
   })
 
   it('WEB-005 approve posts the decision and shows a success notice', async () => {

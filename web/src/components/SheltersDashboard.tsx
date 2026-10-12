@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppContext } from '../context/AppContext'
+import { apiFetch } from '../api/http'
 import { ShelterMap } from './ShelterMap'
 import { ShelterDetailModal } from './ShelterDetailModal'
 import type { Shelter, PaginatedResult } from '../types'
@@ -30,7 +31,7 @@ export function SheltersDashboard() {
       queryParams.append('page', page.toString())
       queryParams.append('pageSize', '10')
 
-      const response = await fetch(`${apiBaseUrl}/api/shelters?${queryParams.toString()}`)
+      const response = await apiFetch(`${apiBaseUrl}/api/shelters?${queryParams.toString()}`)
       if (!response.ok) {
         throw new Error(`Failed to fetch shelters (HTTP ${response.status})`)
       }

@@ -1,6 +1,7 @@
 using FloodLink.Api.DTOs;
 using FloodLink.Domain.Entities;
 using FloodLink.Infrastructure;
+using FloodLink.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ namespace FloodLink.Api.Controllers;
 /// <summary>Allocation proposals made by the Matching Agent (Member B), with their stock lifecycle status.</summary>
 [ApiController]
 [Route("api/allocations")]
-[Authorize]
+[Authorize(Policy = Policies.StockReader)]
 public sealed class AllocationsController(AppDbContext context) : ControllerBase
 {
     /// <summary>One allocation line: which depot sends how much of what to which shelter.</summary>

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:floodlink_mobile/providers/report_provider.dart';
+
+import 'helpers/test_app.dart';
 import 'package:floodlink_mobile/screens/new_report_screen.dart';
 
 void main() {
   testWidgets('NewReportScreen renders all form fields and action buttons', (WidgetTester tester) async {
-    final reportProvider = ReportProvider();
+    final reportProvider = ReportProvider(TestBackend().api);
 
     await tester.pumpWidget(
       MultiProvider(
@@ -29,7 +31,7 @@ void main() {
   });
 
   testWidgets('NewReportScreen validates empty quantity field on submit', (WidgetTester tester) async {
-    final reportProvider = ReportProvider();
+    final reportProvider = ReportProvider(TestBackend().api);
 
     await tester.pumpWidget(
       MultiProvider(
@@ -60,7 +62,7 @@ void main() {
   });
 
   testWidgets('NewReportScreen validates non-positive quantity on submit', (WidgetTester tester) async {
-    final reportProvider = ReportProvider();
+    final reportProvider = ReportProvider(TestBackend().api);
 
     await tester.pumpWidget(
       MultiProvider(

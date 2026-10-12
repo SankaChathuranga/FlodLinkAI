@@ -4,6 +4,7 @@ using FloodLink.Domain.Entities;
 using FloodLink.Domain.Exceptions;
 using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Services;
+using FloodLink.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ namespace FloodLink.Api.Controllers;
 
 [ApiController]
 [Route("api/inventory")]
+[Authorize(Policy = Policies.StockReader)]
 public sealed class InventoryController(AppDbContext context, StockReservationService stock) : ControllerBase
 {
     [HttpGet]
@@ -33,7 +35,7 @@ public sealed class InventoryController(AppDbContext context, StockReservationSe
     }
 
     [HttpPost]
-    [Authorize]
+    [Authorize(Policy = Policies.DepotManager)]
     public async Task<ActionResult<InventoryItem>> CreateItem(CreateInventoryItemDto dto, CancellationToken ct)
     {
         if (!await context.Depots.AnyAsync(depot => depot.Id == dto.DepotId, ct))
@@ -62,7 +64,7 @@ public sealed class InventoryController(AppDbContext context, StockReservationSe
     }
 
     [HttpPut("{id:int}/check-in")]
-    [Authorize]
+    [Authorize(Policy = Policies.DepotManager)]
     public async Task<ActionResult<InventoryItem>> CheckIn(int id, StockCheckInDto dto, CancellationToken ct)
     {
         var item = await context.InventoryItems.FindAsync([id], ct)
@@ -79,7 +81,7 @@ public sealed class InventoryController(AppDbContext context, StockReservationSe
     /// Fails with 409 when not enough stock is free, or when another request changed the item first.
     /// </summary>
     [HttpPut("{id:int}/reserve")]
-    [Authorize]
+    [Authorize(Policy = Policies.DepotManager)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -88,7 +90,7 @@ public sealed class InventoryController(AppDbContext context, StockReservationSe
 
     /// <summary>Releases previously held stock of an item back to free stock.</summary>
     [HttpPut("{id:int}/release")]
-    [Authorize]
+    [Authorize(Policy = Policies.DepotManager)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]

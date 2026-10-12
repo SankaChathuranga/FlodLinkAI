@@ -1,4 +1,5 @@
 using FloodLink.Infrastructure;
+using FloodLink.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,7 @@ namespace FloodLink.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/audit")]
-[Authorize(Roles = "Coordinator")]
+[Authorize(Policy = Policies.Coordinator)]
 public sealed class AuditController : ControllerBase
 {
     private readonly AppDbContext _db;

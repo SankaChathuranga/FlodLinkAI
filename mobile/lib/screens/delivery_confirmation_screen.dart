@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../api/dispatch_api.dart';
 import '../api/models.dart';
 import '../main.dart' show FloodLinkColors;
-import '../state/app_state.dart';
+import '../api/api_client.dart';
 
 /// Field-worker screen: record that an approved dispatch arrived on-site.
 /// Notes and an optional photo reference are stored with the audit entry.
@@ -49,7 +49,7 @@ class _DeliveryConfirmationScreenState extends State<DeliveryConfirmationScreen>
     }
     setState(() { _submitting = true; _error = null; _result = null; });
     try {
-      final api = DispatchApi(context.read<AppState>().apiBaseUrl);
+      final api = DispatchApi(context.read<ApiClient>());
       final result = await api.confirmDelivery(
         runId,
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),

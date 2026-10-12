@@ -1,6 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import { AppProvider } from './context/AppContext'
+import { AuthProvider } from './context/AuthContext'
 import App from './App'
 import '@carbon/styles/css/styles.css'
 import './index.css'
@@ -8,12 +10,15 @@ import './index.css'
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     {/*
-      AppProvider wraps the entire app so that any component in the tree can
-      consume shared state via useAppContext() without prop-drilling.
-      See src/context/AppContext.tsx for the current context shape.
+      AppProvider holds app-wide config (API base URL); AuthProvider holds the signed-in
+      session and depends on it. See src/context/ for both.
     */}
     <AppProvider>
-      <App />
+      <AuthProvider>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <App />
+        </BrowserRouter>
+      </AuthProvider>
     </AppProvider>
   </React.StrictMode>,
 )

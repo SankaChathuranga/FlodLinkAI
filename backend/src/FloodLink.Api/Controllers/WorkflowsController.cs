@@ -1,10 +1,12 @@
 using System.Text.Json;
+using FloodLink.Api.Auth;
 using FloodLink.Api.Dtos;
 using FloodLink.Api.DTOs;
 using FloodLink.Contracts;
 using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
+using FloodLink.Domain.Security;
 using FloodLink.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +21,7 @@ namespace FloodLink.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/workflows")]
+[Authorize]
 public class WorkflowsController : ControllerBase
 {
     private static readonly WorkflowState[] FinishedStates =
@@ -45,7 +48,7 @@ public class WorkflowsController : ControllerBase
     /// </summary>
     /// <remarks>A report can only belong to one active (not yet decided) run at a time.</remarks>
     [HttpPost]
-    [Authorize(Roles = "Coordinator")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(typeof(WorkflowRunResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -107,7 +110,7 @@ public class WorkflowsController : ControllerBase
     /// objective, sort by <c>createdAt</c> or <c>updatedAt</c> (prefix <c>-</c> for descending).
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = "Coordinator")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(typeof(PaginatedResult<WorkflowRunSummary>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> List(
@@ -163,6 +166,7 @@ public class WorkflowsController : ControllerBase
     // ── GET /api/workflows/{id} ───────────────────────────────────────────────
     /// <summary>Returns the run with its full plan (every agent's output, keyed by section).</summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(typeof(WorkflowRunResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
@@ -178,7 +182,7 @@ public class WorkflowsController : ControllerBase
     /// saw) are large and only included with <c>includeInput=true</c>.
     /// </summary>
     [HttpGet("{id:guid}/logs")]
-    [Authorize(Roles = "Coordinator")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(typeof(IReadOnlyList<WorkflowLogEntry>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetLogs(Guid id, [FromQuery] bool includeInput = false, CancellationToken ct = default)
@@ -203,9 +207,16 @@ public class WorkflowsController : ControllerBase
     /// </summary>
     [HttpGet("{id:guid}/status")]
     [ProducesResponseType(typeof(WorkflowStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetStatus(Guid id, CancellationToken ct)
     {
+        // Access matrix: the Volunteer who reported into the run, or an Admin.
+        if (!User.IsInAnyRoleOrAdmin(Roles.Volunteer))
+            return Forbid();
+        if (!User.IsInRole(Roles.Admin) && !await _db.UserOwnsRunAsync(id, User.GetUserId(), ct))
+            return NotFound();
+
         var run = await _db.WorkflowRuns.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
         if (run is null)
             return NotFound();
@@ -242,7 +253,7 @@ public class WorkflowsController : ControllerBase
     /// Limited to <c>Workflow:MaxRetries</c> retries per run (default 3).
     /// </summary>
     [HttpPost("{id:guid}/retry")]
-    [Authorize(Roles = "Coordinator")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(typeof(WorkflowStatusResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]

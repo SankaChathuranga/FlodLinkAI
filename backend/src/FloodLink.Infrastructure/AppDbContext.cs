@@ -117,6 +117,8 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Email).HasMaxLength(255);
+            entity.HasIndex(e => e.Email).IsUnique();
             entity.Property(e => e.Role).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Phone).IsRequired().HasMaxLength(20);
             entity.Property(e => e.HashedPassword).IsRequired().HasMaxLength(255);
@@ -278,26 +280,17 @@ public class AppDbContext : DbContext
     {
         var fixedDate = new DateTime(2026, 9, 25, 0, 0, 0, DateTimeKind.Utc);
 
-        modelBuilder.Entity<User>().HasData(
-            new User
-            {
-                Id = 1,
-                Name = "John Doe",
-                Role = "Volunteer",
-                Phone = "+94771234567",
-                HashedPassword = "hashed_password_1",
-                CreatedAt = fixedDate
-            },
-            new User
-            {
-                Id = 2,
-                Name = "Jane Smith",
-                Role = "Coordinator",
-                Phone = "+94779876543",
-                HashedPassword = "hashed_password_2",
-                CreatedAt = fixedDate
-            }
-        );
+        // Demo accounts start locked; the API seeder hashes Seed:DemoPassword into them at startup.
+        modelBuilder.Entity<User>().HasData(DemoAccounts.All.Select(a => new User
+        {
+            Id = a.Id,
+            Name = a.Name,
+            Email = a.Email,
+            Role = a.Role,
+            Phone = a.Phone,
+            HashedPassword = User.LockedPassword,
+            CreatedAt = fixedDate
+        }).ToArray());
 
         modelBuilder.Entity<Shelter>().HasData(
             new Shelter

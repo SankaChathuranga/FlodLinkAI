@@ -1,17 +1,29 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace FloodLink.Domain.Entities;
 
 /// <summary>
-/// Minimal Users model required for foreign key relationships (Member A component).
+/// A FloodLink account. <see cref="Role"/> holds one of the names in <c>FloodLink.Domain.Security.Roles</c>;
+/// <see cref="HashedPassword"/> holds an ASP.NET Core Identity <c>PasswordHasher</c> hash.
 /// </summary>
 public class User
 {
+    /// <summary>
+    /// <see cref="HashedPassword"/> value for an account nobody can log in to (not a valid hash, so
+    /// verification always fails). Seeded demo rows carry it until the startup seeder sets a real hash.
+    /// </summary>
+    public const string LockedPassword = "!";
+
     public int Id { get; set; }
 
     [Required]
     [MaxLength(100)]
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>Login name, stored lower-case. Unique (nullable only for legacy rows).</summary>
+    [MaxLength(255)]
+    public string? Email { get; set; }
 
     [Required]
     [MaxLength(50)]
@@ -21,8 +33,10 @@ public class User
     [MaxLength(20)]
     public string Phone { get; set; } = string.Empty;
 
+    /// <summary>Never serialized: entities that include a User (e.g. a report's Reporter) must not leak it.</summary>
     [Required]
     [MaxLength(255)]
+    [JsonIgnore]
     public string HashedPassword { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

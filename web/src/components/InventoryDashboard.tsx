@@ -17,6 +17,8 @@ import {
 } from '@carbon/react'
 import { Add, Renew } from '@carbon/icons-react'
 import { useAppContext } from '../context/AppContext'
+import { apiFetch } from '../api/http'
+import { useAuth } from '../context/AuthContext'
 import type { InventoryItem } from '../types'
 
 const headers = [
@@ -29,6 +31,8 @@ const headers = [
 
 export function InventoryDashboard() {
   const { apiBaseUrl } = useAppContext()
+  // Coordinators can see stock; only depot managers (and admins) can change it.
+  const canCheckIn = useAuth().hasRole('DepotManager')
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,7 +44,7 @@ export function InventoryDashboard() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${apiBaseUrl}/api/inventory`)
+      const response = await apiFetch(`${apiBaseUrl}/api/inventory`)
       if (!response.ok) throw new Error(`Could not load stock (HTTP ${response.status}).`)
       setInventory(await response.json() as InventoryItem[])
     } catch (requestError) {
@@ -73,7 +77,7 @@ export function InventoryDashboard() {
     setSubmitting(true)
     setError(null)
     try {
-      const response = await fetch(`${apiBaseUrl}/api/inventory/${selectedItem.id}/check-in`, {
+      const response = await apiFetch(`${apiBaseUrl}/api/inventory/${selectedItem.id}/check-in`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quantityReceived }),
@@ -130,11 +134,11 @@ export function InventoryDashboard() {
                         <TableRow {...getRowProps({ row })}>
                           {row.cells.map((cell) => (
                             <TableCell key={cell.id}>
-                              {cell.info.header === 'action' && item ? (
+                              {cell.info.header === 'action' && item && canCheckIn ? (
                                 <Button kind="ghost" size="sm" renderIcon={Add} onClick={() => openCheckIn(item)}>
                                   Check in
                                 </Button>
-                              ) : cell.value}
+                              ) : cell.info.header === 'action' ? '—' : cell.value}
                             </TableCell>
                           ))}
                         </TableRow>

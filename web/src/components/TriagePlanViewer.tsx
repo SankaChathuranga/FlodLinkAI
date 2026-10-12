@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppContext } from '../context/AppContext'
+import { apiFetch } from '../api/http'
 import type { Report } from '../types'
 
 interface TriagePriorityItemDTO {
@@ -44,7 +45,7 @@ export function TriagePlanViewer() {
     setError(null)
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/reports/triage-plans`)
+      const response = await apiFetch(`${apiBaseUrl}/api/reports/triage-plans`)
       if (!response.ok) {
         throw new Error(`Failed to fetch triage plans (HTTP ${response.status})`)
       }
@@ -66,7 +67,7 @@ export function TriagePlanViewer() {
     fetchTriagePlans()
 
     // Fetch reports available for triage trigger
-    fetch(`${apiBaseUrl}/api/reports`)
+    apiFetch(`${apiBaseUrl}/api/reports`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data: Report[]) => {
         setReports(data || [])
@@ -97,7 +98,7 @@ export function TriagePlanViewer() {
     setError(null)
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `${apiBaseUrl}/api/reports/${selectedReportToTrigger}/trigger-triage`,
         { method: 'POST' }
       )

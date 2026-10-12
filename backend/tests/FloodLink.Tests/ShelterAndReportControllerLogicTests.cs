@@ -97,11 +97,11 @@ public class ShelterAndReportControllerLogicTests
         var mockAgent = new Mock<ITriageAgent>();
 
         var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
+        controller.SignInAs(1);
 
         var dto = new CreateReportDto
         {
             ShelterId = 1,
-            ReportedBy = 1,
             NeedType = "Water",
             QuantityNeeded = 200,
             Status = "New"
@@ -130,6 +130,7 @@ public class ShelterAndReportControllerLogicTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
         var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
+        controller.SignInAs(1);
 
         // Filter by urgency >= 50 and sort by urgency descending
         var actionResult = await controller.GetReports(shelterId: 1, status: null, urgency: 50, sort: "urgency_desc");

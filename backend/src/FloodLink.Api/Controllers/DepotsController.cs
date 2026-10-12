@@ -2,6 +2,7 @@ using FloodLink.Api.DTOs;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Exceptions;
 using FloodLink.Infrastructure;
+using FloodLink.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ namespace FloodLink.Api.Controllers;
 
 [ApiController]
 [Route("api/depots")]
+[Authorize(Policy = Policies.StockReader)]
 public sealed class DepotsController(AppDbContext context) : ControllerBase
 {
     [HttpGet]
@@ -17,7 +19,7 @@ public sealed class DepotsController(AppDbContext context) : ControllerBase
         => Ok(await context.Depots.AsNoTracking().OrderBy(depot => depot.Name).ToListAsync(ct));
 
     [HttpPost]
-    [Authorize]
+    [Authorize(Policy = Policies.DepotManager)]
     public async Task<ActionResult<Depot>> CreateDepot(CreateDepotDto dto, CancellationToken ct)
     {
         var depot = new Depot

@@ -1,6 +1,7 @@
 using FloodLink.Api.Auth;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
+using FloodLink.Domain.Security;
 using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -13,11 +14,12 @@ namespace FloodLink.Api.Controllers;
 /// Coordinator approval and dispatch endpoints (Member D — Ijini).
 /// Enforces the human-in-the-loop checkpoint: a plan can only be dispatched after
 /// validation passed and an authorized coordinator explicitly approves it.
-/// Coordinator-only.
+/// Decisions and history are Coordinator/Admin only; dispatch status and delivery confirmation
+/// are also open to the Volunteer who reported into the run.
 /// </summary>
 [ApiController]
 [Route("api/dispatches")]
-[Authorize(Roles = "Coordinator")]
+[Authorize]
 public sealed class DispatchController : ControllerBase
 {
     /// <summary>Body contract for POST /api/dispatches/{id}/approve.</summary>
@@ -43,6 +45,7 @@ public sealed class DispatchController : ControllerBase
 
     /// <summary>Approves a validated plan: commits its reserved stock, records the dispatch and audit entry.</summary>
     [HttpPost("{workflowRunId:guid}/approve")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -54,6 +57,7 @@ public sealed class DispatchController : ControllerBase
 
     /// <summary>Rejects a plan with a mandatory reason; releases its stock and records the rejection.</summary>
     [HttpPost("{workflowRunId:guid}/reject")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -69,6 +73,7 @@ public sealed class DispatchController : ControllerBase
     /// and the run is queued; it returns to PendingApproval with a new proposal.
     /// </summary>
     [HttpPost("{workflowRunId:guid}/request-revision")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -95,9 +100,14 @@ public sealed class DispatchController : ControllerBase
     /// </summary>
     [HttpGet("by-workflow/{workflowRunId:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByWorkflowAsync(Guid workflowRunId, CancellationToken ct)
     {
+        var denied = await CheckRunAccessAsync(workflowRunId, ct);
+        if (denied is not null)
+            return denied;
+
         var run = await _db.WorkflowRuns.AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
 
@@ -139,10 +149,15 @@ public sealed class DispatchController : ControllerBase
     /// </summary>
     [HttpPost("{workflowRunId:guid}/confirm-delivery")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> ConfirmDeliveryAsync(Guid workflowRunId, [FromBody] ConfirmDeliveryRequest? request, CancellationToken ct)
     {
+        var denied = await CheckRunAccessAsync(workflowRunId, ct);
+        if (denied is not null)
+            return denied;
+
         var outcome = await _dispatches.ConfirmDeliveryAsync(
             workflowRunId, request?.Notes, request?.PhotoReference, User.GetUserId(), ct);
         if (outcome.Status != DispatchOutcomeStatus.Ok)
@@ -152,11 +167,27 @@ public sealed class DispatchController : ControllerBase
     }
 
     /// <summary>
+    /// Coordinators and Admins may act on any run; a Volunteer only on a run they reported into
+    /// (404 otherwise, so other runs' existence is not revealed); every other role gets 403.
+    /// </summary>
+    private async Task<IActionResult?> CheckRunAccessAsync(Guid workflowRunId, CancellationToken ct)
+    {
+        if (User.IsCoordinatorOrAdmin())
+            return null;
+        if (!User.IsInRole(Roles.Volunteer))
+            return Forbid();
+        return await _db.UserOwnsRunAsync(workflowRunId, User.GetUserId(), ct)
+            ? null
+            : NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
+    }
+
+    /// <summary>
     /// Returns the approval queue: workflow runs awaiting a coordinator decision.
     /// This powers the coordinator's "Approval Queue" screen (Member D — React).
     /// Only runs in PendingApproval appear — they have already passed validation.
     /// </summary>
     [HttpGet("approval-queue")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ApprovalQueueAsync(CancellationToken ct)
     {
@@ -177,6 +208,7 @@ public sealed class DispatchController : ControllerBase
 
     /// <summary>Lists, filters and paginates dispatch history.</summary>
     [HttpGet]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ListAsync(
@@ -226,6 +258,7 @@ public sealed class DispatchController : ControllerBase
 
     /// <summary>Reporting/analytics: totals, approval turnaround and rejection reasons.</summary>
     [HttpGet("summary")]
+    [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> SummaryAsync(CancellationToken ct)
     {

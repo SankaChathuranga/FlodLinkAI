@@ -2,6 +2,8 @@ using FloodLink.Api.DTOs;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Exceptions;
 using FloodLink.Infrastructure;
+using FloodLink.Api.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +11,7 @@ namespace FloodLink.Api.Controllers;
 
 [ApiController]
 [Route("api/shelters")]
+[Authorize]
 public class SheltersController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -93,6 +96,7 @@ public class SheltersController : ControllerBase
     /// Creates a new emergency shelter.
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = Policies.Coordinator)]
     public async Task<ActionResult<Shelter>> CreateShelter([FromBody] CreateShelterDto dto)
     {
         if (!ModelState.IsValid)
@@ -133,6 +137,7 @@ public class SheltersController : ControllerBase
     /// Updates an existing shelter's details.
     /// </summary>
     [HttpPut("{id:int}")]
+    [Authorize(Policy = Policies.Coordinator)]
     public async Task<ActionResult<Shelter>> UpdateShelter(int id, [FromBody] UpdateShelterDto dto)
     {
         if (!ModelState.IsValid)

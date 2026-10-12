@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppContext } from '../context/AppContext'
+import { apiFetch } from '../api/http'
 import type { Report, Shelter } from '../types'
 
 export function ReportsQueue() {
@@ -18,7 +19,7 @@ export function ReportsQueue() {
 
   // Fetch shelters dropdown items
   useEffect(() => {
-    fetch(`${apiBaseUrl}/api/shelters?pageSize=100`)
+    apiFetch(`${apiBaseUrl}/api/shelters?pageSize=100`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.items) setShelters(data.items)
@@ -37,7 +38,7 @@ export function ReportsQueue() {
       if (urgencyThreshold > 0) queryParams.append('urgency', urgencyThreshold.toString())
       if (sortOrder) queryParams.append('sort', sortOrder)
 
-      const response = await fetch(`${apiBaseUrl}/api/reports?${queryParams.toString()}`)
+      const response = await apiFetch(`${apiBaseUrl}/api/reports?${queryParams.toString()}`)
       if (!response.ok) {
         throw new Error(`Failed to fetch report queue (HTTP ${response.status})`)
       }

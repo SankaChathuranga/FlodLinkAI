@@ -55,18 +55,43 @@ change.
   shelter coordinates (they produced 0 km routes). Migrations `WorkflowRunnerAndStockLifecycle`,
   `SeparateSeedDepotsFromShelters`. Backend tests: 174 pass.
 
+- 2026-10-12 — **Phase 2 (auth + roles) built** (`FloodLink_Project_Finalization.md` 2.01–2.24). Backend:
+  `User.Email` (unique, lower-case) + `PasswordHasher<User>` hashes; `Domain/Security/Roles`; policies in
+  `Api/Auth/Policies.cs` (every policy also admits Admin); `POST /api/auth/register` (always Volunteer),
+  `POST /api/auth/login` (8 h JWT with sub/name/email/role, same 401 for wrong email or password, rate-limited
+  by `Auth:LoginPermitLimit`/`Auth:LoginWindowSeconds`), `GET /api/auth/me`, Admin `GET/POST /api/users`
+  (Coordinator/DepotManager only). Access matrix applied to every controller; ownership via
+  `Api/Auth/Ownership.cs` (Volunteer: own reports, own run status, own by-workflow/confirm-delivery, 404 for
+  others). `GET /api/reports/mine`; report reporter comes from the token. `DevCoordinatorHandler`/`JwtOrDev`
+  removed — no token-less access in any environment. Four demo accounts (`Infrastructure/DemoAccounts.cs`,
+  ids 1–4) are seeded locked and get their hash from `Seed:DemoPassword` at startup. Swagger has a Bearer
+  "Authorize" button. `User.HashedPassword` is `[JsonIgnore]`. Migration `AddUserEmailAndDemoAccounts` (also
+  moves the Users id sequence past the seeded ids). Tests: `TestAppFactory.TokenFor/CreateClientAs`,
+  `AuthTests`, `AccessMatrixTests` (37 endpoint rows); backend 232 pass. React: `AuthContext` +
+  `auth/session.ts` (sessionStorage), `api/http.ts` `apiFetch` (Bearer header, 401 → /login), React Router
+  routes from `routes.ts`, `ProtectedRoute`, role-filtered Navbar, login page (Volunteers refused), Admin
+  `/users` page, basic `/workflows` list; web tests 15 pass. Flutter: `AuthProvider` + `SecureTokenStore`
+  (flutter_secure_storage), one `ApiClient` used by ReportProvider/InventoryProvider/DispatchApi, login and
+  register screens, GoRouter guard (`auth/route_guard.dart`: Volunteer → `/`, DepotManager →
+  `/stock-check-in`, Coordinators refused), sign-out buttons.
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Replace the Development-only `JwtOrDev` auth fallback with a real login flow; D's endpoints return 401
-  in non-Development environments until then.
+- Set `Seed:DemoPassword` and `Jwt:SigningKey` in user-secrets (or env vars) for local runs; the demo accounts
+  stay locked without a demo password.
+- Phase 3 (Gemini-backed agents).
 - Confirm CI runs on PRs and provides Postgres for the integration tests.
 - Run the mobile dispatch screens on an emulator/device.
 
 ## Open Questions
+
+- Access matrix gives `GET /api/workflows/{id}/status` to the owning Volunteer and Admin only, not
+  Coordinators (they use the list and logs endpoints). Revisit if the React monitor (4.01) needs it.
+- `web` has no ESLint config, so `npm run lint` fails before linting anything (pre-existing).
 
 - `/context` is in .gitignore (from main); existing files stay tracked but new files there are ignored.
 

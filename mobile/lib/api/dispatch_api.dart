@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'api_client.dart';
 import 'models.dart';
 
 /// Error raised when the backend responds with a non-2xx status.
@@ -17,24 +18,20 @@ class ApiException implements Exception {
   String toString() => 'ApiException $statusCode $code - $message';
 }
 
-/// Minimal JSON client for Member D's dispatch endpoints.
-/// Uses package:http so it works on Chrome (web), desktop and mobile.
+/// Minimal JSON client for Member D's dispatch endpoints, sent through [ApiClient]
+/// so every call carries the signed-in user's token.
 class DispatchApi {
-  const DispatchApi(this.baseUrl);
+  const DispatchApi(this._api);
 
-  final String baseUrl;
+  final ApiClient _api;
 
   Future<Map<String, dynamic>> _send(
     String method,
     String path, [
     Object? body,
   ]) async {
-    final uri = Uri.parse('$baseUrl$path');
-    final headers = {'Content-Type': 'application/json'};
-
-    final http.Response response = method == 'GET'
-        ? await http.get(uri, headers: headers)
-        : await http.post(uri, headers: headers, body: jsonEncode(body));
+    final http.Response response =
+        method == 'GET' ? await _api.get(path) : await _api.postJson(path, body);
 
     final decoded = response.body.isEmpty
         ? <String, dynamic>{}

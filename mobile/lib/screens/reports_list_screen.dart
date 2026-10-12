@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/report_provider.dart';
 import '../models/report.dart';
+import '../auth/auth_provider.dart';
+import '../auth/logout_button.dart';
 
 class ReportsListScreen extends StatefulWidget {
   const ReportsListScreen({super.key});
@@ -45,11 +47,13 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
             tooltip: 'Dispatch & Delivery',
             onPressed: () => context.push('/dispatch'),
           ),
-          IconButton(
-            icon: const Icon(Icons.inventory_2_outlined, color: Colors.white),
-            tooltip: 'Stock Check-in',
-            onPressed: () => context.push('/stock-check-in'),
-          ),
+          // Stock check-in is a depot-manager screen; only Admins see both sides.
+          if (context.watch<AuthProvider>().user?.isAdmin ?? false)
+            IconButton(
+              icon: const Icon(Icons.inventory_2_outlined, color: Colors.white),
+              tooltip: 'Stock Check-in',
+              onPressed: () => context.push('/stock-check-in'),
+            ),
           IconButton(
             icon: const Icon(Icons.assignment_ind_outlined, color: Colors.white),
             tooltip: 'My Submitted Reports',
@@ -59,6 +63,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () => reportProvider.fetchReports(),
           ),
+          const LogoutButton(color: Colors.white),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(

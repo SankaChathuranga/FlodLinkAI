@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using FloodLink.Domain.Entities;
+using FloodLink.Domain.Enums;
 using Microsoft.AspNetCore.Http;
 
 namespace FloodLink.Api.DTOs;
@@ -7,9 +9,6 @@ public class CreateReportDto
 {
     [Required(ErrorMessage = "ShelterId is required.")]
     public int ShelterId { get; set; }
-
-    [Required(ErrorMessage = "ReportedBy user ID is required.")]
-    public int ReportedBy { get; set; }
 
     [Required(ErrorMessage = "NeedType is required.")]
     [RegularExpression("^(Water|Food|Medical|Shelter-Repair|Other)$", ErrorMessage = "NeedType must be Water, Food, Medical, Shelter-Repair, or Other.")]
@@ -63,4 +62,26 @@ public class UpdateReportDto
 
     [RegularExpression("^(New|Triaged|InPlan|Resolved)$", ErrorMessage = "Status must be New, Triaged, InPlan, or Resolved.")]
     public string Status { get; set; } = "New";
+}
+
+/// <summary>A volunteer's own report plus the stage of the run handling it (GET /api/reports/mine).</summary>
+public sealed record MyReportDto(
+    int Id,
+    int ShelterId,
+    string? ShelterName,
+    string NeedType,
+    int QuantityNeeded,
+    int UrgencyLevel,
+    string Status,
+    string? PhotoUrl,
+    double? GpsLat,
+    double? GpsLng,
+    DateTime CreatedAt,
+    Guid? WorkflowRunId,
+    string? WorkflowState,
+    string? Decision)
+{
+    public static MyReportDto From(Report r, string? shelterName, WorkflowState? state, DispatchDecision? decision) => new(
+        r.Id, r.ShelterId, shelterName, r.NeedType, r.QuantityNeeded, r.UrgencyLevel, r.Status, r.PhotoUrl,
+        r.GpsLat, r.GpsLng, r.CreatedAt, r.WorkflowRunId, state?.ToString(), decision?.ToString());
 }

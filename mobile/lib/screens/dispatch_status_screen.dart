@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../api/dispatch_api.dart';
 import '../api/models.dart';
 import '../main.dart' show FloodLinkColors;
-import '../state/app_state.dart';
+import '../api/api_client.dart';
 import 'delivery_confirmation_screen.dart';
 
 /// Field-worker screen: look up a workflow run and see whether it was approved,
@@ -36,7 +36,7 @@ class _DispatchStatusScreenState extends State<DispatchStatusScreen> {
     }
     setState(() { _loading = true; _error = null; _status = null; });
     try {
-      final api = DispatchApi(context.read<AppState>().apiBaseUrl);
+      final api = DispatchApi(context.read<ApiClient>());
       final status = await api.fetchStatus(runId);
       if (!mounted) return;
       setState(() { _status = status; _loading = false; });

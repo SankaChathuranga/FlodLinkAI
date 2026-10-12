@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppContext } from '../context/AppContext'
+import { apiFetch } from '../api/http'
 import type { Shelter, Report } from '../types'
 
 interface ShelterDetailModalProps {
@@ -24,7 +25,7 @@ export function ShelterDetailModal({ shelterId, onClose, onTriggerTriage }: Shel
     setError(null)
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/shelters/${shelterId}`)
+      const response = await apiFetch(`${apiBaseUrl}/api/shelters/${shelterId}`)
       if (!response.ok) {
         throw new Error(`Failed to load shelter details (HTTP ${response.status})`)
       }

@@ -26,6 +26,9 @@ dependencies:
   # HTTP API client
   http: ^1.2.2
 
+  # Secure token storage (Keychain / Android Keystore)
+  flutter_secure_storage: ^9.2.4
+
   # UI Icons
   cupertino_icons: ^1.0.8
 

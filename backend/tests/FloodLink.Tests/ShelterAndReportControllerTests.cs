@@ -110,6 +110,7 @@ public class ShelterAndReportControllerTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
         var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
+        controller.SignInAs(1);
 
         var result = await controller.GetReports(shelterId: null, status: null, urgency: null, sort: null);
         Assert.IsType<OkObjectResult>(result.Result);
@@ -124,11 +125,11 @@ public class ShelterAndReportControllerTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
         var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
+        controller.SignInAs(1);
 
         var dto = new CreateReportDto
         {
             ShelterId = 1,
-            ReportedBy = 1,
             NeedType = "Water",
             QuantityNeeded = 100,
             Status = "New"
