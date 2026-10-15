@@ -135,6 +135,17 @@ change.
   fixtures had impossible distances and were corrected). Backend 337 tests pass. Live run: Planner/Triage used
   Gemini (insulin +15, routine −5, hostile note 0); Matching got 429 (free-tier quota) and used greedy.
 
+- 2026-10-15 — **Phase 6 finished** (6.17–6.29; 6.28 deployed run waits for Phase 7). Web: `Lists.test.tsx`
+  extended (report filters/sort/error, inventory sort/failed hold/release), long-running monitor/trace tests,
+  `api/client.test.ts`; `test/setup.ts` stubs ResizeObserver. React inventory: Hold / Release actions next to
+  Check in, one stock-action modal that shows the API's refusal message. Flutter: `stock_check_in_test.dart`,
+  `providers_test.dart`, `dispatch_screens_test.dart`. k6: new `testing/performance/floodlink-workflow-load.js`
+  (login in setup, 20 read users + 5 simultaneous workflows, agent latency from logs), old scripts now log in;
+  results in `testing-evidence/performance/k6-workflow-results.md` (local, fresh DB, Gemini off). Fix: workflow
+  list selected full rows including `PlanJson` (22 MB on old runs) — now summary columns only. Note: local DB
+  `floodlink_perf` holds Oct 9 ZAP-scan junk (52k reports); don't use it for measurements. Tests: backend 337,
+  web 41, Flutter 40.
+
 ## In Progress
 
 - None.
@@ -144,7 +155,7 @@ change.
 - Set `Seed:DemoPassword` and `Jwt:SigningKey` in user-secrets (or env vars) for local runs; the demo accounts
   stay locked without a demo password.
 - Gate 4 by hand: Flutter report → React start + trace → approve → Flutter shows Approved with ETA.
-- Phase 6 remaining: 6.17–6.29 (React/Flutter tests, k6 against the deployed API, CI green on main).
+- Phase 7 (deployment and APK); then re-run `floodlink-workflow-load.js` against the deployed API (6.28).
 - Re-run the live evaluation when the Gemini quota resets so Matching is evaluated on model output.
 - Confirm CI runs on PRs and provides Postgres for the integration tests.
 - Run the mobile dispatch screens on an emulator/device.

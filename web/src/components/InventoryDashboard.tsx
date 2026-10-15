@@ -21,7 +21,7 @@ import {
   Tag,
   Tile,
 } from '@carbon/react'
-import { Add, Renew } from '@carbon/icons-react'
+import { Add, Locked, Renew, Unlocked } from '@carbon/icons-react'
 import { useAppContext } from '../context/AppContext'
 import { apiFetch } from '../api/http'
 import { useAuth } from '../context/AuthContext'
@@ -45,6 +45,15 @@ const sortOptions = [
   { value: 'updated', label: 'Recently updated' },
 ]
 
+type StockActionKind = 'check-in' | 'reserve' | 'release'
+
+/** What each stock action sends and says (PUT /api/inventory/{id}/check-in | reserve | release). */
+const stockActions: Record<StockActionKind, { heading: string; verb: string; field: string; submit: string }> = {
+  'check-in': { heading: 'Check in stock', verb: 'Add received stock to', field: 'Quantity received', submit: 'Add stock' },
+  reserve: { heading: 'Hold stock', verb: 'Hold stock of', field: 'Quantity to hold', submit: 'Hold stock' },
+  release: { heading: 'Release held stock', verb: 'Release held stock of', field: 'Quantity to release', submit: 'Release stock' },
+}
+
 /** Free stock: on hand minus what pending plans hold. */
 const freeStock = (item: InventoryItem) => item.quantityAvailable - (item.quantityReserved ?? 0)
 
@@ -65,9 +74,10 @@ export function InventoryDashboard() {
   const [sort, setSort] = useState('depot')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
-  const [quantityReceived, setQuantityReceived] = useState(1)
+  const [action, setAction] = useState<{ kind: StockActionKind; item: InventoryItem } | null>(null)
+  const [quantity, setQuantity] = useState(1)
   const [submitting, setSubmitting] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   // A new search, filter or sort starts again from the first page.
   useEffect(() => {
@@ -113,30 +123,38 @@ export function InventoryDashboard() {
     action: '',
   })), [inventory])
 
-  const openCheckIn = (item: InventoryItem) => {
-    setSelectedItem(item)
-    setQuantityReceived(1)
+  const openAction = (kind: StockActionKind, item: InventoryItem) => {
+    setAction({ kind, item })
+    setQuantity(1)
+    setActionError(null)
   }
 
-  const submitCheckIn = async () => {
-    if (selectedItem === null || quantityReceived <= 0) return
+  const submitAction = async () => {
+    if (action === null || quantity <= 0) return
     setSubmitting(true)
-    setError(null)
+    setActionError(null)
     try {
-      const response = await apiFetch(`${apiBaseUrl}/api/inventory/${selectedItem.id}/check-in`, {
+      const body = action.kind === 'check-in' ? { quantityReceived: quantity } : { quantity }
+      const response = await apiFetch(`${apiBaseUrl}/api/inventory/${action.item.id}/${action.kind}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ quantityReceived }),
+        body: JSON.stringify(body),
       })
-      if (!response.ok) throw new Error(`Could not update stock (HTTP ${response.status}).`)
-      setSelectedItem(null)
+      if (!response.ok) {
+        // The API explains refusals, e.g. "Only 5 Medical is free to reserve."
+        const problem = (await response.json().catch(() => null)) as { message?: string } | null
+        throw new Error(problem?.message ?? `Could not update stock (HTTP ${response.status}).`)
+      }
+      setAction(null)
       await loadInventory()
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Could not update stock.')
+      setActionError(requestError instanceof Error ? requestError.message : 'Could not update stock.')
     } finally {
       setSubmitting(false)
     }
   }
+
+  const actionText = action ? stockActions[action.kind] : stockActions['check-in']
 
   return (
     <section aria-label="Inventory dashboard">
@@ -212,9 +230,22 @@ export function InventoryDashboard() {
                                   </Tag>
                                 </>
                               ) : cell.info.header === 'action' && item && canCheckIn ? (
-                                <Button kind="ghost" size="sm" renderIcon={Add} onClick={() => openCheckIn(item)}>
-                                  Check in
-                                </Button>
+                                <div className="inventory-dashboard__actions">
+                                  <Button kind="ghost" size="sm" renderIcon={Add} onClick={() => openAction('check-in', item)}
+                                    aria-label={`Check in ${item.itemName} at ${item.depot?.name ?? `depot ${item.depotId}`}`}>
+                                    Check in
+                                  </Button>
+                                  <Button kind="ghost" size="sm" renderIcon={Locked} onClick={() => openAction('reserve', item)}
+                                    aria-label={`Hold ${item.itemName} at ${item.depot?.name ?? `depot ${item.depotId}`}`}>
+                                    Hold
+                                  </Button>
+                                  {(item.quantityReserved ?? 0) > 0 && (
+                                    <Button kind="ghost" size="sm" renderIcon={Unlocked} onClick={() => openAction('release', item)}
+                                      aria-label={`Release ${item.itemName} at ${item.depot?.name ?? `depot ${item.depotId}`}`}>
+                                      Release
+                                    </Button>
+                                  )}
+                                </div>
                               ) : cell.info.header === 'action' ? '—' : cell.value}
                             </TableCell>
                           ))}
@@ -243,25 +274,31 @@ export function InventoryDashboard() {
       </Tile>
 
       <Modal
-        open={selectedItem !== null}
-        modalHeading="Check in stock"
-        primaryButtonText={submitting ? 'Saving…' : 'Add stock'}
+        open={action !== null}
+        modalHeading={actionText.heading}
+        primaryButtonText={submitting ? 'Saving…' : actionText.submit}
         secondaryButtonText="Cancel"
-        primaryButtonDisabled={submitting || quantityReceived <= 0}
-        onRequestSubmit={() => void submitCheckIn()}
-        onRequestClose={() => !submitting && setSelectedItem(null)}
+        primaryButtonDisabled={submitting || quantity <= 0}
+        onRequestSubmit={() => void submitAction()}
+        onRequestClose={() => !submitting && setAction(null)}
       >
         <p className="cds--body-compact-01">
-          Add received stock to <strong>{selectedItem?.itemName}</strong> at {selectedItem?.depot?.name ?? `Depot #${selectedItem?.depotId}`}. 
+          {actionText.verb} <strong>{action?.item.itemName}</strong> at {action?.item.depot?.name ?? `Depot #${action?.item.depotId}`}.
+          {action && action.kind !== 'check-in' && (
+            <> Free: {freeStock(action.item)} {action.item.unit}, held: {action.item.quantityReserved ?? 0}.</>
+          )}
         </p>
+        {actionError && (
+          <InlineNotification kind="error" title="Stock not changed" subtitle={actionError} lowContrast hideCloseButton />
+        )}
         <div className="inventory-dashboard__field">
           <NumberInput
-            id="quantity-received"
-            label={`Quantity received (${selectedItem?.unit ?? 'units'})`}
+            id="stock-action-quantity"
+            label={`${actionText.field} (${action?.item.unit ?? 'units'})`}
             min={0.01}
             step={1}
-            value={quantityReceived}
-            onChange={(_, state) => setQuantityReceived(Number(state.value) || 0)}
+            value={quantity}
+            onChange={(_, state) => setQuantity(Number(state.value) || 0)}
           />
         </div>
       </Modal>

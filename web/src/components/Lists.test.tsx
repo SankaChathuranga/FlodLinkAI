@@ -13,7 +13,8 @@ import { InventoryDashboard } from './InventoryDashboard'
 type Handler = (url: URL) => { status: number; body: unknown }
 
 function mockApi(handler: Handler) {
-  const fetchMock = vi.fn(async (url: string) => {
+  // `init` is kept so tests can read what was sent.
+  const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
     const { status, body } = handler(new URL(url))
     return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
   })
@@ -26,6 +27,10 @@ const lastRequest = (fetchMock: ReturnType<typeof mockApi>, path: string) => {
   const urls = fetchMock.mock.calls.map(([url]) => new URL(url)).filter((url) => url.pathname === path)
   return urls[urls.length - 1]
 }
+
+/** Every list request the component made to `path`. */
+const requestsTo = (fetchMock: ReturnType<typeof mockApi>, path: string) =>
+  fetchMock.mock.calls.map(([url]) => new URL(url)).filter((url) => url.pathname === path)
 
 const page = (items: unknown[], over: Record<string, number> = {}) => ({
   items,
@@ -106,6 +111,47 @@ describe('ReportsQueue', () => {
     })
   })
 
+  it('sends the shelter, status and urgency filters and the chosen sort', async () => {
+    const fetchMock = mockApi((url) =>
+      url.pathname === '/api/shelters'
+        ? { status: 200, body: page([{ id: 2, name: 'Kaduwela Community Hall' }]) }
+        : { status: 200, body: page([report(3)]) },
+    )
+    renderQueue()
+    await screen.findByText('#R-3')
+    await screen.findByRole('option', { name: 'Kaduwela Community Hall' })
+
+    const [shelter, status, urgency, sort] = screen.getAllByRole('combobox')
+    await userEvent.selectOptions(shelter, '2')
+    await userEvent.selectOptions(status, 'Triaged')
+    await userEvent.selectOptions(urgency, '80')
+    await userEvent.selectOptions(sort, 'quantity_desc')
+
+    await waitFor(() => {
+      const params = lastRequest(fetchMock, '/api/reports')?.searchParams
+      expect(params?.get('shelterId')).toBe('2')
+      expect(params?.get('status')).toBe('Triaged')
+      expect(params?.get('urgency')).toBe('80')
+      expect(params?.get('sort')).toBe('quantity_desc')
+      expect(params?.get('page')).toBe('1')
+    })
+  })
+
+  it('shows the error state and retries', async () => {
+    let fail = true
+    mockApi((url) => {
+      if (url.pathname === '/api/shelters') return { status: 200, body: page([]) }
+      return fail ? { status: 500, body: { message: 'boom' } } : { status: 200, body: page([report(4)]) }
+    })
+    renderQueue()
+
+    expect(await screen.findByText('Failed to Load Queue')).toBeInTheDocument()
+    expect(screen.getByText('Failed to fetch report queue (HTTP 500)')).toBeInTheDocument()
+    fail = false
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByText('#R-4')).toBeInTheDocument()
+  })
+
   it('shows the empty state when nothing matches', async () => {
     mockApi((url) => ({ status: 200, body: url.pathname === '/api/shelters' ? page([]) : page([]) }))
     renderQueue()
@@ -156,6 +202,53 @@ describe('InventoryDashboard', () => {
 
     expect(await screen.findByText('No stock lines match these filters.')).toBeInTheDocument()
     expect(lastRequest(fetchMock, '/api/inventory')?.searchParams.get('lowStock')).toBe('true')
+  })
+
+  it('sends the chosen sort to the API', async () => {
+    const fetchMock = mockApi(() => ({ status: 200, body: page([stock(1)]) }))
+    renderInventory()
+    await screen.findByText('Water')
+
+    await userEvent.selectOptions(screen.getByLabelText('Sort by'), 'quantity_asc')
+
+    await waitFor(() => expect(lastRequest(fetchMock, '/api/inventory')?.searchParams.get('sort')).toBe('quantity_asc'))
+  })
+
+  it('a refused hold shows the API reason and keeps the dialog open', async () => {
+    const fetchMock = mockApi((url) =>
+      url.pathname.endsWith('/reserve')
+        ? { status: 409, body: { error: 'INSUFFICIENT_STOCK', message: 'Only 5 Medical is free to reserve.' } }
+        : { status: 200, body: page([stock(4, { itemName: 'Medical', unit: 'kits', quantityAvailable: 50, quantityReserved: 45, reorderThreshold: 10 })]) },
+    )
+    renderInventory()
+    await userEvent.click(await screen.findByRole('button', { name: 'Hold Medical at Colombo Central Depot' }))
+
+    const quantity = screen.getByLabelText('Quantity to hold (kits)')
+    await userEvent.clear(quantity)
+    await userEvent.type(quantity, '20')
+    await userEvent.click(screen.getByRole('button', { name: 'Hold stock' }))
+
+    expect(await screen.findByText('Only 5 Medical is free to reserve.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hold stock' })).toBeInTheDocument()
+    const hold = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/api/inventory/4/reserve'))
+    expect(JSON.parse(String(hold?.[1]?.body))).toEqual({ quantity: 20 })
+  })
+
+  it('a successful release reloads the stock', async () => {
+    let released = false
+    const fetchMock = mockApi((url) => {
+      if (url.pathname.endsWith('/release')) {
+        released = true
+        return { status: 200, body: stock(1) }
+      }
+      return { status: 200, body: page([stock(1, { quantityReserved: released ? 0 : 40 })]) }
+    })
+    renderInventory()
+    await userEvent.click(await screen.findByRole('button', { name: 'Release Water at Colombo Central Depot' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Release stock' }))
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Release Water at Colombo Central Depot' })).not.toBeInTheDocument())
+    expect(requestsTo(fetchMock, '/api/inventory')).toHaveLength(2)
   })
 
   it('shows the API error', async () => {

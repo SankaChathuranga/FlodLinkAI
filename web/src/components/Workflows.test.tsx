@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AppProvider } from '../context/AppContext'
@@ -175,3 +175,64 @@ describe('WorkflowTrace', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Database unavailable')
   })
 })
+
+// 6.20: loading and long-running runs — the monitor and the trace keep polling until the run settles.
+describe('long-running runs', () => {
+  afterEach(() => vi.useRealTimers())
+
+  const runBody = (currentState: string) => ({
+    id: RUN_ID, objective: 'Water for Kaduwela', currentState, failedAtState: null, failureReason: null, reportIds: [9],
+    retryCount: 0, createdAt: '2026-10-15T06:00:00Z', updatedAt: '2026-10-15T06:01:00Z', planJson: PLAN_JSON,
+  })
+
+  it('the monitor shows a loading state until the first page arrives', async () => {
+    let answer: (value: Response) => void = () => {}
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => { answer = resolve })))
+    renderMonitor()
+
+    expect(screen.getByText('Loading workflow runs…')).toBeInTheDocument()
+    answer(new Response(JSON.stringify(page([summary()])), { status: 200 }))
+    expect(await screen.findByRole('link', { name: 'Water for Kaduwela' })).toBeInTheDocument()
+    expect(screen.queryByText('Loading workflow runs…')).not.toBeInTheDocument()
+  })
+
+  it('the monitor auto-refreshes and shows the run moving to the next stage', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let state = 'Matching'
+    mockApi(() => ({ status: 200, body: page([summary({ currentState: state, progressPercent: state === 'Matching' ? 35 : 90 })]) }))
+    renderMonitor()
+    expect(await screen.findByRole('link', { name: 'Water for Kaduwela' })).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '35')
+
+    state = 'PendingApproval'
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(await within(screen.getByRole('table')).findByText('Awaiting approval')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '90')
+  })
+
+  it('the trace polls while the run is active and stops once it settles', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let state = 'Routing'
+    const fetchMock = mockApi((url) => {
+      if (url.endsWith('/logs')) return { status: 200, body: LOGS }
+      if (url.includes('/by-workflow/')) return { status: 200, body: { ...DISPATCH, decision: null, decisions: [], dispatchId: null } }
+      if (url.includes('/api/audit')) return { status: 200, body: { dispatchId: null, decision: null, events: [] } }
+      return { status: 200, body: runBody(state) }
+    })
+    const runRequests = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith(`/api/workflows/${RUN_ID}`)).length
+    renderTrace()
+    expect(await screen.findByRole('heading', { name: 'Water for Kaduwela' })).toBeInTheDocument()
+    expect(runRequests()).toBe(1)
+
+    await vi.advanceTimersByTimeAsync(3000)
+    await waitFor(() => expect(runRequests()).toBe(2)) // still Routing: polled again
+
+    state = 'PendingApproval'
+    await vi.advanceTimersByTimeAsync(3000)
+    await waitFor(() => expect(runRequests()).toBe(3))
+    await vi.advanceTimersByTimeAsync(9000)
+    expect(runRequests()).toBe(3) // settled: no more polling
+  })
+})
+

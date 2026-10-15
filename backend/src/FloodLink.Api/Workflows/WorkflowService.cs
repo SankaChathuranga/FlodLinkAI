@@ -131,12 +131,20 @@ public sealed class WorkflowService(
             _ => query.OrderByDescending(r => r.CreatedAt)
         };
 
-        var runs = await query.ToPageAsync(page, pageSize, ct);
+        // Select only the summary columns: a run's PlanJson can be large and the list never needs it.
+        var runs = await query
+            .Select(r => new
+            {
+                r.Id, r.Objective, r.CurrentState, r.FailedAtState, r.FailureReason,
+                ReportCount = r.ReportIds == null ? 0 : r.ReportIds.Count,
+                r.RetryCount, r.CreatedAt, r.UpdatedAt
+            })
+            .ToPageAsync(page, pageSize, ct);
         return new PaginatedResult<WorkflowRunSummary>
         {
             Items = runs.Items.Select(r => new WorkflowRunSummary(
                 r.Id, r.Objective, r.CurrentState.ToString(), ProgressPercent(r.CurrentState),
-                r.FailedAtState?.ToString(), r.FailureReason, r.ReportIds?.Count ?? 0, r.RetryCount, MaxRetries,
+                r.FailedAtState?.ToString(), r.FailureReason, r.ReportCount, r.RetryCount, MaxRetries,
                 r.CreatedAt, r.UpdatedAt)).ToList(),
             Page = runs.Page,
             PageSize = runs.PageSize,

@@ -281,6 +281,12 @@ body {
   flex: 1 1 16rem;
 }
 
+.inventory-dashboard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
 .inventory-dashboard__empty {
   padding: 1.5rem 0;
 }
