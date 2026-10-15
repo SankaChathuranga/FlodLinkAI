@@ -31,14 +31,17 @@ public sealed class SecurityTests : IClassFixture<SecurityTests.Factory>
             builder.UseEnvironment("Testing");
             builder.UseSetting("ConnectionStrings:DefaultConnection", TestAppFactory.TestConnectionString);
             builder.UseSetting("Jwt:SigningKey", SigningKey);
+            // Disable auto-migration so ResetDatabase controls the schema lifecycle.
+            builder.UseSetting("Database:MigrateOnStartup", "false");
         }
 
         public void ResetDatabase()
         {
+            // Drop all tables via raw SQL before migrating, to avoid "relation already exists".
+            TestAppFactory.DropAllTablesDirectStatic();
             using var scope = Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.Database.EnsureDeleted();
-            db.Database.EnsureCreated();
+            db.Database.Migrate();
         }
     }
 

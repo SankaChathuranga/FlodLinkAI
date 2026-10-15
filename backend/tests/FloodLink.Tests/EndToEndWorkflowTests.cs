@@ -30,15 +30,18 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
             builder.UseSetting("ConnectionStrings:DefaultConnection", TestAppFactory.TestConnectionString);
             builder.UseSetting("Jwt:SigningKey", "test-only-signing-key-at-least-32-bytes-long!!");
             builder.UseSetting("Mapbox:ApiKey", "stub");
+            // Disable auto-migration so ResetDatabase controls the schema lifecycle.
+            builder.UseSetting("Database:MigrateOnStartup", "false");
             builder.ConfigureTestServices(services => services.AddScoped<IMapboxClient, StubMapbox>());
         }
 
         public void ResetDatabase()
         {
+            // Drop all tables via raw SQL before migrating, to avoid "relation already exists".
+            TestAppFactory.DropAllTablesDirectStatic();
             using var scope = Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.Database.EnsureDeleted();
-            db.Database.EnsureCreated();
+            db.Database.Migrate();
         }
     }
 
