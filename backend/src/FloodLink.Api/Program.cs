@@ -92,12 +92,16 @@ builder.Services.AddCors(options =>
         var extraOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(o => o.TrimEnd('/'));
-        policy.WithOrigins(
-                  new[]
-                  {
-                      "http://localhost:5173", // React development server
-                      "http://localhost:5174"  // Flutter Web development server
-                  }.Concat(extraOrigins).ToArray())
+        var allowedOrigins = new[]
+        {
+            "http://localhost:5173", // React development server
+            "http://localhost:5174"  // Flutter Web development server
+        }.Concat(extraOrigins).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var isDevelopment = builder.Environment.IsDevelopment();
+        // In Development any localhost port is allowed: `flutter run -d chrome` picks a random port.
+        policy.SetIsOriginAllowed(origin =>
+                  allowedOrigins.Contains(origin) ||
+                  (isDevelopment && Uri.TryCreate(origin, UriKind.Absolute, out var uri) && uri.IsLoopback))
               .AllowAnyHeader()
               .AllowAnyMethod();
     });

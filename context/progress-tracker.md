@@ -167,3 +167,7 @@ change.
   DEF-003 [Authorize] on inventory create/check-in, depot create, Coordinator on POST /api/workflows;
   DEF-004 duplicate inventory item returns 409. Backend 142/142, web 7/7, Flutter 6/6.
   Report: docs/QM-SE3110-Software-Testing-Report.md; evidence in testing-evidence/. ZAP scan still to run.
+
+- 2026-10-15 CORS: in Development the API now allows any loopback origin (Flutter web via
+  `flutter run -d chrome` uses a random port). Production still uses the fixed list + `Cors__AllowedOrigins`.
+  `start_floodlink.sh` now uses `docker compose` (falls back to `docker-compose`) and has the shebang on line 1.
