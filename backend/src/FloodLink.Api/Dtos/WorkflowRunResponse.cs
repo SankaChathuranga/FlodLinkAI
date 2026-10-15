@@ -44,6 +44,7 @@ public sealed record WorkflowRunSummary(
     string? FailureReason,
     int ReportCount,
     int RetryCount,
+    int RetryLimit,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );

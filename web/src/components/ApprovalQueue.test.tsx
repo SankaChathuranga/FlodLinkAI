@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { AppProvider } from '../context/AppContext'
+import { AuthProvider } from '../context/AuthContext'
+import { saveSession } from '../auth/session'
 import ApprovalQueue from './ApprovalQueue'
 
 // WEB-001..WEB-007: Approval Queue states and coordinator actions, with fetch mocked per URL.
@@ -31,12 +34,22 @@ function mockApi(handler: Handler) {
   return fetchMock
 }
 
-const renderQueue = () =>
-  render(
+const renderQueue = () => {
+  saveSession({
+    token: 't',
+    expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    user: { id: 2, name: 'Jane Smith', email: 'coordinator@floodlink.lk', role: 'Coordinator', phone: '', createdAt: '' },
+  })
+  return render(
     <AppProvider>
-      <ApprovalQueue />
+      <AuthProvider>
+        <MemoryRouter>
+          <ApprovalQueue />
+        </MemoryRouter>
+      </AuthProvider>
     </AppProvider>,
   )
+}
 
 describe('ApprovalQueue', () => {
   it('WEB-001 lists runs waiting for approval', async () => {
@@ -86,7 +99,7 @@ describe('ApprovalQueue', () => {
     await user.click(screen.getByRole('button', { name: 'Approve' }))
     await user.click(screen.getByRole('button', { name: 'Submit decision' }))
 
-    expect(await screen.findByText(/Decision recorded for run 7d2db5ee/)).toBeInTheDocument()
+    expect(await screen.findByText(/Approved: “Water for Relief Camp 1” — by Jane Smith/)).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining(`/api/dispatches/${RUN.workflowRunId}/approve`),
       expect.objectContaining({ method: 'POST' }),
@@ -124,6 +137,6 @@ describe('ApprovalQueue', () => {
     await user.click(screen.getByRole('button', { name: 'Submit decision' }))
 
     expect(await screen.findByText(/409 INSUFFICIENT_STOCK/)).toBeInTheDocument()
-    expect(screen.queryByText(/Decision recorded/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Approved: /)).not.toBeInTheDocument()
   })
 })

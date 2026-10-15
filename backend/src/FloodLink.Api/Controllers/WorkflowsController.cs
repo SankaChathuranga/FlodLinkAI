@@ -154,7 +154,7 @@ public class WorkflowsController : ControllerBase
         {
             Items = runs.Select(r => new WorkflowRunSummary(
                 r.Id, r.Objective, r.CurrentState.ToString(), ProgressPercent(r.CurrentState),
-                r.FailedAtState?.ToString(), r.FailureReason, r.ReportIds?.Count ?? 0, r.RetryCount,
+                r.FailedAtState?.ToString(), r.FailureReason, r.ReportIds?.Count ?? 0, r.RetryCount, _maxRetries,
                 r.CreatedAt, r.UpdatedAt)).ToList(),
             Page = page,
             PageSize = pageSize,

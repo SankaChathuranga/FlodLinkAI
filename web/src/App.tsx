@@ -7,7 +7,8 @@ import { SheltersDashboard } from './components/SheltersDashboard'
 import { ReportsQueue } from './components/ReportsQueue'
 import { TriagePlanViewer } from './components/TriagePlanViewer'
 import { InventoryDashboard } from './components/InventoryDashboard'
-import { WorkflowsList } from './components/WorkflowsList'
+import { WorkflowMonitor } from './components/WorkflowMonitor'
+import { WorkflowTrace } from './components/WorkflowTrace'
 import { UsersAdmin } from './components/UsersAdmin'
 import ApprovalQueue from './components/ApprovalQueue'
 import DispatchHistory from './components/DispatchHistory'
@@ -19,7 +20,7 @@ const ELEMENTS: Record<string, ReactElement> = {
   '/shelters': <SheltersDashboard />,
   '/reports': <ReportsQueue />,
   '/triage': <TriagePlanViewer />,
-  '/workflows': <WorkflowsList />,
+  '/workflows': <WorkflowMonitor />,
   '/inventory': <InventoryDashboard />,
   '/approvals': <ApprovalQueue />,
   '/dispatches': <DispatchHistory />,
@@ -44,6 +45,10 @@ function App() {
               element={<ProtectedRoute roles={page.roles}>{ELEMENTS[page.path]}</ProtectedRoute>}
             />
           ))}
+          <Route
+            path="/workflows/:id"
+            element={<ProtectedRoute roles={['Coordinator']}><WorkflowTrace /></ProtectedRoute>}
+          />
           <Route path="*" element={<Navigate to={homePathFor(role)} replace />} />
         </Routes>
       </main>

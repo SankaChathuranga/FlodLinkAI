@@ -5,6 +5,7 @@ import '../providers/report_provider.dart';
 import '../models/report.dart';
 import '../auth/auth_provider.dart';
 import '../auth/logout_button.dart';
+import '../widgets/report_workflow_link.dart';
 
 class ReportsListScreen extends StatefulWidget {
   const ReportsListScreen({super.key});
@@ -252,6 +253,7 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
                             ),
                           ),
                         ],
+                        ReportWorkflowLink(report: report),
                       ],
                     ),
                   ),

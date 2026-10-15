@@ -15,6 +15,7 @@ import 'screens/camera_capture_screen.dart';
 import 'screens/gps_capture_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
+import 'screens/workflow_status_screen.dart';
 
 import 'screens/my_submitted_reports_screen.dart';
 import 'screens/stock_check_in_screen.dart';
@@ -121,6 +122,10 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
     GoRoute(
       path: '/dispatch',
       builder: (context, state) => const FieldHomeScreen(),
+    ),
+    GoRoute(
+      path: '/status/:runId',
+      builder: (context, state) => WorkflowStatusScreen(workflowRunId: state.pathParameters['runId']!),
     ),
     GoRoute(
       path: '/gps',

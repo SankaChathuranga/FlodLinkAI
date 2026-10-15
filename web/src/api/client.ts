@@ -27,7 +27,7 @@ export class ApiError extends Error {
 
 const isOk = (status: number) => status >= 200 && status < 300
 
-async function request<T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> {
   const res = await apiFetch(`${baseUrl}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },

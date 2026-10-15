@@ -178,14 +178,20 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         // Step 3 — the execution summary lists every step with its tool calls.
         var logs = await _coordinator.GetFromJsonAsync<JsonArray>($"/api/workflows/{runId}/logs");
         Assert.Equal(
-            ["TriageAgent", "MatchingAgent", "RoutingAgent", "ValidationAgent", "StockReservation"],
+            ["PlannerAgent", "TriageAgent", "MatchingAgent", "RoutingAgent", "ValidationAgent", "StockReservation"],
             logs!.Select(l => l!["agentName"]!.GetValue<string>()).ToArray());
         Assert.Contains("mapbox.directions", logs.ToJsonString());
         Assert.Contains("db.inventory.read", logs.ToJsonString());
 
         // Step 4 — the approval queue lists the run.
-        var pending = await _coordinator.GetStringAsync("/api/dispatches/approval-queue");
-        Assert.Contains(runId.ToString(), pending);
+        var pending = await _coordinator.GetFromJsonAsync<JsonObject>("/api/dispatches/approval-queue");
+        var queued = pending!["items"]!.AsArray().Single(i => i!["workflowRunId"]!.GetValue<string>() == runId.ToString())!;
+        // …with a plan summary: one allocation of the 40 units, the stub route (12.5 km / 25 min), checks passed.
+        Assert.Equal(1, queued["allocationCount"]!.GetValue<int>());
+        Assert.Equal(40, queued["totalQuantity"]!.GetValue<double>());
+        Assert.Equal(12.5, queued["distanceKm"]!.GetValue<double>());
+        Assert.Equal(25, queued["etaMinutes"]!.GetValue<double>());
+        Assert.True(queued["validationPassed"]!.GetValue<bool>());
 
         // Step 5 — coordinator approves; a dispatch and an audit entry with the approver are written.
         var approve = await _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "E2E approve" });
@@ -194,6 +200,12 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
 
         var audit = await _coordinator.GetStringAsync($"/api/audit/{dispatchId}");
         Assert.Contains("DispatchApproved", audit);
+
+        // The decision history names the approver (shown in the trace and the volunteer's status).
+        var decisions = await _coordinator.GetFromJsonAsync<JsonObject>($"/api/dispatches/by-workflow/{runId}");
+        var decision = decisions!["decisions"]!.AsArray().Single()!;
+        Assert.Equal("Jane Smith", decision["decidedBy"]!.GetValue<string>());
+        Assert.Equal("E2E approve", decision["notes"]!.GetValue<string>());
 
         await using (var db = NewDb())
         {

@@ -123,7 +123,7 @@ public class WorkflowOrchestratorTests
 
     private sealed class SucceedingMatchingAgent : IMatchingAgentInvoker
     {
-        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, CancellationToken ct = default)
+        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, string? revisionNotes = null, CancellationToken ct = default)
             => Task.FromResult(AgentResult<AllocationProposal>.Ok(FakeProposal));
     }
 
@@ -149,7 +149,7 @@ public class WorkflowOrchestratorTests
 
     private sealed class FailingMatchingAgent : IMatchingAgentInvoker
     {
-        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, CancellationToken ct = default)
+        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, string? revisionNotes = null, CancellationToken ct = default)
             => Task.FromResult(AgentResult<AllocationProposal>.Fail("NO_STOCK_AVAILABLE", "No matching stock"));
     }
 
@@ -401,7 +401,7 @@ public class WorkflowOrchestratorTests
     {
         private int _calls;
 
-        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, CancellationToken ct = default)
+        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, string? revisionNotes = null, CancellationToken ct = default)
             => Task.FromResult(++_calls == 1
                 ? AgentResult<AllocationProposal>.Fail("NO_STOCK_AVAILABLE", "No stock")
                 : AgentResult<AllocationProposal>.Ok(FakeProposal));

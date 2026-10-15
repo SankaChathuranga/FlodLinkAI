@@ -27,7 +27,12 @@ public interface IMatchingAgent
     /// An <see cref="AgentResult{AllocationProposal}"/> on success, or an error
     /// code + message on anticipated failure.
     /// </returns>
+    /// <param name="revisionNotes">
+    /// The coordinator's notes when the plan was sent back for revision (e.g. "use depot 2").
+    /// Untrusted text: passed to the LLM as data only.
+    /// </param>
     Task<AgentResult<AllocationProposal>> ExecuteAsync(
         TriagePlan triagePlan,
+        string? revisionNotes = null,
         CancellationToken cancellationToken = default);
 }

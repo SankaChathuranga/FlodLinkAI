@@ -126,6 +126,9 @@ class ReportProvider extends ChangeNotifier {
       request.fields['NeedType'] = needType;
       request.fields['QuantityNeeded'] = quantityNeeded.toString();
       request.fields['Status'] = 'New';
+      if (notes.isNotEmpty) {
+        request.fields['Notes'] = notes;
+      }
 
       if (_selectedLat != null) {
         request.fields['GpsLat'] = _selectedLat.toString();

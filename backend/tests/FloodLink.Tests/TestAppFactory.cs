@@ -42,6 +42,9 @@ public sealed class TestAppFactory : WebApplicationFactory<Program>
         // The test database is reset (and seeded) after the host starts, so skip the startup seeder.
         builder.UseSetting("Seed:SkipOnStartup", "true");
         builder.UseSetting("Auth:LoginPermitLimit", "10000");
+        // Tests never call real Gemini, even when a developer's user-secrets hold a key: without a
+        // key the agents use their rule-based paths, and LLM behaviour is tested with FakeLlmClient.
+        builder.UseSetting("Gemini:ApiKey", "");
     }
 
     /// <summary>Drops and recreates the test schema so every fixture starts clean, then seeds the demo accounts.</summary>

@@ -23,6 +23,13 @@ public class Report
 
     public int QuantityNeeded { get; set; }
 
+    /// <summary>
+    /// Free-text notes from the volunteer (max 500). Untrusted: passed to the LLM only as fenced
+    /// data, never as instructions.
+    /// </summary>
+    [MaxLength(500)]
+    public string? Notes { get; set; }
+
     public int UrgencyLevel { get; set; }
 
     [MaxLength(500)]

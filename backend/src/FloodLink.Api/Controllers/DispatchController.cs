@@ -1,4 +1,6 @@
 using FloodLink.Api.Auth;
+using FloodLink.Contracts;
+using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
 using FloodLink.Domain.Security;
@@ -7,6 +9,7 @@ using FloodLink.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Route = FloodLink.Contracts.Route;
 
 namespace FloodLink.Api.Controllers;
 
@@ -116,11 +119,22 @@ public sealed class DispatchController : ControllerBase
             return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
         }
 
-        var dispatch = await _db.Dispatches.AsNoTracking()
+        // Every coordinator decision on the run, newest first (a revision adds one each time).
+        var decisions = await _db.Dispatches.AsNoTracking()
             .Where(d => d.WorkflowRunId == workflowRunId)
             .OrderByDescending(d => d.CreatedAt)
-            .Select(d => new { d.Id, d.Decision, d.ApprovalNotes, d.DispatchedAt, d.CreatedAt })
-            .FirstOrDefaultAsync(ct);
+            .Select(d => new
+            {
+                dispatchId = d.Id,
+                decision = d.Decision,
+                notes = d.ApprovalNotes,
+                decidedById = d.ApprovedById,
+                decidedBy = d.ApprovedBy != null ? d.ApprovedBy.Name : null,
+                decidedAt = d.CreatedAt,
+                dispatchedAt = d.DispatchedAt
+            })
+            .ToListAsync(ct);
+        var dispatch = decisions.FirstOrDefault();
 
         var deliveryEvent = await _db.AuditTrail.AsNoTracking()
             .Where(a => a.EventType == "DeliveryConfirmed" && a.Dispatch != null && a.Dispatch.WorkflowRunId == workflowRunId)
@@ -132,11 +146,15 @@ public sealed class DispatchController : ControllerBase
         {
             workflowRunId,
             state = run.CurrentState,
-            decision = dispatch?.Decision,
-            notes = dispatch?.ApprovalNotes,
-            dispatchedAt = dispatch?.DispatchedAt,
+            dispatchId = dispatch?.dispatchId,
+            decision = dispatch?.decision,
+            notes = dispatch?.notes,
+            decidedBy = dispatch?.decidedBy,
+            decidedAt = dispatch?.decidedAt,
+            dispatchedAt = dispatch?.dispatchedAt,
             isDelivered = deliveryEvent is not null,
-            deliveredAt = deliveryEvent?.CreatedAt
+            deliveredAt = deliveryEvent?.CreatedAt,
+            decisions
         });
     }
 
@@ -191,17 +209,40 @@ public sealed class DispatchController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ApprovalQueueAsync(CancellationToken ct)
     {
-        var items = await _db.WorkflowRuns.AsNoTracking()
+        var runs = await _db.WorkflowRuns.AsNoTracking()
             .Where(r => r.CurrentState == WorkflowState.PendingApproval)
             .OrderBy(r => r.CreatedAt)
-            .Select(r => new
+            .ToListAsync(ct);
+
+        // A one-line summary of each plan so the coordinator can compare before opening one.
+        var items = runs.Select(r =>
+        {
+            var plan = WorkflowPlan.TryRead<ExecutionPlan>(r.PlanJson, WorkflowPlan.ExecutionPlanKey);
+            var triage = WorkflowPlan.TryRead<TriagePlan>(r.PlanJson, WorkflowPlan.TriagePlanKey);
+            var proposal = WorkflowPlan.TryRead<AllocationProposal>(r.PlanJson, WorkflowPlan.AllocationProposalKey);
+            var route = WorkflowPlan.TryRead<Route>(r.PlanJson, WorkflowPlan.RouteKey);
+            var validation = WorkflowPlan.TryRead<ValidationResults>(r.PlanJson, WorkflowPlan.ValidationResultsKey);
+            return new
             {
                 workflowRunId = r.Id,
                 objective = r.Objective,
                 createdAt = r.CreatedAt,
-                state = r.CurrentState
-            })
-            .ToListAsync(ct);
+                state = r.CurrentState,
+                reportCount = r.ReportIds?.Count ?? 0,
+                shelterCount = proposal?.Allocations.Select(a => a.ShelterId).Distinct().Count() ?? 0,
+                allocationCount = proposal?.Allocations.Count ?? 0,
+                totalQuantity = proposal?.Allocations.Sum(a => a.Quantity) ?? 0,
+                unfulfillableCount = proposal?.Unfulfillable.Count ?? 0,
+                distanceKm = route?.DistanceKm,
+                etaMinutes = route?.EtaMinutes,
+                routeLegs = route?.Legs.Count ?? 0,
+                validationPassed = validation?.OverallPassed,
+                failedChecks = validation?.Checks.Count(c => !c.Passed) ?? 0,
+                planSource = plan?.Source,
+                scoringMethod = triage?.ScoringMethod,
+                isRevision = WorkflowPlan.TryRead<DispatchService.RevisionRequest>(r.PlanJson, WorkflowPlan.RevisionKey) is not null
+            };
+        }).ToList();
 
         return Ok(new { items });
     }

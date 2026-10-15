@@ -15,6 +15,12 @@ public record TriagePlan
     /// Each item references a real report ID and carries a justification.
     /// </summary>
     public required IReadOnlyList<TriagePriorityItem> PriorityItems { get; init; }
+
+    /// <summary>
+    /// "llm-adjusted" when the LLM's bounded adjustments passed the checks; "rule-based" when the
+    /// scores are the urgency rules alone (no LLM, failed call or rejected output).
+    /// </summary>
+    public string ScoringMethod { get; init; } = "rule-based";
 }
 
 /// <summary>
@@ -40,4 +46,10 @@ public record TriagePriorityItem
 
     /// <summary>Short agent-generated justification for the assigned priority score.</summary>
     public required string Justification { get; init; }
+
+    /// <summary>The rule-based urgency score before any LLM adjustment.</summary>
+    public double? RuleScore { get; init; }
+
+    /// <summary>The LLM's adjustment (−15..+15) applied to <see cref="RuleScore"/>, when accepted.</summary>
+    public int? LlmAdjustment { get; init; }
 }

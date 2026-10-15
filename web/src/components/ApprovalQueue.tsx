@@ -1,5 +1,7 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
+import { useAuth } from '../context/AuthContext'
 import {
   approveRun,
   getApprovalQueue,
@@ -17,9 +19,9 @@ import type { ValidationReport, WorkflowRunQueueItem } from '../api/types'
  * waiting for a human decision. The coordinator can inspect the safety checks,
  * then Approve, Reject (reason required) or send back for Revision (notes required).
  *
- * Auth note: the backend endpoints carry [Authorize(Roles="Coordinator")]. Until
- * JWT auth is wired (Week 2+), they return 401 – this component surfaces that
- * clearly so a demo is not silently broken.
+ * Each card shows a one-line plan summary (reports, allocations, route distance/ETA, unmet needs,
+ * whether the LLM was used); the full trace is one click away. Reject and revision notes are
+ * mandatory here and on the server. After a decision the notice names the approver.
  */
 
 type ActionMode = 'approve' | 'reject' | 'revision'
@@ -37,6 +39,7 @@ interface QueueState {
 
 function ApprovalQueue() {
   const { apiBaseUrl } = useAppContext()
+  const { user } = useAuth()
 
   const [state, setState] = useState<QueueState>({
     items: [],
@@ -120,7 +123,7 @@ function ApprovalQueue() {
         expandedId: null,
         mode: null,
         notes: '',
-        notice: `Decision recorded for run ${item.workflowRunId.slice(0, 8)}…`,
+        notice: `${mode === 'approve' ? 'Approved' : mode === 'reject' ? 'Rejected' : 'Sent back for revision'}: “${item.objective}” — by ${user?.name ?? 'you'} at ${new Date().toLocaleTimeString()}.`,
       }))
       void refresh()
     } catch (err) {
@@ -211,8 +214,12 @@ function QueueCard({
             {item.objective}
           </p>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
-            Created {new Date(item.createdAt).toLocaleString()}
+            Created {new Date(item.createdAt).toLocaleString()} ·{' '}
+            <Link to={`/workflows/${item.workflowRunId}`} style={{ color: 'var(--accent-primary)' }}>
+              View trace
+            </Link>
           </p>
+          <PlanSummary item={item} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexShrink: 0 }}>
           {/* PendingApproval → warning token per spec */}
@@ -327,6 +334,36 @@ function QueueCard({
         </div>
       )}
     </li>
+  )
+}
+
+function PlanSummary({ item }: { item: WorkflowRunQueueItem }) {
+  if (item.allocationCount === undefined) return null
+  const parts = [
+    `${item.reportCount ?? 0} report${item.reportCount === 1 ? '' : 's'}`,
+    `${item.allocationCount} allocation${item.allocationCount === 1 ? '' : 's'} (${item.totalQuantity ?? 0} units) to ${item.shelterCount ?? 0} shelter${item.shelterCount === 1 ? '' : 's'}`,
+    item.distanceKm != null && item.etaMinutes != null
+      ? `${item.distanceKm.toFixed(1)} km · ETA ${Math.round(item.etaMinutes)} min`
+      : 'no route',
+  ]
+  return (
+    <p style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', margin: '0.375rem 0 0' }}>
+      {parts.join(' · ')}
+      {(item.unfulfillableCount ?? 0) > 0 && (
+        <span className="fl-badge fl-badge-warning" style={{ marginLeft: '0.5rem' }}>
+          {item.unfulfillableCount} need{item.unfulfillableCount === 1 ? '' : 's'} not fully covered
+        </span>
+      )}
+      {item.isRevision && (
+        <span className="fl-badge fl-badge-info" style={{ marginLeft: '0.5rem' }}>
+          Revised plan
+        </span>
+      )}
+      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+        Plan: {item.planSource === 'llm' ? 'LLM' : 'default'} · Triage: {item.scoringMethod === 'llm-adjusted' ? 'rules + LLM' : 'rules only'} ·
+        Safety checks: {item.validationPassed ? 'passed' : `${item.failedChecks ?? 0} failed`}
+      </span>
+    </p>
   )
 }
 

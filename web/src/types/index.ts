@@ -15,11 +15,15 @@ export interface Report {
   needType: 'Water' | 'Food' | 'Medical' | 'Shelter-Repair' | 'Other' | string
   quantityNeeded: number
   urgencyLevel: number
+  /** Volunteer's free-text notes (max 500). Shown as plain text, never as HTML. */
+  notes?: string | null
   photoUrl?: string | null
   gpsLat?: number | null
   gpsLng?: number | null
   status: 'New' | 'Triaged' | 'InPlan' | 'Resolved' | string
   createdAt: string
+  /** The workflow run currently (or last) handling this report. */
+  workflowRunId?: string | null
 }
 
 export interface Shelter {

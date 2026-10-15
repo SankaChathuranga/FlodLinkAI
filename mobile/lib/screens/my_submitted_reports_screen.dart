@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/report_provider.dart';
 import '../models/report.dart';
+import '../widgets/report_workflow_link.dart';
 
 /// Screen displaying the user's submitted field reports with live status updates.
 class MySubmittedReportsScreen extends StatefulWidget {
@@ -414,6 +415,7 @@ class _MySubmittedReportsScreenState extends State<MySubmittedReportsScreen> {
                                   ],
                                 ),
                               ),
+                              ReportWorkflowLink(report: report),
                             ],
                           ),
                         ),

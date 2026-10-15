@@ -1,4 +1,5 @@
 using FloodLink.Agents.Matching;
+using FloodLink.Agents.Planner;
 using FloodLink.Agents.Routing;
 using FloodLink.Agents.Triage;
 using FloodLink.Agents.Validation;
@@ -8,8 +9,10 @@ using FloodLink.Api.Middleware;
 using FloodLink.Api;
 using FloodLink.Api.Workflows;
 using FloodLink.Domain;
+using FloodLink.Domain.Llm;
 using FloodLink.Domain.Services;
 using FloodLink.Infrastructure;
+using FloodLink.Infrastructure.Llm;
 using FloodLink.Infrastructure.Mapbox;
 using FloodLink.Infrastructure.Services;
 using FloodLink.Domain.Entities;
@@ -157,6 +160,13 @@ builder.Services.AddHttpClient<IMapboxClient, MapboxClient>(client =>
 });
 builder.Services.AddScoped<IRouteRepository, RouteRepository>();
 builder.Services.AddScoped<IRoutingAgentInvoker, RoutingAgentInvoker>();
+
+// ── Phase 3: LLM (Gemini) ─────────────────────────────────────────────────────
+// Planner, Triage and Matching ask Gemini for structured JSON and check it; without
+// Gemini:ApiKey (or when Gemini fails) they fall back to rule-based logic. The client applies
+// its own per-attempt timeout (Gemini:TimeoutSeconds), so the HttpClient's is only a backstop.
+builder.Services.AddHttpClient<ILlmClient, GeminiClient>(client => client.Timeout = TimeSpan.FromMinutes(2));
+builder.Services.AddScoped<IPlannerInvoker, PlannerAgent>();
 
 // Agent invokers.
 builder.Services.AddScoped<IMatchingAgent, MatchingAgent>();

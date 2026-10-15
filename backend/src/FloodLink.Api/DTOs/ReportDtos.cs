@@ -17,6 +17,9 @@ public class CreateReportDto
     [Range(1, int.MaxValue, ErrorMessage = "QuantityNeeded must be at least 1.")]
     public int QuantityNeeded { get; set; }
 
+    [StringLength(500, ErrorMessage = "Notes cannot exceed 500 characters.")]
+    public string? Notes { get; set; }
+
     [Range(0, 100, ErrorMessage = "UrgencyLevel must be between 0 and 100.")]
     public int? UrgencyLevel { get; set; }
 
@@ -45,6 +48,9 @@ public class UpdateReportDto
     [Range(1, int.MaxValue, ErrorMessage = "QuantityNeeded must be at least 1.")]
     public int QuantityNeeded { get; set; }
 
+    [StringLength(500, ErrorMessage = "Notes cannot exceed 500 characters.")]
+    public string? Notes { get; set; }
+
     [Range(0, 100, ErrorMessage = "UrgencyLevel must be between 0 and 100.")]
     public int UrgencyLevel { get; set; }
 
@@ -72,6 +78,7 @@ public sealed record MyReportDto(
     string NeedType,
     int QuantityNeeded,
     int UrgencyLevel,
+    string? Notes,
     string Status,
     string? PhotoUrl,
     double? GpsLat,
@@ -82,6 +89,6 @@ public sealed record MyReportDto(
     string? Decision)
 {
     public static MyReportDto From(Report r, string? shelterName, WorkflowState? state, DispatchDecision? decision) => new(
-        r.Id, r.ShelterId, shelterName, r.NeedType, r.QuantityNeeded, r.UrgencyLevel, r.Status, r.PhotoUrl,
+        r.Id, r.ShelterId, shelterName, r.NeedType, r.QuantityNeeded, r.UrgencyLevel, r.Notes, r.Status, r.PhotoUrl,
         r.GpsLat, r.GpsLng, r.CreatedAt, r.WorkflowRunId, state?.ToString(), decision?.ToString());
 }

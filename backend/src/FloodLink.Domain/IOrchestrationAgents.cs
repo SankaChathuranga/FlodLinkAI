@@ -7,6 +7,16 @@ namespace FloodLink.Domain;
 // Each FloodLink.Agents.* project implements the matching interface from its own namespace;
 // the DI container wires them together at startup.
 
+/// <summary>
+/// Orchestration-facing contract for the Planner step (Member C): turns the run's objective and a
+/// summary of its reports into an <see cref="ExecutionPlan"/>. Never fails for an LLM problem —
+/// it returns the default plan instead.
+/// </summary>
+public interface IPlannerInvoker
+{
+    Task<AgentResult<ExecutionPlan>> ExecuteAsync(Guid workflowRunId, CancellationToken ct = default);
+}
+
 /// <summary>Orchestration-facing contract for the Triage/Planner Agent (Member A).</summary>
 public interface ITriageAgentInvoker
 {
@@ -16,7 +26,8 @@ public interface ITriageAgentInvoker
 /// <summary>Orchestration-facing contract for the Logistics/Matching Agent (Member B).</summary>
 public interface IMatchingAgentInvoker
 {
-    Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, CancellationToken ct = default);
+    /// <param name="revisionNotes">The coordinator's notes when the run was sent back for revision; untrusted text.</param>
+    Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, string? revisionNotes = null, CancellationToken ct = default);
 }
 
 /// <summary>Orchestration-facing contract for the Route/ETA Agent (Member C).</summary>

@@ -31,6 +31,7 @@ public sealed class WorkflowOrchestrator
     private readonly IStockReservationService _stock;
     private readonly IAgentExecutionLogger _logger;
     private readonly IWorkflowRunRepository _runs;
+    private readonly IPlannerInvoker? _planner;
 
     public WorkflowOrchestrator(
         ITriageAgentInvoker triage,
@@ -39,7 +40,8 @@ public sealed class WorkflowOrchestrator
         IValidationAgentInvoker validation,
         IStockReservationService stock,
         IAgentExecutionLogger logger,
-        IWorkflowRunRepository runs)
+        IWorkflowRunRepository runs,
+        IPlannerInvoker? planner = null)
     {
         _triage = triage;
         _matching = matching;
@@ -48,6 +50,7 @@ public sealed class WorkflowOrchestrator
         _stock = stock;
         _logger = logger;
         _runs = runs;
+        _planner = planner;
     }
 
     /// <summary>
@@ -85,6 +88,19 @@ public sealed class WorkflowOrchestrator
 
         switch (run.CurrentState)
         {
+            // The Planner runs once per run, as its own logged step, before Triage. It doesn't
+            // change state: the next step is Triage.
+            case WorkflowState.Triage when _planner is not null
+                                           && WorkflowPlan.TryRead<ExecutionPlan>(run.PlanJson, WorkflowPlan.ExecutionPlanKey) is null:
+                await StepAsync(run, "PlannerAgent",
+                    () => _planner.ExecuteAsync(workflowRunId, ct),
+                    plan =>
+                    {
+                        run.PlanJson = WorkflowPlan.Merge(run.PlanJson, WorkflowPlan.ExecutionPlanKey, plan);
+                        return Task.CompletedTask;
+                    }, ct, consumesRetry: false);
+                break;
+
             case WorkflowState.Triage:
                 await StepAsync(run, "TriageAgent",
                     () => _triage.ExecuteAsync(workflowRunId, ct),
@@ -99,7 +115,8 @@ public sealed class WorkflowOrchestrator
             case WorkflowState.Matching:
                 await StepAsync(run, "MatchingAgent",
                     () => _matching.ExecuteAsync(
-                        WorkflowPlan.Read<TriagePlan>(run.PlanJson, WorkflowPlan.TriagePlanKey), ct),
+                        WorkflowPlan.Read<TriagePlan>(run.PlanJson, WorkflowPlan.TriagePlanKey),
+                        RevisionNotes(run.PlanJson), ct),
                     proposal =>
                     {
                         run.PlanJson = WorkflowPlan.Merge(run.PlanJson, WorkflowPlan.AllocationProposalKey, proposal);
@@ -182,10 +199,12 @@ public sealed class WorkflowOrchestrator
         string agentName,
         Func<Task<AgentResult<T>>> invoke,
         Func<T, Task> onSuccess,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool consumesRetry = true)
     {
-        var isRetry = run.RetryOfState == run.CurrentState;
-        run.RetryOfState = null;
+        var isRetry = consumesRetry && run.RetryOfState == run.CurrentState;
+        if (consumesRetry)
+            run.RetryOfState = null;
         var inputJson = run.PlanJson; // current plan is the agent's effective input snapshot
         var sw = Stopwatch.StartNew();
 
@@ -255,6 +274,20 @@ public sealed class WorkflowOrchestrator
         await _logger.LogExecutionAsync(run.Id, "Orchestrator", durationMs: 0, success: true,
             outputJson: JsonSerializer.Serialize(new { action = "RevisionRequeued", nextState = run.CurrentState.ToString() }),
             cancellationToken: ct);
+    }
+
+    // Coordinator notes from the latest request-revision, passed to Matching as untrusted data.
+    private static string? RevisionNotes(string? planJson)
+    {
+        if (string.IsNullOrWhiteSpace(planJson))
+            return null;
+        using var doc = JsonDocument.Parse(planJson);
+        return doc.RootElement.TryGetProperty(WorkflowPlan.RevisionKey, out var revision)
+               && revision.ValueKind == JsonValueKind.Object
+               && revision.TryGetProperty("Notes", out var notes)
+               && notes.ValueKind == JsonValueKind.String
+            ? notes.GetString()
+            : null;
     }
 
     private static void Fail(WorkflowRun run, string code, string message)

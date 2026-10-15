@@ -237,6 +237,7 @@ public class ReportsController : ControllerBase
             ReportedBy = reporterId,
             NeedType = dto.NeedType,
             QuantityNeeded = dto.QuantityNeeded,
+            Notes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
             UrgencyLevel = finalUrgency,
             PhotoUrl = photoUrl,
             GpsLat = dto.GpsLat ?? shelter.Latitude,
@@ -285,6 +286,7 @@ public class ReportsController : ControllerBase
 
         report.NeedType = dto.NeedType;
         report.QuantityNeeded = dto.QuantityNeeded;
+        report.Notes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();
         report.UrgencyLevel = dto.UrgencyLevel;
         report.GpsLat = dto.GpsLat ?? report.GpsLat;
         report.GpsLng = dto.GpsLng ?? report.GpsLng;

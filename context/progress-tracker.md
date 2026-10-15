@@ -75,6 +75,34 @@ change.
   register screens, GoRouter guard (`auth/route_guard.dart`: Volunteer → `/`, DepotManager →
   `/stock-check-in`, Coordinators refused), sign-out buttons.
 
+- 2026-10-15 — **Phase 3 (LLM agents) built** (3.01–3.10). `Domain/Llm/ILlmClient` + `LlmData` (fences
+  untrusted text) + `LlmToolCall` (log entry: prompt version, model, latency, tokens, `usedFallback`, reason);
+  `Infrastructure/Llm/GeminiClient` (REST generateContent, JSON schema, temp 0, 20 s timeout, 2 retries,
+  429 `Retry-After`, key in header; no key → LLM_NOT_CONFIGURED, no request) and `PromptLibrary` (embedded
+  `Prompts/<name>.v<n>.md`). New project `FloodLink.Agents.Planner` (`planner.v1`): stored under `plan`,
+  runs once before Triage as its own logged step (no new state). Triage (`triage.v1`): rule score + LLM
+  adjustment −15..+15, checked, final clamped 0–100; `TriagePlan.ScoringMethod`, item `RuleScore`/
+  `LlmAdjustment`. Matching (`matching.v1`): LLM proposal from the free-stock snapshot, checked, else greedy;
+  coordinator revision notes passed as `<revision_notes>` data. Tools stay agent-run (model can't call them).
+  `Report.Notes` (≤ 500) in API, React report cards and the Flutter form. Route and Validation stay
+  deterministic — `docs/adr/ADR-010-gemini-backed-agents.md` (supersedes ADR-004). Migration
+  `AddReportNotes`. Tests: `FakeLlmClient`, `LlmAgentTests`, `GeminiClientTests`, `LlmWorkflowEndToEndTests`;
+  backend 261 pass, web 15, Flutter 17. Live check 15 Oct: `gemini-2.5-flash` returns 404 "no longer
+  available to new users", so the default is now `gemini-3.8-flash` with `Gemini:ThinkingLevel` `low` (~3 s
+  instead of ~8 s per call) and a 30 s timeout; Planner and Triage used Gemini, Matching fell back on 503s.
+
+- 2026-10-15 — **Phase 4 (client screens) built** (4.01–4.08). React: `/workflows` is now `WorkflowMonitor`
+  (stage + progress bar, stage filter, search, paging, 5 s auto-refresh, "Failed runs" tab with Retry up to
+  the run's `retryLimit`); `/workflows/:id` is `WorkflowTrace` (plan, timeline with tool calls and LLM calls
+  incl. model/prompt/tokens/usedFallback, triage scores, allocations, route legs, safety checks, decisions
+  with approver, audit; polls every 3 s while active). Reports page: select New/Triaged reports + objective
+  → Start workflow → opens the trace (the Triage viewer's preview button was removed). Approval Queue: plan
+  summary per run, "View trace", notice names the approver. API: approval-queue items carry a plan summary;
+  `by-workflow` returns every decision with `decidedBy` (name); workflow list carries `retryLimit`. Flutter:
+  `WorkflowStatusScreen` (`/status/:runId`, polls `/status` every 5 s, stops when settled; stages, coordinator
+  note, ETA, Confirm delivery) and `ReportWorkflowLink` on both report lists. Typed client `web/src/api/workflows.ts`.
+  Tests: backend 261, web 22 (`Workflows.test.tsx`), Flutter 22 (`workflow_status_test.dart`).
+
 ## In Progress
 
 - None.
@@ -83,7 +111,8 @@ change.
 
 - Set `Seed:DemoPassword` and `Jwt:SigningKey` in user-secrets (or env vars) for local runs; the demo accounts
   stay locked without a demo password.
-- Phase 3 (Gemini-backed agents).
+- Gate 4 by hand: Flutter report → React start + trace → approve → Flutter shows Approved with ETA.
+- Phase 5 (search/sort/paging, service layer, audit fields, structured logging).
 - Confirm CI runs on PRs and provides Postgres for the integration tests.
 - Run the mobile dispatch screens on an emulator/device.
 
