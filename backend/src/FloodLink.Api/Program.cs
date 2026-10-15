@@ -5,6 +5,7 @@ using FloodLink.Agents.Validation;
 using FloodLink.Api.Middleware;
 using FloodLink.Api;
 using FloodLink.Domain;
+using FloodLink.Domain.Entities;
 using FloodLink.Domain.Services;
 using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Mapbox;
@@ -21,7 +22,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ── Services ──────────────────────────────────────────────────────────────────
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    FloodLinkDatabaseProvider.Configure(options, builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IUrgencyScoringService, UrgencyScoringService>();
 builder.Services.AddScoped<IPhotoStorageService, PhotoStorageService>();
@@ -41,14 +42,18 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "FloodLink AI API", Version = "v1" });
+    var xmlDocs = Path.Combine(AppContext.BaseDirectory, "FloodLink.Api.xml");
+    if (File.Exists(xmlDocs))
+        c.IncludeXmlComments(xmlDocs);
 });
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowLocalDev", policy =>
     {
-        policy.WithOrigins(
-                  "http://localhost:5173", // React development server
-                  "http://localhost:5174") // Flutter Web development server
+        policy.SetIsOriginAllowed(origin =>
+                  Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
+                  uri.Scheme == Uri.UriSchemeHttp &&
+                  uri.IsLoopback)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -106,6 +111,47 @@ builder.Services.AddScoped<IMatchingAgentInvoker, MatchingAgentInvoker>();
 builder.Services.AddScoped<IValidationAgentInvoker, ValidationAgentInvoker>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+
+    if (db.Database.IsRelational())
+    {
+        db.Database.ExecuteSqlRaw(@"
+            ALTER TABLE IF EXISTS ""Depots""
+                ADD COLUMN IF NOT EXISTS ""ManagerId"" integer;
+
+            ALTER TABLE IF EXISTS ""InventoryItems""
+                ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone NOT NULL DEFAULT NOW(),
+                ADD COLUMN IF NOT EXISTS ""QuantityReserved"" integer NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS ""ReorderThreshold"" integer NOT NULL DEFAULT 10;
+        ");
+    }
+
+    if (!db.Depots.Any())
+    {
+        var depots = new[]
+        {
+            new Depot { Name = "Central Depot", Latitude = 6.9271, Longitude = 79.8612 },
+            new Depot { Name = "North Relief Hub", Latitude = 6.9500, Longitude = 79.9000 },
+            new Depot { Name = "Harbor Supply Point", Latitude = 6.8900, Longitude = 79.8800 }
+        };
+
+        db.Depots.AddRange(depots);
+        db.SaveChanges();
+
+        db.InventoryItems.AddRange(
+            new InventoryItem { DepotId = depots[0].Id, ItemName = "Water", Unit = "bottles", QuantityAvailable = 240, UpdatedAt = DateTime.UtcNow },
+            new InventoryItem { DepotId = depots[0].Id, ItemName = "Rice", Unit = "bags", QuantityAvailable = 90, UpdatedAt = DateTime.UtcNow },
+            new InventoryItem { DepotId = depots[1].Id, ItemName = "Medical Kits", Unit = "kits", QuantityAvailable = 48, UpdatedAt = DateTime.UtcNow },
+            new InventoryItem { DepotId = depots[2].Id, ItemName = "Blankets", Unit = "packs", QuantityAvailable = 120, UpdatedAt = DateTime.UtcNow }
+        );
+
+        db.SaveChanges();
+    }
+}
 
 if (app.Environment.IsDevelopment())
 {

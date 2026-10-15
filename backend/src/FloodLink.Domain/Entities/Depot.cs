@@ -15,6 +15,10 @@ public class Depot
 
     public double Longitude { get; set; }
 
+    public int? ManagerId { get; set; }
+
+    public User? Manager { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<InventoryItem> InventoryItems { get; set; } = new List<InventoryItem>();

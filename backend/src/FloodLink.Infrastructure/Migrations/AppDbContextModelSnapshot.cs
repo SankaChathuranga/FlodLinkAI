@@ -127,12 +127,17 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Property<double>("Longitude")
                         .HasColumnType("double precision");
 
+                    b.Property<int?>("ManagerId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ManagerId");
 
                     b.ToTable("Depots");
 
@@ -174,6 +179,16 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Property<double>("QuantityAvailable")
                         .HasColumnType("double precision");
 
+                    b.Property<int>("QuantityReserved")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("ReorderThreshold")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(10);
+
                     b.Property<string>("Unit")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -187,7 +202,14 @@ namespace FloodLink.Infrastructure.Migrations
                     b.HasIndex("DepotId", "ItemName")
                         .IsUnique();
 
-                    b.ToTable("InventoryItems");
+                    b.ToTable("InventoryItems", t =>
+                        {
+                            t.HasCheckConstraint("CK_InventoryItem_QuantityAvailable_NonNegative", "\"QuantityAvailable\" >= 0");
+
+                            t.HasCheckConstraint("CK_InventoryItem_QuantityReserved_Lte_Available", "\"QuantityReserved\" <= \"QuantityAvailable\"");
+
+                            t.HasCheckConstraint("CK_InventoryItem_QuantityReserved_NonNegative", "\"QuantityReserved\" >= 0");
+                        });
 
                     b.HasData(
                         new
@@ -196,6 +218,8 @@ namespace FloodLink.Infrastructure.Migrations
                             DepotId = 1,
                             ItemName = "Water",
                             QuantityAvailable = 600.0,
+                            QuantityReserved = 0,
+                            ReorderThreshold = 10,
                             Unit = "bottles",
                             UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
@@ -205,6 +229,8 @@ namespace FloodLink.Infrastructure.Migrations
                             DepotId = 1,
                             ItemName = "Food",
                             QuantityAvailable = 250.0,
+                            QuantityReserved = 0,
+                            ReorderThreshold = 10,
                             Unit = "packs",
                             UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
@@ -214,6 +240,8 @@ namespace FloodLink.Infrastructure.Migrations
                             DepotId = 2,
                             ItemName = "Water",
                             QuantityAvailable = 400.0,
+                            QuantityReserved = 0,
+                            ReorderThreshold = 10,
                             Unit = "bottles",
                             UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
@@ -223,6 +251,8 @@ namespace FloodLink.Infrastructure.Migrations
                             DepotId = 2,
                             ItemName = "Medical",
                             QuantityAvailable = 50.0,
+                            QuantityReserved = 0,
+                            ReorderThreshold = 10,
                             Unit = "kits",
                             UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
@@ -466,6 +496,48 @@ namespace FloodLink.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("FloodLink.Domain.Entities.StockReservation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AllocationProposalId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("InventoryItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ReservedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ReservedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AllocationProposalId");
+
+                    b.HasIndex("InventoryItemId");
+
+                    b.ToTable("StockReservations", (string)null);
+                });
+
             modelBuilder.Entity("FloodLink.Domain.Entities.TriagePlanEntity", b =>
                 {
                     b.Property<int>("Id")
@@ -626,6 +698,16 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Navigation("WorkflowRun");
                 });
 
+            modelBuilder.Entity("FloodLink.Domain.Entities.Depot", b =>
+                {
+                    b.HasOne("FloodLink.Domain.Entities.User", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Manager");
+                });
+
             modelBuilder.Entity("FloodLink.Domain.Entities.InventoryItem", b =>
                 {
                     b.HasOne("FloodLink.Domain.Entities.Depot", "Depot")
@@ -677,6 +759,24 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Navigation("ContactVolunteer");
                 });
 
+            modelBuilder.Entity("FloodLink.Domain.Entities.StockReservation", b =>
+                {
+                    b.HasOne("FloodLink.Domain.Entities.AllocationProposalEntity", "AllocationProposal")
+                        .WithMany()
+                        .HasForeignKey("AllocationProposalId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FloodLink.Domain.Entities.InventoryItem", "InventoryItem")
+                        .WithMany("Reservations")
+                        .HasForeignKey("InventoryItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AllocationProposal");
+
+                    b.Navigation("InventoryItem");
+                });
+
             modelBuilder.Entity("FloodLink.Domain.Entities.TriagePlanEntity", b =>
                 {
                     b.HasOne("FloodLink.Domain.Entities.WorkflowRun", "CreatedByAgentRun")
@@ -690,6 +790,11 @@ namespace FloodLink.Infrastructure.Migrations
             modelBuilder.Entity("FloodLink.Domain.Entities.Depot", b =>
                 {
                     b.Navigation("InventoryItems");
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.InventoryItem", b =>
+                {
+                    b.Navigation("Reservations");
                 });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.Shelter", b =>

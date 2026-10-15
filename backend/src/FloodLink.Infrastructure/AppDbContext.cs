@@ -47,6 +47,8 @@ public class AppDbContext : DbContext
 
     public DbSet<AllocationProposalEntity> AllocationProposals => Set<AllocationProposalEntity>();
 
+    public DbSet<StockReservation> StockReservations => Set<StockReservation>();
+
     // ── Placeholder DbSets for other members' tables ──────────────────────────
     // TODO (Member D — Week 2): Register Dispatches, ValidationResults, AuditTrail DbSets here.
 
@@ -76,6 +78,8 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.AgentName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            // The shared database stores this as jsonb; sending it as text makes every log insert fail.
+            entity.Property(e => e.ToolCallsJson).HasColumnType("jsonb");
             entity.HasOne(e => e.WorkflowRun)
                   .WithMany()
                   .HasForeignKey(e => e.WorkflowRunId)
@@ -157,6 +161,10 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.HasOne(e => e.Manager)
+                  .WithMany()
+                  .HasForeignKey(e => e.ManagerId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<InventoryItem>(entity =>
@@ -164,11 +172,36 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.ItemName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Unit).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.QuantityReserved).HasDefaultValue(0);
+            entity.Property(e => e.ReorderThreshold).HasDefaultValue(10);
             entity.HasOne(e => e.Depot)
                   .WithMany(depot => depot.InventoryItems)
                   .HasForeignKey(e => e.DepotId)
                   .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => new { e.DepotId, e.ItemName }).IsUnique();
+
+            entity.ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_InventoryItem_QuantityAvailable_NonNegative", "\"QuantityAvailable\" >= 0");
+                t.HasCheckConstraint("CK_InventoryItem_QuantityReserved_NonNegative", "\"QuantityReserved\" >= 0");
+                t.HasCheckConstraint("CK_InventoryItem_QuantityReserved_Lte_Available", "\"QuantityReserved\" <= \"QuantityAvailable\"");
+            });
+        });
+
+        modelBuilder.Entity<StockReservation>(entity =>
+        {
+            entity.ToTable("StockReservations");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ReservedBy).HasMaxLength(100);
+            entity.HasOne(e => e.InventoryItem)
+                  .WithMany(i => i.Reservations)
+                  .HasForeignKey(e => e.InventoryItemId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.AllocationProposal)
+                  .WithMany()
+                  .HasForeignKey(e => e.AllocationProposalId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<AllocationProposalEntity>(entity =>

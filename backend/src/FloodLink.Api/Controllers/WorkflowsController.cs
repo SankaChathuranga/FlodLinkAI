@@ -21,10 +21,6 @@ public class WorkflowsController : ControllerBase
     }
 
     // ── POST /api/workflows ───────────────────────────────────────────────────
-    /// <summary>
-    /// Creates a new WorkflowRun (starting in Triage) and immediately kicks off
-    /// the orchestration pipeline for the first agent step.
-    /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(WorkflowRunResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -61,10 +57,68 @@ public class WorkflowsController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = run.Id }, ToResponse(run));
     }
 
+    // ── POST /api/workflows/{id}/advance ──────────────────────────────────────
+    [HttpPost("{id:guid}/advance")]
+    [ProducesResponseType(typeof(WorkflowRunResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Advance(Guid id, CancellationToken ct)
+    {
+        var run = await _runs.GetByIdAsync(id, ct);
+        if (run is null)
+            return NotFound();
+
+        if (run.CurrentState is WorkflowState.Approved or WorkflowState.Rejected or WorkflowState.Failed or WorkflowState.PendingApproval)
+        {
+            return Problem(
+                detail: $"WorkflowRun {id} is in state '{run.CurrentState}' and cannot be advanced.",
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Invalid workflow state transition");
+        }
+
+        try
+        {
+            var updated = await _orchestrator.AdvanceAsync(id, ct);
+            return Ok(ToResponse(updated));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Cannot advance workflow");
+        }
+    }
+
+    // ── GET /api/workflows/{id}/allocation-proposal ───────────────────────────
+    [HttpGet("{id:guid}/allocation-proposal")]
+    [ProducesResponseType(typeof(FloodLink.Contracts.AllocationProposal), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAllocationProposal(Guid id, CancellationToken ct)
+    {
+        var run = await _runs.GetByIdAsync(id, ct);
+        if (run is null)
+            return NotFound();
+
+        if (string.IsNullOrWhiteSpace(run.PlanJson))
+            return NotFound(new { message = $"WorkflowRun {id} does not contain plan data." });
+
+        try
+        {
+            var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, System.Text.Json.JsonElement>>(run.PlanJson);
+            if (dict is null || !dict.TryGetValue("allocationProposal", out var element))
+                return NotFound(new { message = $"WorkflowRun {id} does not contain an allocation proposal." });
+
+            var proposal = System.Text.Json.JsonSerializer.Deserialize<FloodLink.Contracts.AllocationProposal>(element.GetRawText());
+            return proposal is not null ? Ok(proposal) : NotFound();
+        }
+        catch
+        {
+            return NotFound();
+        }
+    }
+
     // ── GET /api/workflows/{id} ───────────────────────────────────────────────
-    /// <summary>
-    /// Returns the current state and plan output for a single WorkflowRun.
-    /// </summary>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(WorkflowRunResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -75,11 +129,6 @@ public class WorkflowsController : ControllerBase
     }
 
     // ── POST /api/workflows/{id}/decision ─────────────────────────────────────
-    /// <summary>
-    /// Submits a coordinator decision on a run that is in PendingApproval.
-    /// Accepted values for Decision: "Approved", "Rejected", "RevisionRequested".
-    /// Requires a valid JWT with the Coordinator role.
-    /// </summary>
     [HttpPost("{id:guid}/decision")]
     [Authorize(Roles = "Coordinator")]
     [ProducesResponseType(typeof(WorkflowRunResponse), StatusCodes.Status200OK)]

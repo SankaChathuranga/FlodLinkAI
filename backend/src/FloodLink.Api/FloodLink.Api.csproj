@@ -5,6 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>FloodLink.Api</RootNamespace>
     <UserSecretsId>floodlink-api-development</UserSecretsId>
+    <!-- XML comments feed Swagger; 1591 is suppressed so undocumented members don't warn. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

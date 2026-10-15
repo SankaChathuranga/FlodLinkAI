@@ -53,6 +53,10 @@ public class GlobalExceptionMiddleware
                 statusCode = (int)HttpStatusCode.Forbidden; // 403
                 message = forbiddenEx.Message;
                 break;
+            case ConflictException conflictEx:
+                statusCode = (int)HttpStatusCode.Conflict; // 409
+                message = conflictEx.Message;
+                break;
             default:
                 statusCode = (int)HttpStatusCode.InternalServerError; // 500
                 message = "An unexpected error occurred on the server.";

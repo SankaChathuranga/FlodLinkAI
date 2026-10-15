@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppContext } from '../context/AppContext'
 import type { Report } from '../types'
+import { MatchingResultsPanel } from './MatchingResultsPanel'
 
 interface TriagePriorityItemDTO {
   reportId: number
@@ -38,6 +39,11 @@ export function TriagePlanViewer() {
 
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Member B: Matching Agent trigger
+  const [matching, setMatching] = useState<boolean>(false)
+  const [matchingError, setMatchingError] = useState<string | null>(null)
+  const [matchingRefreshKey, setMatchingRefreshKey] = useState<number>(0)
 
   const fetchTriagePlans = useCallback(async () => {
     setLoading(true)
@@ -115,6 +121,43 @@ export function TriagePlanViewer() {
     }
   }
 
+  // Starts a workflow (the orchestrator runs Triage over open reports), then advances it once so the
+  // Matching Agent allocates depot stock. The new run appears at the top of the run list.
+  const handleRunMatching = async () => {
+    setMatching(true)
+    setMatchingError(null)
+
+    try {
+      const createResponse = await fetch(`${apiBaseUrl}/api/workflows`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ objective: 'Matching from Triage Plan Viewer' }),
+      })
+      if (!createResponse.ok) {
+        const errData = await createResponse.json().catch(() => null)
+        throw new Error(errData?.detail || `Workflow start failed with HTTP ${createResponse.status}`)
+      }
+
+      const run: { id: string; currentState: string } = await createResponse.json()
+      if (run.currentState !== 'Matching') {
+        throw new Error(`Triage did not complete (run is ${run.currentState}), so Matching was not started.`)
+      }
+
+      const advanceResponse = await fetch(`${apiBaseUrl}/api/workflows/${run.id}/advance`, { method: 'POST' })
+      if (!advanceResponse.ok) {
+        const errData = await advanceResponse.json().catch(() => null)
+        throw new Error(errData?.detail || `Matching failed with HTTP ${advanceResponse.status}`)
+      }
+
+      await fetchTriagePlans()
+      setMatchingRefreshKey((key) => key + 1)
+    } catch (err) {
+      setMatchingError(err instanceof Error ? err.message : 'Failed to run the matching agent.')
+    } finally {
+      setMatching(false)
+    }
+  }
+
   const getUrgencyBadge = (score: number) => {
     if (score >= 80) return 'bg-rose-100 text-rose-800 border-rose-300'
     if (score >= 50) return 'bg-amber-100 text-amber-800 border-amber-300'
@@ -163,7 +206,35 @@ export function TriagePlanViewer() {
             )}
           </button>
         </div>
+
+        {/* Member B: Matching Agent trigger */}
+        <button
+          disabled={matching}
+          onClick={handleRunMatching}
+          className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition flex items-center space-x-1.5 shadow-sm"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          <span>{matching ? 'Matching Stock...' : 'Run Matching'}</span>
+        </button>
       </div>
+
+      {/* Member B: Matching Agent error */}
+      {matchingError && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-xl flex items-center justify-between shadow-sm">
+          <div>
+            <h4 className="font-semibold text-sm">Matching Agent Error</h4>
+            <p className="text-xs text-amber-800">{matchingError}</p>
+          </div>
+          <button
+            onClick={() => setMatchingError(null)}
+            className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 transition"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* ERROR STATE */}
       {error && (
@@ -300,6 +371,11 @@ export function TriagePlanViewer() {
               <div className="bg-white p-8 text-center rounded-xl border border-slate-200">
                 <p className="text-sm text-slate-500">No priority items found in this plan.</p>
               </div>
+            )}
+
+            {/* Member B: Matching Agent result for the selected run */}
+            {parsedPlan?.workflowRunId && (
+              <MatchingResultsPanel workflowRunId={parsedPlan.workflowRunId} refreshKey={matchingRefreshKey} />
             )}
           </div>
         </div>

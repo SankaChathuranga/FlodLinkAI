@@ -81,6 +81,12 @@ cd backend/tests/FloodLink.Tests
 dotnet test
 ```
 
+##### PostgreSQL Concurrency Integration Tests (Testcontainers)
+
+Tests marked `[Trait("Category", "PostgresIntegration")]` test concurrent reservation safety against a real PostgreSQL instance using Testcontainers:
+- If Docker is running: `dotnet test --filter "Category=PostgresIntegration"` automatically spins up an ephemeral PostgreSQL container and verifies atomic concurrency behavior.
+- If Docker is not running: these tests are skipped cleanly with `Assert.Skip`, without failing the test suite or CI build.
+
 ---
 
 ### 3 — Run the Web Dashboard

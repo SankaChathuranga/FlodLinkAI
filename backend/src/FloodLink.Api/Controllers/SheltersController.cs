@@ -18,10 +18,6 @@ public class SheltersController : ControllerBase
         _context = context;
     }
 
-    /// <summary>
-    /// GET /api/shelters?status=&amp;search=&amp;page=&amp;pageSize=
-    /// Searches, filters, and paginates emergency shelters.
-    /// </summary>
     [HttpGet]
     public async Task<ActionResult<PaginatedResult<Shelter>>> GetShelters(
         [FromQuery] string? status,
@@ -67,10 +63,6 @@ public class SheltersController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>
-    /// GET /api/shelters/{id}
-    /// Retrieves a specific shelter along with its full report history.
-    /// </summary>
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Shelter>> GetShelterById(int id)
     {
@@ -88,10 +80,6 @@ public class SheltersController : ControllerBase
         return Ok(shelter);
     }
 
-    /// <summary>
-    /// POST /api/shelters
-    /// Creates a new emergency shelter.
-    /// </summary>
     [HttpPost]
     public async Task<ActionResult<Shelter>> CreateShelter([FromBody] CreateShelterDto dto)
     {
@@ -128,10 +116,6 @@ public class SheltersController : ControllerBase
         return CreatedAtAction(nameof(GetShelterById), new { id = shelter.Id }, shelter);
     }
 
-    /// <summary>
-    /// PUT /api/shelters/{id}
-    /// Updates an existing shelter's details.
-    /// </summary>
     [HttpPut("{id:int}")]
     public async Task<ActionResult<Shelter>> UpdateShelter(int id, [FromBody] UpdateShelterDto dto)
     {

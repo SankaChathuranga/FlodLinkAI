@@ -20,6 +20,21 @@ public class InventoryDepotControllerTests
     }
 
     [Fact]
+    public void ConfigureDatabase_UsesInMemoryFallback_WhenPostgresIsUnavailable()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>();
+
+        FloodLinkDatabaseProvider.Configure(
+            options,
+            "Host=127.0.0.1;Port=1;Database=floodlink;Username=floodlink;Password=floodlink_dev_pw;Timeout=1");
+
+        using var context = new AppDbContext(options.Options);
+
+        Assert.NotNull(context.Database.ProviderName);
+        Assert.Contains("InMemory", context.Database.ProviderName!);
+    }
+
+    [Fact]
     public async Task CreateDepot_WithValidData_CreatesDepot()
     {
         await using var context = CreateContext();
@@ -304,7 +319,7 @@ public class InventoryDepotControllerTests
     }
 
     [Fact]
-    public async Task CheckIn_WithZeroQuantity_DoesNotChangeStock()
+    public async Task CheckIn_WithZeroQuantity_IsRejected()
     {
         await using var context = CreateContext();
 
@@ -334,51 +349,54 @@ public class InventoryDepotControllerTests
             QuantityReceived = 0
         };
 
-        await controller.CheckIn(
-            1,
-            dto,
-            CancellationToken.None);
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            controller.CheckIn(
+                1,
+                dto,
+                CancellationToken.None));
 
         var item = await context.InventoryItems.FindAsync(1);
 
         Assert.NotNull(item);
         Assert.Equal(100, item.QuantityAvailable);
     }
+
     [Fact]
-public async Task CheckIn_WithNegativeQuantity_DecreasesStock()
-{
-    await using var context = CreateContext();
-
-    var depot = new Depot
+    public async Task CheckIn_WithNegativeQuantity_IsRejected()
     {
-        Name = "Main Depot",
-        Latitude = 6.9271,
-        Longitude = 79.8612
-    };
+        await using var context = CreateContext();
 
-    context.Depots.Add(depot);
-    await context.SaveChangesAsync();
+        var depot = new Depot
+        {
+            Name = "Main Depot",
+            Latitude = 6.9271,
+            Longitude = 79.8612
+        };
 
-    var item = new InventoryItem
-    {
-        DepotId = depot.Id,
-        ItemName = "Water",
-        Unit = "bottles",
-        QuantityAvailable = 100
-    };
+        context.Depots.Add(depot);
+        await context.SaveChangesAsync();
 
-    context.InventoryItems.Add(item);
-    await context.SaveChangesAsync();
+        var item = new InventoryItem
+        {
+            DepotId = depot.Id,
+            ItemName = "Water",
+            Unit = "bottles",
+            QuantityAvailable = 100
+        };
 
-    var controller = new InventoryController(context);
+        context.InventoryItems.Add(item);
+        await context.SaveChangesAsync();
 
-    var result = await controller.CheckIn(
-        item.Id,
-        new StockCheckInDto { QuantityReceived = -10 },
-        CancellationToken.None);
+        var controller = new InventoryController(context);
 
-    var updatedItem = await context.InventoryItems.FindAsync(item.Id);
+        await Assert.ThrowsAsync<BadRequestException>(() =>
+            controller.CheckIn(
+                item.Id,
+                new StockCheckInDto { QuantityReceived = -10 },
+                CancellationToken.None));
 
-    Assert.Equal(90, updatedItem!.QuantityAvailable);
-}
+        var updatedItem = await context.InventoryItems.FindAsync(item.Id);
+
+        Assert.Equal(100, updatedItem!.QuantityAvailable);
+    }
 }

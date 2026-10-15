@@ -34,3 +34,24 @@ public sealed class StockCheckInDto
     [Range(0.000001, double.MaxValue)]
     public double QuantityReceived { get; init; }
 }
+
+public sealed class ReserveStockDto
+{
+    [Range(1, int.MaxValue)]
+    public int Quantity { get; init; }
+
+    public int? AllocationProposalId { get; init; }
+
+    [MaxLength(100)]
+    public string ReservedBy { get; init; } = string.Empty;
+}
+
+public sealed class ReleaseStockDto
+{
+    [Range(1, int.MaxValue)]
+    public int ReservationId { get; init; }
+
+    [Range(1, int.MaxValue)]
+    public int Quantity { get; init; }
+}
+
