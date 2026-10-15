@@ -7,7 +7,7 @@ namespace FloodLink.Domain.Entities;
 /// A FloodLink account. <see cref="Role"/> holds one of the names in <c>FloodLink.Domain.Security.Roles</c>;
 /// <see cref="HashedPassword"/> holds an ASP.NET Core Identity <c>PasswordHasher</c> hash.
 /// </summary>
-public class User
+public class User : IHasUpdatedAt
 {
     /// <summary>
     /// <see cref="HashedPassword"/> value for an account nobody can log in to (not a valid hash, so
@@ -40,6 +40,9 @@ public class User
     public string HashedPassword { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>UTC time of the last change; stamped automatically on save.</summary>
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties
     public ICollection<Shelter> ContactShelters { get; set; } = new List<Shelter>();

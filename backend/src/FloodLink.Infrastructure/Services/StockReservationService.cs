@@ -3,6 +3,8 @@ using FloodLink.Contracts;
 using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FloodLink.Infrastructure.Services;
 
@@ -25,8 +27,11 @@ namespace FloodLink.Infrastructure.Services;
 /// together with its own changes (dispatch, audit, state) in one <c>SaveChanges</c> transaction.
 /// </para>
 /// </remarks>
-public sealed class StockReservationService(AppDbContext db) : IStockReservationService
+public sealed class StockReservationService(AppDbContext db, ILogger<StockReservationService>? logger = null)
+    : IStockReservationService
 {
+    private readonly ILogger _logger = logger ?? NullLogger<StockReservationService>.Instance;
+
     public const string Proposed = "Proposed";
     public const string Reserved = "Reserved";
     public const string Committed = "Committed";
@@ -51,6 +56,9 @@ public sealed class StockReservationService(AppDbContext db) : IStockReservation
             var free = item is null ? 0 : item.QuantityAvailable - item.QuantityReserved;
             if (item is null || quantity > free)
             {
+                _logger.LogWarning(
+                    "Stock reservation for run {WorkflowRunId} refused: depot {DepotId} has {Free} {ItemName} free, plan needs {Quantity}",
+                    workflowRunId, line.Key.DepotId, free, line.Key.ItemName, quantity);
                 return StockOperationResult.Fail("INSUFFICIENT_STOCK",
                     $"Depot {line.Key.DepotId} has {free} {line.Key.ItemName} free; the plan needs {quantity}.",
                     [ToolCallFor("db.inventory.reserve", workflowRunId, proposals, sw, succeeded: false)]);
@@ -61,12 +69,16 @@ public sealed class StockReservationService(AppDbContext db) : IStockReservation
         {
             var item = items[line.Key];
             item.QuantityReserved += line.Sum(p => p.Quantity);
-            item.UpdatedAt = DateTime.UtcNow;
             foreach (var proposal in line)
                 proposal.Status = Reserved;
         }
 
-        return await SaveAsync(ToolCallFor("db.inventory.reserve", workflowRunId, proposals, sw, succeeded: true), cancellationToken);
+        var reserved = await SaveAsync(ToolCallFor("db.inventory.reserve", workflowRunId, proposals, sw, succeeded: true), cancellationToken);
+        _logger.LogInformation(
+            "Stock reservation for run {WorkflowRunId}: {Outcome}, {Lines} lines, {TotalQuantity} units, {DurationMs} ms",
+            workflowRunId, reserved.Succeeded ? "reserved" : reserved.ErrorCode, proposals.Count,
+            proposals.Sum(p => p.Quantity), sw.ElapsedMilliseconds);
+        return reserved;
     }
 
     /// <inheritdoc />
@@ -99,6 +111,8 @@ public sealed class StockReservationService(AppDbContext db) : IStockReservation
                          && item.QuantityAvailable - item.QuantityReserved >= unreserved;
             if (!enough)
             {
+                _logger.LogWarning("Stock commit for run {WorkflowRunId} refused: depot {DepotId} is short of {ItemName}",
+                    workflowRunId, line.Key.DepotId, line.Key.ItemName);
                 return StockOperationResult.Fail("INSUFFICIENT_STOCK",
                     $"Depot {line.Key.DepotId} no longer has {reserved + unreserved} {line.Key.ItemName} available.");
             }
@@ -111,10 +125,11 @@ public sealed class StockReservationService(AppDbContext db) : IStockReservation
             item.QuantityAvailable -= proposal.Quantity;
             if (wasReserved)
                 item.QuantityReserved = Math.Max(0, item.QuantityReserved - proposal.Quantity);
-            item.UpdatedAt = DateTime.UtcNow;
             proposal.Status = Committed;
         }
 
+        _logger.LogInformation("Stock commit staged for run {WorkflowRunId}: {Lines} lines, {TotalQuantity} units",
+            workflowRunId, proposals.Count, proposals.Sum(p => p.Quantity));
         return StockOperationResult.Ok();
     }
 
@@ -131,18 +146,19 @@ public sealed class StockReservationService(AppDbContext db) : IStockReservation
             if (proposal.Status == Reserved && items.TryGetValue((proposal.DepotId, proposal.ItemName), out var item))
             {
                 item.QuantityReserved = Math.Max(0, item.QuantityReserved - proposal.Quantity);
-                item.UpdatedAt = DateTime.UtcNow;
-            }
+                }
 
             proposal.Status = Released;
         }
 
+        _logger.LogInformation("Stock release staged for run {WorkflowRunId}: {Lines} lines, {TotalQuantity} units",
+            workflowRunId, proposals.Count, proposals.Sum(p => p.Quantity));
         return proposals;
     }
 
     /// <summary>Manually holds <paramref name="quantity"/> of an item (depot staff), if it is free.</summary>
     public async Task<(StockOperationResult Result, InventoryItem? Item)> ReserveItemAsync(
-        int inventoryItemId, double quantity, CancellationToken cancellationToken = default)
+        int inventoryItemId, double quantity, int? userId = null, CancellationToken cancellationToken = default)
     {
         var item = await db.InventoryItems.FirstOrDefaultAsync(i => i.Id == inventoryItemId, cancellationToken);
         if (item is null)
@@ -153,13 +169,12 @@ public sealed class StockReservationService(AppDbContext db) : IStockReservation
             return (StockOperationResult.Fail("INSUFFICIENT_STOCK", $"Only {free} {item.ItemName} is free to reserve."), item);
 
         item.QuantityReserved += quantity;
-        item.UpdatedAt = DateTime.UtcNow;
-        return (await SaveAsync(null, cancellationToken), item);
+        return (await SaveItemChangeAsync("reserve", item, quantity, userId, cancellationToken), item);
     }
 
     /// <summary>Manually releases up to <paramref name="quantity"/> of an item's reserved stock.</summary>
     public async Task<(StockOperationResult Result, InventoryItem? Item)> ReleaseItemAsync(
-        int inventoryItemId, double quantity, CancellationToken cancellationToken = default)
+        int inventoryItemId, double quantity, int? userId = null, CancellationToken cancellationToken = default)
     {
         var item = await db.InventoryItems.FirstOrDefaultAsync(i => i.Id == inventoryItemId, cancellationToken);
         if (item is null)
@@ -169,11 +184,32 @@ public sealed class StockReservationService(AppDbContext db) : IStockReservation
             return (StockOperationResult.Fail("NOT_RESERVED", $"Only {item.QuantityReserved} {item.ItemName} is reserved."), item);
 
         item.QuantityReserved -= quantity;
-        item.UpdatedAt = DateTime.UtcNow;
-        return (await SaveAsync(null, cancellationToken), item);
+        return (await SaveItemChangeAsync("release", item, quantity, userId, cancellationToken), item);
+    }
+
+    /// <summary>Adds <paramref name="quantity"/> received at the depot to an item's available stock.</summary>
+    public async Task<(StockOperationResult Result, InventoryItem? Item)> CheckInAsync(
+        int inventoryItemId, double quantity, int? userId = null, CancellationToken cancellationToken = default)
+    {
+        var item = await db.InventoryItems.FirstOrDefaultAsync(i => i.Id == inventoryItemId, cancellationToken);
+        if (item is null)
+            return (StockOperationResult.Fail("NOT_FOUND", $"Inventory item {inventoryItemId} was not found."), null);
+
+        item.QuantityAvailable += quantity;
+        return (await SaveItemChangeAsync("check-in", item, quantity, userId, cancellationToken), item);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+
+    private async Task<StockOperationResult> SaveItemChangeAsync(
+        string operation, InventoryItem item, double quantity, int? userId, CancellationToken ct)
+    {
+        var result = await SaveAsync(null, ct);
+        _logger.LogInformation(
+            "Stock {Operation} of {Quantity} {ItemName} (item {InventoryItemId}, depot {DepotId}) by user {UserId}: {Outcome}",
+            operation, quantity, item.ItemName, item.Id, item.DepotId, userId, result.Succeeded ? "saved" : result.ErrorCode);
+        return result;
+    }
 
     private async Task<Dictionary<(int DepotId, string ItemName), InventoryItem>> LoadItemsAsync(
         IReadOnlyCollection<AllocationProposalEntity> proposals, CancellationToken ct)

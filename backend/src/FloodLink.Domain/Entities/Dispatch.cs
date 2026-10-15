@@ -7,7 +7,7 @@ namespace FloodLink.Domain.Entities;
 /// marks the point at which supplies are actually committed. Maps to the
 /// <c>Dispatches</c> table. Owned by Member D (Ijini).
 /// </summary>
-public class Dispatch
+public class Dispatch : IHasUpdatedAt
 {
     /// <summary>Primary key (UUID).</summary>
     public Guid Id { get; set; }
@@ -37,4 +37,7 @@ public class Dispatch
 
     /// <summary>UTC timestamp when this record was created.</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>UTC time of the last change; stamped automatically on save.</summary>
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

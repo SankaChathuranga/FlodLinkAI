@@ -5,7 +5,7 @@ namespace FloodLink.Domain.Entities;
 /// <summary>
 /// Represents a field report submitted by a volunteer (Member A component).
 /// </summary>
-public class Report
+public class Report : IHasUpdatedAt
 {
     public int Id { get; set; }
 
@@ -44,6 +44,9 @@ public class Report
     public string Status { get; set; } = "New";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>UTC time of the last change; stamped automatically on save.</summary>
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>The workflow run currently (or most recently) handling this report.</summary>
     public Guid? WorkflowRunId { get; set; }

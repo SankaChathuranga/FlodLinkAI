@@ -54,7 +54,12 @@ export interface Depot {
   name: string
   latitude: number
   longitude: number
+  /** From GET /api/depots: the assigned DepotManager and how many stock lines the depot holds. */
+  managerId?: number | null
+  managerName?: string | null
+  itemCount?: number
   createdAt: string
+  updatedAt?: string
 }
 
 export interface InventoryItem {
@@ -63,6 +68,11 @@ export interface InventoryItem {
   depot?: Depot | null
   itemName: string
   unit: string
+  /** On hand at the depot, including reserved stock. */
   quantityAvailable: number
+  /** Held for plans awaiting approval; free stock is available − reserved. */
+  quantityReserved?: number
+  /** Reserve floor: free stock at or below this is low. */
+  reorderThreshold?: number
   updatedAt: string
 }

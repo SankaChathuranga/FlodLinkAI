@@ -7,6 +7,7 @@ using FloodLink.Api.Auth;
 using FloodLink.Api.Controllers;
 using FloodLink.Api.Middleware;
 using FloodLink.Api;
+using FloodLink.Api.Services;
 using FloodLink.Api.Workflows;
 using FloodLink.Domain;
 using FloodLink.Domain.Llm;
@@ -37,6 +38,18 @@ if (!string.IsNullOrWhiteSpace(hostedPort))
     builder.WebHost.UseUrls($"http://0.0.0.0:{hostedPort}");
 }
 
+// Outside Development, logs are written as JSON so the host can index the structured fields
+// (WorkflowRunId, Agent, DurationMs, UserId, ...) that the services log.
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Logging.AddJsonConsole(options =>
+    {
+        options.IncludeScopes = true;
+        options.UseUtcTimestamp = true;
+        options.TimestampFormat = "O";
+    });
+}
+
 // ── Services ──────────────────────────────────────────────────────────────────
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -45,6 +58,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IUrgencyScoringService, UrgencyScoringService>();
 builder.Services.AddScoped<IPhotoStorageService, PhotoStorageService>();
 builder.Services.AddScoped<ITriageAgent, TriageAgent>();
+builder.Services.AddScoped<ReportService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -56,6 +70,7 @@ builder.Services.AddControllers()
 builder.Services.AddScoped<IAgentExecutionLogger, AgentExecutionLogger>();
 builder.Services.AddScoped<IWorkflowRunRepository, WorkflowRunRepository>();
 builder.Services.AddScoped<WorkflowOrchestrator>();
+builder.Services.AddScoped<WorkflowService>();
 
 // Background runner: started, retried and revised runs are queued and advanced off the request thread.
 builder.Services.AddSingleton<WorkflowRunQueue>();

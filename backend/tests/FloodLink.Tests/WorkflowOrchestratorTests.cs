@@ -2,6 +2,7 @@ using FloodLink.Contracts;
 using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace FloodLink.Tests;
@@ -183,6 +184,45 @@ public class WorkflowOrchestratorTests
         Assert.Equal("RoutingAgent", logger.Entries[2].AgentName);
         Assert.Equal("ValidationAgent", logger.Entries[3].AgentName);
         Assert.Equal("StockReservation", logger.Entries[4].AgentName);
+    }
+
+    /// <summary>Keeps every log entry's structured fields (the message template's named values).</summary>
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, IReadOnlyDictionary<string, object?> Fields)> Entries { get; } = new();
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
+            => Entries.Add((logLevel, (state as IEnumerable<KeyValuePair<string, object?>>)?
+                .ToDictionary(kv => kv.Key, kv => kv.Value) ?? new Dictionary<string, object?>()));
+    }
+
+    [Fact]
+    public async Task EachStep_IsLoggedWithStructuredRunAgentAndDurationFields()
+    {
+        var run = new WorkflowRun { Id = RunId, Objective = "Test" };
+        var log = new CapturingLogger<WorkflowOrchestrator>();
+        var sut = new WorkflowOrchestrator(new SucceedingTriageAgent(), new FailingMatchingAgent(), new SucceedingRoutingAgent(),
+            new SucceedingValidationAgent(), new FakeStock(), new FakeLogger(), new FakeRepository(run), log: log);
+
+        await sut.AdvanceAsync(RunId); // Triage succeeds
+        await sut.AdvanceAsync(RunId); // Matching fails
+
+        var steps = log.Entries.Where(e => e.Fields.ContainsKey("Agent")).ToList();
+        Assert.Equal(["TriageAgent", "MatchingAgent"], steps.Select(e => e.Fields["Agent"]));
+        Assert.All(steps, e =>
+        {
+            Assert.Equal(RunId, e.Fields["WorkflowRunId"]);
+            Assert.IsType<long>(e.Fields["DurationMs"]);
+            Assert.True(e.Fields.ContainsKey("UsedFallback"));
+        });
+        Assert.Equal(LogLevel.Information, steps[0].Level);
+        Assert.Equal(LogLevel.Warning, steps[1].Level);
+        Assert.Equal("NO_STOCK_AVAILABLE", steps[1].Fields["ErrorCode"]);
+        Assert.Contains(log.Entries, e => e.Fields.TryGetValue("Code", out var code) && (string?)code == "NO_STOCK_AVAILABLE");
     }
 
     [Fact]

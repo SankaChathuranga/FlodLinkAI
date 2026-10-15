@@ -103,6 +103,25 @@ change.
   note, ETA, Confirm delivery) and `ReportWorkflowLink` on both report lists. Typed client `web/src/api/workflows.ts`.
   Tests: backend 261, web 22 (`Workflows.test.tsx`), Flutter 22 (`workflow_status_test.dart`).
 
+- 2026-10-15 — **Phase 5 (backend quality) built** (5.01–5.10). Shared paging helper `Api/DTOs/PaginatedResult.cs`
+  (`Paging.Normalize`, `ToPageAsync`; page size 1–100, default 20). `GET /api/reports` now pages and takes
+  `search` (need type, notes, shelter name, `#R-id`) and `quantity_*` sorts; `GET /api/inventory` takes `search`,
+  `lowStock` (free ≤ reorder threshold), `sort`, paging; `GET /api/depots` pages/searches and returns `DepotDto`
+  (manager name, item count); new `GET/PUT /api/depots/{id}` (edit, assign a DepotManager via `Depots.ManagerId`);
+  new `GET /api/audit` (event type / actor / dispatch / run / date filters, paged) and `GET /api/audit/event-types`.
+  Service layer: `Api/Services/ReportService` (submit + urgency, edit, queries), `Api/Workflows/WorkflowService`
+  (start, list, logs, status, retry), stock check-in moved into `StockReservationService`; `ReportsController`,
+  `WorkflowsController` and the stock endpoints no longer use `AppDbContext`. `IHasUpdatedAt` + `AppDbContext`
+  stamps `UpdatedAt` on every modified row (Report, Depot, Dispatch, User, AllocationProposal, plus Shelter,
+  InventoryItem, WorkflowRun). Structured `ILogger` logging in orchestrator (one line per agent step: run, agent,
+  duration, tool/LLM calls, used fallback), runner (scope with `WorkflowRunId`), stock, dispatch, report, depot
+  and workflow services; JSON console logs outside Development. DTO validation added for dispatch notes,
+  workflow report ids, depot manager ids, shelter contact ids. Migration `UpdatedAtIndexesAndDepotManager`
+  (applied to dev DB). React: Reports queue search + paging (selections kept across pages), Inventory search,
+  low-stock filter and tag, sort, Carbon pagination. Flutter inventory provider reads paged depots/inventory.
+  Tests: `BackendQualityTests`, access-matrix rows for the new endpoints, orchestrator log-field test,
+  web `Lists.test.tsx`; backend 278, web 28, Flutter 22.
+
 ## In Progress
 
 - None.
@@ -112,7 +131,7 @@ change.
 - Set `Seed:DemoPassword` and `Jwt:SigningKey` in user-secrets (or env vars) for local runs; the demo accounts
   stay locked without a demo password.
 - Gate 4 by hand: Flutter report → React start + trace → approve → Flutter shows Approved with ETA.
-- Phase 5 (search/sort/paging, service layer, audit fields, structured logging).
+- Phase 6 (tests and agent evaluation).
 - Confirm CI runs on PRs and provides Postgres for the integration tests.
 - Run the mobile dispatch screens on an emulator/device.
 

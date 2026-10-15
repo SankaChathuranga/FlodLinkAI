@@ -1,15 +1,19 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
 import { apiFetch } from '../api/http'
 import { startWorkflow } from '../api/workflows'
 import { describeApiError } from '../lib/apiError'
-import type { Report, Shelter } from '../types'
+import { useDebouncedValue } from '../lib/useDebouncedValue'
+import type { PaginatedResult, Report, Shelter } from '../types'
+
+const PAGE_SIZE = 10
 
 export function ReportsQueue() {
   const { apiBaseUrl } = useAppContext()
 
   const [reports, setReports] = useState<Report[]>([])
+  const [paging, setPaging] = useState({ page: 1, totalPages: 1, totalItems: 0 })
   const [shelters, setShelters] = useState<Shelter[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -19,6 +23,14 @@ export function ReportsQueue() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [urgencyThreshold, setUrgencyThreshold] = useState<number>(0)
   const [sortOrder, setSortOrder] = useState<string>('urgency_desc')
+  const [search, setSearch] = useState<string>('')
+  const debouncedSearch = useDebouncedValue(search.trim())
+  const [page, setPage] = useState<number>(1)
+
+  // A new filter, sort or search starts again from the first page.
+  useEffect(() => {
+    setPage(1)
+  }, [selectedShelterId, statusFilter, urgencyThreshold, sortOrder, debouncedSearch])
 
   // Start workflow (4.04): pick reports, describe the objective, start a run.
   const navigate = useNavigate()
@@ -69,7 +81,11 @@ export function ReportsQueue() {
       .catch(() => {})
   }, [apiBaseUrl])
 
+  // Only the latest request may update the list (a filter change and its page reset both fetch).
+  const latestRequest = useRef(0)
+
   const fetchReports = useCallback(async () => {
+    const requestId = ++latestRequest.current
     setLoading(true)
     setError(null)
 
@@ -79,22 +95,29 @@ export function ReportsQueue() {
       if (statusFilter) queryParams.append('status', statusFilter)
       if (urgencyThreshold > 0) queryParams.append('urgency', urgencyThreshold.toString())
       if (sortOrder) queryParams.append('sort', sortOrder)
+      if (debouncedSearch) queryParams.append('search', debouncedSearch)
+      queryParams.append('page', String(page))
+      queryParams.append('pageSize', String(PAGE_SIZE))
 
       const response = await apiFetch(`${apiBaseUrl}/api/reports?${queryParams.toString()}`)
       if (!response.ok) {
         throw new Error(`Failed to fetch report queue (HTTP ${response.status})`)
       }
 
-      const data: Report[] = await response.json()
-      setReports(data || [])
-      // Drop selections that are no longer listed or no longer eligible.
-      setSelected((prev) => new Set([...prev].filter((id) => data?.some((r) => r.id === id && canSelect(r)))))
+      const data: PaginatedResult<Report> = await response.json()
+      if (requestId !== latestRequest.current) return
+      const items = data?.items ?? []
+      setReports(items)
+      setPaging({ page: data.page, totalPages: data.totalPages, totalItems: data.totalItems })
+      // Selections on other pages are kept; drop listed ones that can no longer join a run.
+      setSelected((prev) => new Set([...prev].filter((id) => items.every((r) => r.id !== id || canSelect(r)))))
     } catch (err) {
+      if (requestId !== latestRequest.current) return
       setError(err instanceof Error ? err.message : 'Failed to connect to backend server.')
     } finally {
-      setLoading(false)
+      if (requestId === latestRequest.current) setLoading(false)
     }
-  }, [apiBaseUrl, selectedShelterId, statusFilter, urgencyThreshold, sortOrder])
+  }, [apiBaseUrl, selectedShelterId, statusFilter, urgencyThreshold, sortOrder, debouncedSearch, page])
 
   useEffect(() => {
     fetchReports()
@@ -132,6 +155,18 @@ export function ReportsQueue() {
 
         {/* Filters Bar */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <label className="text-sm">
+            <span className="sr-only">Search reports</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search need, notes, shelter or #id"
+              className="w-56 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </label>
+
           {/* Shelter Filter */}
           <select
             value={selectedShelterId}
@@ -181,6 +216,8 @@ export function ReportsQueue() {
             <option value="urgency_asc">Lowest Urgency First</option>
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
+            <option value="quantity_desc">Largest Quantity First</option>
+            <option value="quantity_asc">Smallest Quantity First</option>
           </select>
 
           <button
@@ -279,6 +316,7 @@ export function ReportsQueue() {
           <p className="text-sm text-slate-500 max-w-sm mx-auto">No reports match your active filter criteria or shelter selection.</p>
           <button
             onClick={() => {
+              setSearch('')
               setSelectedShelterId('')
               setStatusFilter('')
               setUrgencyThreshold(0)
@@ -382,6 +420,31 @@ export function ReportsQueue() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* PAGING */}
+      {!loading && !error && paging.totalItems > 0 && (
+        <nav aria-label="Report pages" className="flex items-center justify-between text-sm text-slate-600">
+          <span>
+            Page {paging.page} of {paging.totalPages} ({paging.totalItems} report{paging.totalItems === 1 ? '' : 's'})
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => p - 1)}
+              disabled={paging.page <= 1}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={paging.page >= paging.totalPages}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </nav>
       )}
     </div>
   )

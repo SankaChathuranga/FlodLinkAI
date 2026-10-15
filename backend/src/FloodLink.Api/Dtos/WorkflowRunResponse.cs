@@ -14,6 +14,7 @@ public sealed record CreateWorkflowRequest
     /// The field reports to plan for. When omitted, every New or Triaged report that isn't
     /// already in an active run is used.
     /// </summary>
+    [MaxLength(200, ErrorMessage = "A workflow can include at most 200 reports.")]
     public List<int>? ReportIds { get; init; }
 }
 
@@ -84,3 +85,6 @@ public sealed record WorkflowStatusResponse(
     bool IsDelivered,
     DateTime UpdatedAt
 );
+
+/// <summary>Response of POST /api/workflows/{id}/retry: the stage being re-run and the retry number.</summary>
+public sealed record WorkflowRetryResponse(Guid Id, string? State, int RetryCount);

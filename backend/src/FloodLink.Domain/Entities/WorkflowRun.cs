@@ -10,7 +10,7 @@ namespace FloodLink.Domain.Entities;
 /// The state machine logic that drives <see cref="CurrentState"/> transitions is
 /// implemented separately — this entity class carries state but enforces no transitions.
 /// </remarks>
-public class WorkflowRun
+public class WorkflowRun : IHasUpdatedAt
 {
     /// <summary>Primary key (UUID).</summary>
     public Guid Id { get; set; }

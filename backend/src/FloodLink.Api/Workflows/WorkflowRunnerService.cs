@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
@@ -43,12 +44,16 @@ public sealed class WorkflowRunnerService(
 
     private async Task ProcessAsync(Guid workflowRunId, CancellationToken ct)
     {
+        // Every log line written while this run is processed (orchestrator, agents, stock) carries its id.
+        using var logScope = logger.BeginScope(new Dictionary<string, object> { ["WorkflowRunId"] = workflowRunId });
+        var sw = Stopwatch.StartNew();
         try
         {
             using var scope = scopes.CreateScope();
             var orchestrator = scope.ServiceProvider.GetRequiredService<WorkflowOrchestrator>();
             var run = await orchestrator.RunToCompletionAsync(workflowRunId, ct);
-            logger.LogInformation("Workflow {WorkflowRunId} stopped in {State}.", workflowRunId, run.CurrentState);
+            logger.LogInformation("Workflow {WorkflowRunId} stopped in {State} after {DurationMs} ms (failure {FailureReason})",
+                workflowRunId, run.CurrentState, sw.ElapsedMilliseconds, run.FailureReason);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -56,7 +61,7 @@ public sealed class WorkflowRunnerService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Workflow {WorkflowRunId} failed unexpectedly.", workflowRunId);
+            logger.LogError(ex, "Workflow {WorkflowRunId} failed unexpectedly after {DurationMs} ms", workflowRunId, sw.ElapsedMilliseconds);
             await MarkFailedAsync(workflowRunId, ex.Message, ct);
         }
     }

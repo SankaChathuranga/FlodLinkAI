@@ -14,6 +14,30 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        StampUpdatedAt();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        StampUpdatedAt();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    // Every modified row gets a fresh UpdatedAt, so no caller has to remember to set it.
+    // New rows keep the value they were created with (DateTime.UtcNow unless set explicitly).
+    private void StampUpdatedAt()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var entry in ChangeTracker.Entries<IHasUpdatedAt>())
+        {
+            if (entry.State == EntityState.Modified)
+                entry.Entity.UpdatedAt = now;
+        }
+    }
+
     // ── Member C tables ────────────────────────────────────────────────────────
 
     /// <summary>All workflow pipeline runs.</summary>
@@ -181,6 +205,10 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.HasOne(e => e.Manager)
+                  .WithMany()
+                  .HasForeignKey(e => e.ManagerId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<InventoryItem>(entity =>
@@ -217,6 +245,7 @@ public class AppDbContext : DbContext
                   .HasForeignKey(e => e.ShelterId)
                   .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => new { e.WorkflowRunId, e.Status });
+            entity.HasIndex(e => e.Status);
         });
 
         // ── Dispatch ───────────────────────────────────────────────────────────
@@ -262,6 +291,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EventType).IsRequired().HasMaxLength(50);
             entity.Property(e => e.EventDetailJson).HasColumnType("jsonb");
             entity.HasIndex(e => e.DispatchId);
+            entity.HasIndex(e => e.EventType);
+            entity.HasIndex(e => e.ActorId);
             entity.HasOne(e => e.Dispatch)
                   .WithMany()
                   .HasForeignKey(e => e.DispatchId)
@@ -289,7 +320,8 @@ public class AppDbContext : DbContext
             Role = a.Role,
             Phone = a.Phone,
             HashedPassword = User.LockedPassword,
-            CreatedAt = fixedDate
+            CreatedAt = fixedDate,
+            UpdatedAt = fixedDate
         }).ToArray());
 
         modelBuilder.Entity<Shelter>().HasData(
@@ -337,8 +369,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Depot>().HasData(
             // Depots sit apart from the shelters they serve (Pettah and Malabe), so every
             // delivery has a real road route.
-            new Depot { Id = 1, Name = "Colombo Central Depot", Latitude = 6.9355, Longitude = 79.8487, CreatedAt = fixedDate },
-            new Depot { Id = 2, Name = "Kaduwela Supply Depot", Latitude = 6.9061, Longitude = 79.9580, CreatedAt = fixedDate }
+            new Depot { Id = 1, Name = "Colombo Central Depot", Latitude = 6.9355, Longitude = 79.8487, ManagerId = 3, CreatedAt = fixedDate, UpdatedAt = fixedDate },
+            new Depot { Id = 2, Name = "Kaduwela Supply Depot", Latitude = 6.9061, Longitude = 79.9580, ManagerId = 3, CreatedAt = fixedDate, UpdatedAt = fixedDate }
         );
 
         modelBuilder.Entity<InventoryItem>().HasData(
@@ -361,7 +393,8 @@ public class AppDbContext : DbContext
                 GpsLat = 6.9271,
                 GpsLng = 79.8612,
                 Status = "New",
-                CreatedAt = fixedDate
+                CreatedAt = fixedDate,
+                UpdatedAt = fixedDate
             },
             new Report
             {
@@ -375,7 +408,8 @@ public class AppDbContext : DbContext
                 GpsLat = 6.9271,
                 GpsLng = 79.8612,
                 Status = "Triaged",
-                CreatedAt = fixedDate
+                CreatedAt = fixedDate,
+                UpdatedAt = fixedDate
             },
             new Report
             {
@@ -389,7 +423,8 @@ public class AppDbContext : DbContext
                 GpsLat = 6.9344,
                 GpsLng = 79.9841,
                 Status = "New",
-                CreatedAt = fixedDate
+                CreatedAt = fixedDate,
+                UpdatedAt = fixedDate
             },
             new Report
             {
@@ -403,7 +438,8 @@ public class AppDbContext : DbContext
                 GpsLat = 6.9344,
                 GpsLng = 79.9841,
                 Status = "InPlan",
-                CreatedAt = fixedDate
+                CreatedAt = fixedDate,
+                UpdatedAt = fixedDate
             },
             new Report
             {
@@ -417,7 +453,8 @@ public class AppDbContext : DbContext
                 GpsLat = 7.0840,
                 GpsLng = 79.9925,
                 Status = "Resolved",
-                CreatedAt = fixedDate
+                CreatedAt = fixedDate,
+                UpdatedAt = fixedDate
             }
         );
     }

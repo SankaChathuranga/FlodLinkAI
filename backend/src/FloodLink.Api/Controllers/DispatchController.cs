@@ -1,4 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using FloodLink.Api.Auth;
+using FloodLink.Api.DTOs;
 using FloodLink.Contracts;
 using FloodLink.Domain;
 using FloodLink.Domain.Entities;
@@ -26,16 +28,18 @@ namespace FloodLink.Api.Controllers;
 public sealed class DispatchController : ControllerBase
 {
     /// <summary>Body contract for POST /api/dispatches/{id}/approve.</summary>
-    public sealed record ApproveRequest(string? Notes);
+    public sealed record ApproveRequest([StringLength(2000)] string? Notes);
 
     /// <summary>Body contract for POST /api/dispatches/{id}/reject (Reason required).</summary>
-    public sealed record RejectRequest(string Reason);
+    public sealed record RejectRequest([StringLength(2000)] string Reason);
 
     /// <summary>Body contract for POST /api/dispatches/{id}/request-revision (Notes required).</summary>
-    public sealed record RevisionRequest(string Notes);
+    public sealed record RevisionRequest([StringLength(2000)] string Notes);
 
     /// <summary>Body contract for POST /api/dispatches/{id}/confirm-delivery (Notes and PhotoReference optional).</summary>
-    public sealed record ConfirmDeliveryRequest(string? Notes, string? PhotoReference);
+    public sealed record ConfirmDeliveryRequest(
+        [StringLength(2000)] string? Notes,
+        [StringLength(500)] string? PhotoReference);
 
     private readonly AppDbContext _db;
     private readonly DispatchService _dispatches;
@@ -274,8 +278,8 @@ public sealed class DispatchController : ControllerBase
             query = query.Where(d => d.Decision == decision);
         }
 
-        if (dateFrom.HasValue) query = query.Where(d => d.CreatedAt >= dateFrom.Value);
-        if (dateTo.HasValue) query = query.Where(d => d.CreatedAt <= dateTo.Value);
+        if (dateFrom.HasValue) query = query.Where(d => d.CreatedAt >= dateFrom.Value.AsUtc());
+        if (dateTo.HasValue) query = query.Where(d => d.CreatedAt <= dateTo.Value.AsUtc());
 
         var total = await query.CountAsync(ct);
         var items = await query

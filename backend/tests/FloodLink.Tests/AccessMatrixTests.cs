@@ -41,9 +41,11 @@ public sealed class AccessMatrixTests : IClassFixture<TestAppFactory>
         { "POST", "/api/reports/999999/trigger-triage", null, [C] },
         // Depots, inventory, allocations
         { "GET", "/api/depots", null, [C, D] },
+        { "GET", "/api/depots/1", null, [C, D] },
         { "GET", "/api/inventory", null, [C, D] },
         { "GET", "/api/allocations", null, [C, D] },
         { "POST", "/api/depots", "{}", [D] },
+        { "PUT", "/api/depots/999999", "{}", [D] },
         { "POST", "/api/inventory", "{}", [D] },
         { "PUT", "/api/inventory/999999/check-in", """{"quantityReceived":0}""", [D] },
         { "PUT", "/api/inventory/999999/reserve", "{}", [D] },
@@ -64,6 +66,8 @@ public sealed class AccessMatrixTests : IClassFixture<TestAppFactory>
         { "POST", "/api/validations/run", "{}", [C] },
         { "GET", $"/api/validations/{Run}", null, [C] },
         { "GET", $"/api/audit/{Run}", null, [C] },
+        { "GET", "/api/audit", null, [C] },
+        { "GET", "/api/audit/event-types", null, [C] },
         // Ownership rows: a Volunteer passes the role check and then gets 404 for a run they don't own.
         { "GET", $"/api/workflows/{Run}/status", null, [V] },
         { "GET", $"/api/dispatches/by-workflow/{Run}", null, [V, C] },

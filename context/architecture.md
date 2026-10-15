@@ -41,6 +41,17 @@
 - Demo accounts (one per role, `Infrastructure/DemoAccounts.cs`) are seeded locked; the startup seeder hashes
   `Seed:DemoPassword` into them, so no password is committed.
 
+## Service Layer and Conventions
+
+- Business operations live in services, not controllers: `ReportService` (report submission + urgency),
+  `StockReservationService` (reserve / commit / release / check-in), `WorkflowService` (start / status / retry)
+  and `DispatchService` (approve / reject / revision / delivery). Controllers map service results to HTTP.
+- Every list endpoint pages through `Paging.ToPageAsync` and returns `PaginatedResult<T>`
+  (`items`, `page`, `pageSize`, `totalItems`, `totalPages`); page size 1–100, default 20.
+- `UpdatedAt` is never set by hand: entities implementing `IHasUpdatedAt` are stamped by `AppDbContext.SaveChanges`.
+- Logging uses `ILogger` message templates with named fields (`WorkflowRunId`, `Agent`, `DurationMs`, `UserId`);
+  outside Development the console output is JSON.
+
 ## Invariants
 
 1. [Rule the codebase must never violate — e.g. Request

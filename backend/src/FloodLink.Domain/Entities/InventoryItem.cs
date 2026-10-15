@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace FloodLink.Domain.Entities;
 
 /// <summary>Current stock for one named supply at one depot. Owned by Member B.</summary>
-public class InventoryItem
+public class InventoryItem : IHasUpdatedAt
 {
     public int Id { get; set; }
 

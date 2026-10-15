@@ -1,84 +1,50 @@
 using FloodLink.Agents.Triage;
 using FloodLink.Api.Auth;
 using FloodLink.Api.DTOs;
+using FloodLink.Api.Services;
 using FloodLink.Contracts;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Exceptions;
 using FloodLink.Domain.Security;
-using FloodLink.Domain.Services;
-using FloodLink.Infrastructure;
-using FloodLink.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace FloodLink.Api.Controllers;
 
+/// <summary>Field report endpoints (Member A). Business logic lives in <see cref="ReportService"/>.</summary>
 [ApiController]
 [Route("api/reports")]
 [Authorize]
 public class ReportsController : ControllerBase
 {
-    private readonly AppDbContext _context;
-    private readonly IUrgencyScoringService _urgencyScoringService;
-    private readonly IPhotoStorageService _photoStorageService;
+    private readonly ReportService _reports;
     private readonly ITriageAgent _triageAgent;
 
-    public ReportsController(
-        AppDbContext context,
-        IUrgencyScoringService urgencyScoringService,
-        IPhotoStorageService photoStorageService,
-        ITriageAgent triageAgent)
+    public ReportsController(ReportService reports, ITriageAgent triageAgent)
     {
-        _context = context;
-        _urgencyScoringService = urgencyScoringService;
-        _photoStorageService = photoStorageService;
+        _reports = reports;
         _triageAgent = triageAgent;
     }
 
     /// <summary>
-    /// GET /api/reports?shelterId=&amp;status=&amp;urgency=&amp;sort=
-    /// Retrieves field reports filtered by shelter, status, minimum urgency level, and sorted.
+    /// GET /api/reports?shelterId=&amp;status=&amp;urgency=&amp;search=&amp;sort=&amp;page=&amp;pageSize=
+    /// One page of field reports. Filter by shelter, status and minimum urgency; <c>search</c> matches
+    /// need type, notes, shelter name or report id. <c>sort</c>: newest (default), oldest,
+    /// urgency_desc, urgency_asc, quantity_desc, quantity_asc.
     /// </summary>
     [HttpGet]
     [Authorize(Policy = Policies.Coordinator)]
-    public async Task<ActionResult<IEnumerable<Report>>> GetReports(
+    [ProducesResponseType<PaginatedResult<Report>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<PaginatedResult<Report>>> GetReports(
         [FromQuery] int? shelterId,
         [FromQuery] string? status,
         [FromQuery] int? urgency,
-        [FromQuery] string? sort)
-    {
-        IQueryable<Report> query = _context.Reports
-            .Include(r => r.Shelter)
-            .Include(r => r.Reporter)
-            .AsNoTracking();
-
-        if (shelterId.HasValue)
-        {
-            query = query.Where(r => r.ShelterId == shelterId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            query = query.Where(r => r.Status.ToLower() == status.Trim().ToLower());
-        }
-
-        if (urgency.HasValue)
-        {
-            query = query.Where(r => r.UrgencyLevel >= urgency.Value);
-        }
-
-        query = (sort?.Trim().ToLower()) switch
-        {
-            "urgency" or "urgency_desc" => query.OrderByDescending(r => r.UrgencyLevel),
-            "urgency_asc" => query.OrderBy(r => r.UrgencyLevel),
-            "oldest" or "created_asc" => query.OrderBy(r => r.CreatedAt),
-            _ => query.OrderByDescending(r => r.CreatedAt)
-        };
-
-        List<Report> reports = await query.ToListAsync();
-        return Ok(reports);
-    }
+        [FromQuery] string? sort,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Paging.DefaultPageSize,
+        CancellationToken ct = default)
+        => Ok(await _reports.SearchAsync(new ReportQuery(shelterId, status, urgency, search, sort, page, pageSize), ct));
 
     /// <summary>
     /// GET /api/reports/triage-plans
@@ -86,15 +52,8 @@ public class ReportsController : ControllerBase
     /// </summary>
     [HttpGet("triage-plans")]
     [Authorize(Policy = Policies.Coordinator)]
-    public async Task<ActionResult<IEnumerable<TriagePlanEntity>>> GetTriagePlans()
-    {
-        List<TriagePlanEntity> plans = await _context.TriagePlans
-            .OrderByDescending(t => t.CreatedAt)
-            .AsNoTracking()
-            .ToListAsync();
-
-        return Ok(plans);
-    }
+    public async Task<ActionResult<IEnumerable<TriagePlanEntity>>> GetTriagePlans(CancellationToken ct = default)
+        => Ok(await _reports.GetTriagePlansAsync(ct));
 
     /// <summary>
     /// GET /api/reports/mine
@@ -103,27 +62,10 @@ public class ReportsController : ControllerBase
     /// </summary>
     [HttpGet("mine")]
     [Authorize(Policy = Policies.Volunteer)]
-    public async Task<ActionResult<IEnumerable<MyReportDto>>> GetMyReports(CancellationToken ct)
+    public async Task<ActionResult<IEnumerable<MyReportDto>>> GetMyReports(CancellationToken ct = default)
     {
         int userId = User.GetUserId() ?? throw new UnauthorizedException("Token has no user id.");
-
-        var rows = await _context.Reports.AsNoTracking()
-            .Where(r => r.ReportedBy == userId)
-            .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new
-            {
-                Report = r,
-                ShelterName = r.Shelter != null ? r.Shelter.Name : null,
-                WorkflowState = r.WorkflowRun != null ? (FloodLink.Domain.Enums.WorkflowState?)r.WorkflowRun.CurrentState : null,
-                Decision = _context.Dispatches
-                    .Where(d => d.WorkflowRunId == r.WorkflowRunId)
-                    .OrderByDescending(d => d.CreatedAt)
-                    .Select(d => (FloodLink.Domain.Enums.DispatchDecision?)d.Decision)
-                    .FirstOrDefault()
-            })
-            .ToListAsync(ct);
-
-        return Ok(rows.Select(x => MyReportDto.From(x.Report, x.ShelterName, x.WorkflowState, x.Decision)));
+        return Ok(await _reports.GetMineAsync(userId, ct));
     }
 
     /// <summary>
@@ -132,25 +74,15 @@ public class ReportsController : ControllerBase
     /// Coordinators and Admins can read any report; a Volunteer only their own (404 otherwise).
     /// </summary>
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<Report>> GetReportById(int id)
+    public async Task<ActionResult<Report>> GetReportById(int id, CancellationToken ct = default)
     {
         if (!User.IsInAnyRoleOrAdmin(Roles.Coordinator, Roles.Volunteer))
         {
             return Forbid();
         }
 
-        Report? report = await _context.Reports
-            .Include(r => r.Shelter)
-            .Include(r => r.Reporter)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == id);
-
-        if (report == null || (!User.IsCoordinatorOrAdmin() && report.ReportedBy != User.GetUserId()))
-        {
-            throw new NotFoundException($"Report with ID {id} was not found.");
-        }
-
-        return Ok(report);
+        int? ownerId = User.IsCoordinatorOrAdmin() ? null : User.GetUserId() ?? -1;
+        return Ok(await _reports.GetAsync(id, ownerId, ct));
     }
 
     /// <summary>
@@ -161,10 +93,9 @@ public class ReportsController : ControllerBase
     /// </summary>
     [HttpPost("{id:int}/trigger-triage")]
     [Authorize(Policy = Policies.Coordinator)]
-    public async Task<ActionResult<TriagePlan>> TriggerTriage(int id)
+    public async Task<ActionResult<TriagePlan>> TriggerTriage(int id, CancellationToken ct = default)
     {
-        Report? report = await _context.Reports.FindAsync(id);
-        if (report == null)
+        if (!await _reports.ExistsAsync(id, ct))
         {
             throw new NotFoundException($"Report with ID {id} was not found.");
         }
@@ -191,64 +122,16 @@ public class ReportsController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Policy = Policies.Volunteer)]
-    public async Task<ActionResult<Report>> CreateReport([FromForm] CreateReportDto dto)
+    public async Task<ActionResult<Report>> CreateReport([FromForm] CreateReportDto dto, CancellationToken ct = default)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
 
-        Shelter? shelter = await _context.Shelters.FirstOrDefaultAsync(s => s.Id == dto.ShelterId);
-        if (shelter == null)
-        {
-            throw new BadRequestException($"Shelter with ID {dto.ShelterId} does not exist.");
-        }
-
         // The reporter is always the signed-in user; it is never taken from the request body.
         int reporterId = User.GetUserId() ?? throw new UnauthorizedException("Token has no user id.");
-        bool reporterExists = await _context.Users.AnyAsync(u => u.Id == reporterId);
-        if (!reporterExists)
-        {
-            throw new UnauthorizedException("The signed-in user no longer exists.");
-        }
-
-        string? photoUrl = dto.PhotoUrl;
-        if (dto.Photo != null)
-        {
-            string? uploadedPath = await _photoStorageService.SavePhotoAsync(dto.Photo);
-            if (!string.IsNullOrEmpty(uploadedPath))
-            {
-                photoUrl = uploadedPath;
-            }
-        }
-
-        DateTime? lastResupplyUtc = await _context.Reports
-            .Where(r => r.ShelterId == dto.ShelterId && r.Status == "Resolved")
-            .OrderByDescending(r => r.CreatedAt)
-            .Select(r => (DateTime?)r.CreatedAt)
-            .FirstOrDefaultAsync();
-
-        int autoCalculatedUrgency = _urgencyScoringService.CalculateUrgencyScore(shelter, dto.NeedType, lastResupplyUtc);
-        int finalUrgency = dto.UrgencyLevel.HasValue ? Math.Clamp(dto.UrgencyLevel.Value, 0, 100) : autoCalculatedUrgency;
-
-        var report = new Report
-        {
-            ShelterId = dto.ShelterId,
-            ReportedBy = reporterId,
-            NeedType = dto.NeedType,
-            QuantityNeeded = dto.QuantityNeeded,
-            Notes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim(),
-            UrgencyLevel = finalUrgency,
-            PhotoUrl = photoUrl,
-            GpsLat = dto.GpsLat ?? shelter.Latitude,
-            GpsLng = dto.GpsLng ?? shelter.Longitude,
-            Status = dto.Status,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _context.Reports.Add(report);
-        await _context.SaveChangesAsync();
-
+        Report report = await _reports.SubmitAsync(dto, reporterId, ct);
         return CreatedAtAction(nameof(GetReportById), new { id = report.Id }, report);
     }
 
@@ -258,42 +141,13 @@ public class ReportsController : ControllerBase
     /// </summary>
     [HttpPut("{id:int}")]
     [Authorize(Policy = Policies.Coordinator)]
-    public async Task<ActionResult<Report>> UpdateReport(int id, [FromForm] UpdateReportDto dto)
+    public async Task<ActionResult<Report>> UpdateReport(int id, [FromForm] UpdateReportDto dto, CancellationToken ct = default)
     {
         if (!ModelState.IsValid)
         {
             return BadRequest(ModelState);
         }
 
-        Report? report = await _context.Reports.FindAsync(id);
-        if (report == null)
-        {
-            throw new NotFoundException($"Report with ID {id} was not found.");
-        }
-
-        if (dto.Photo != null)
-        {
-            string? uploadedPath = await _photoStorageService.SavePhotoAsync(dto.Photo);
-            if (!string.IsNullOrEmpty(uploadedPath))
-            {
-                report.PhotoUrl = uploadedPath;
-            }
-        }
-        else if (!string.IsNullOrEmpty(dto.PhotoUrl))
-        {
-            report.PhotoUrl = dto.PhotoUrl;
-        }
-
-        report.NeedType = dto.NeedType;
-        report.QuantityNeeded = dto.QuantityNeeded;
-        report.Notes = string.IsNullOrWhiteSpace(dto.Notes) ? null : dto.Notes.Trim();
-        report.UrgencyLevel = dto.UrgencyLevel;
-        report.GpsLat = dto.GpsLat ?? report.GpsLat;
-        report.GpsLng = dto.GpsLng ?? report.GpsLng;
-        report.Status = dto.Status;
-
-        await _context.SaveChangesAsync();
-
-        return Ok(report);
+        return Ok(await _reports.UpdateAsync(id, dto, User.GetUserId(), ct));
     }
 }

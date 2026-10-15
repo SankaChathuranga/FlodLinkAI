@@ -3,6 +3,9 @@ using System.Text.Json;
 using FloodLink.Contracts;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
+using FloodLink.Domain.Llm;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FloodLink.Domain;
 
@@ -32,6 +35,7 @@ public sealed class WorkflowOrchestrator
     private readonly IAgentExecutionLogger _logger;
     private readonly IWorkflowRunRepository _runs;
     private readonly IPlannerInvoker? _planner;
+    private readonly ILogger _log;
 
     public WorkflowOrchestrator(
         ITriageAgentInvoker triage,
@@ -41,8 +45,10 @@ public sealed class WorkflowOrchestrator
         IStockReservationService stock,
         IAgentExecutionLogger logger,
         IWorkflowRunRepository runs,
-        IPlannerInvoker? planner = null)
+        IPlannerInvoker? planner = null,
+        ILogger<WorkflowOrchestrator>? log = null)
     {
+        _log = log ?? NullLogger<WorkflowOrchestrator>.Instance;
         _triage = triage;
         _matching = matching;
         _routing = routing;
@@ -219,6 +225,8 @@ public sealed class WorkflowOrchestrator
             sw.Stop();
             await _logger.LogExecutionAsync(run.Id, agentName, sw.ElapsedMilliseconds, success: false,
                 isRetry: isRetry, inputJson: inputJson, errorMessage: ex.Message, cancellationToken: ct);
+            _log.LogError(ex, "Workflow {WorkflowRunId} agent {Agent} threw after {DurationMs} ms (retry {IsRetry})",
+                run.Id, agentName, sw.ElapsedMilliseconds, isRetry);
             Fail(run, "UNEXPECTED_ERROR", ex.Message);
             return;
         }
@@ -235,6 +243,8 @@ public sealed class WorkflowOrchestrator
             SerializeToolCalls(result.ToolCalls),
             result.ErrorMessage,
             ct);
+
+        LogStep(run, agentName, result.Success, sw.ElapsedMilliseconds, isRetry, result.ToolCalls, result.ErrorCode);
 
         if (result.Success && result.Data is not null)
             await onSuccess(result.Data);
@@ -256,6 +266,9 @@ public sealed class WorkflowOrchestrator
             toolCallsJson: SerializeToolCalls(reservation.ToolCalls),
             errorMessage: reservation.ErrorMessage,
             cancellationToken: ct);
+
+        LogStep(run, "StockReservation", reservation.Succeeded, sw.ElapsedMilliseconds, isRetry: false,
+            reservation.ToolCalls, reservation.ErrorCode);
 
         if (reservation.Succeeded)
             WorkflowEngine.TryTransition(run, WorkflowState.PendingApproval);
@@ -290,10 +303,25 @@ public sealed class WorkflowOrchestrator
             : null;
     }
 
-    private static void Fail(WorkflowRun run, string code, string message)
+    // One structured line per step: which agent, how long, how many tool and LLM calls, and
+    // whether an LLM agent fell back to its rule-based logic.
+    private void LogStep(WorkflowRun run, string agentName, bool succeeded, long durationMs, bool isRetry,
+        IReadOnlyList<ToolCall>? toolCalls, string? errorCode)
+    {
+        var llmCalls = toolCalls?.Where(t => t.Tool == LlmToolCall.ToolName).ToList() ?? [];
+        var usedFallback = llmCalls.Any(t => t.Output?.GetValueOrDefault("usedFallback") is true);
+        _log.Log(succeeded ? LogLevel.Information : LogLevel.Warning,
+            "Workflow {WorkflowRunId} agent {Agent} {Outcome} in {DurationMs} ms (state {State}, retry {IsRetry}, tool calls {ToolCallCount}, LLM calls {LlmCallCount}, used fallback {UsedFallback}, error {ErrorCode})",
+            run.Id, agentName, succeeded ? "succeeded" : "failed", durationMs, run.CurrentState, isRetry,
+            toolCalls?.Count ?? 0, llmCalls.Count, usedFallback, errorCode);
+    }
+
+    private void Fail(WorkflowRun run, string code, string message)
     {
         if (!WorkflowEngine.TryTransition(run, WorkflowState.Failed))
             return;
+
+        _log.LogWarning("Workflow {WorkflowRunId} failed at {State}: {Code}", run.Id, run.FailedAtState, code);
 
         var reason = $"{code}: {message}";
         run.FailureReason = reason.Length > MaxFailureReasonLength ? reason[..MaxFailureReasonLength] : reason;

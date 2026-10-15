@@ -1,14 +1,16 @@
 using FloodLink.Agents.Triage;
 using FloodLink.Api.Controllers;
 using FloodLink.Api.DTOs;
+using FloodLink.Api.Services;
 using FloodLink.Contracts;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Exceptions;
-using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Services;
+using FloodLink.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -60,7 +62,7 @@ public class ReportSubmissionAndTriageIntegrationTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, scoringService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
         controller.SignInAs(1);
 
         var dto = new CreateReportDto
@@ -85,7 +87,7 @@ public class ReportSubmissionAndTriageIntegrationTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, scoringService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
         controller.SignInAs(8888); // a token for a user that is not in the database
 
         var dto = new CreateReportDto
@@ -110,7 +112,7 @@ public class ReportSubmissionAndTriageIntegrationTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, scoringService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
         controller.SignInAs(1);
         controller.ModelState.AddModelError("NeedType", "The NeedType field is required.");
 
@@ -139,7 +141,7 @@ public class ReportSubmissionAndTriageIntegrationTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, scoringService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
         controller.SignInAs(1);
 
         var dto = new CreateReportDto
@@ -177,7 +179,7 @@ public class ReportSubmissionAndTriageIntegrationTests
 
         // Instantiate concrete TriageAgent
         var triageAgent = new TriageAgent(context, scoringService);
-        var controller = new ReportsController(context, scoringService, photoService, triageAgent);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), triageAgent);
         controller.SignInAs(1);
 
         // Step 1: Submit a report via controller
