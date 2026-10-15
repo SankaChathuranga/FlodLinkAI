@@ -186,13 +186,35 @@ public static class SafetyRules
     {
         _ when IsInvalidLat(originLat) || IsInvalidLat(destLat) => "Origin/destination latitude out of range [-90, 90].",
         _ when IsInvalidLng(originLng) || IsInvalidLng(destLng) => "Origin/destination longitude out of range [-180, 180].",
+        _ when (originLat == 0 && originLng == 0) || (destLat == 0 && destLng == 0) =>
+            "Origin or destination is at (0, 0): its coordinates were never set.",
         _ when originLat == destLat && originLng == destLng => "Origin and destination are identical; no journey to deliver.",
         _ when double.IsNaN(distanceKm) || distanceKm <= 0 => "Routing distance must be positive.",
+        _ when distanceKm < MinRoadToStraightLineRatio * StraightLineKm(originLat, originLng, destLat, destLng) =>
+            $"Routing distance {distanceKm} km is shorter than the {StraightLineKm(originLat, originLng, destLat, destLng):F1} km straight line between depot and shelter: the stored coordinates or the route are wrong.",
         _ when distanceKm > MaxPlausibleDistanceKm => $"Routing distance {distanceKm} km exceeds the plausible maximum {MaxPlausibleDistanceKm} km.",
         _ when double.IsNaN(etaMinutes) || etaMinutes <= 0 => "Routing ETA must be positive.",
         _ when etaMinutes > MaxPlausibleEtaMinutes => $"Routing ETA {etaMinutes} minutes exceeds the plausible maximum {MaxPlausibleEtaMinutes} minutes.",
         _ => null
     };
+
+    /// <summary>
+    /// A road route can't be shorter than the straight line between its ends; a small allowance covers
+    /// Mapbox snapping the points to the nearest road.
+    /// </summary>
+    public const double MinRoadToStraightLineRatio = 0.9;
+
+    /// <summary>Great-circle (haversine) distance in km.</summary>
+    public static double StraightLineKm(double lat1, double lng1, double lat2, double lng2)
+    {
+        const double earthRadiusKm = 6371;
+        static double Radians(double degrees) => degrees * Math.PI / 180;
+        var dLat = Radians(lat2 - lat1);
+        var dLng = Radians(lng2 - lng1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(Radians(lat1)) * Math.Cos(Radians(lat2)) * Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+        return 2 * earthRadiusKm * Math.Asin(Math.Min(1, Math.Sqrt(a)));
+    }
 
     private static bool IsInvalidLat(double value) => double.IsNaN(value) || value is < -90 or > 90;
 

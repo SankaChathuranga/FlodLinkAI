@@ -84,7 +84,7 @@ public sealed class WorkflowIntegrationTests : IClassFixture<TestAppFactory>
             ["Polyline"] = "abc",
             ["OriginLat"] = 6.90,
             ["OriginLng"] = 79.80,
-            ["DestLat"] = 6.02,
+            ["DestLat"] = 6.70,
             ["DestLng"] = 80.00,
             ["Allocations"] = new JsonArray(new JsonObject
             {

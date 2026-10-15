@@ -48,8 +48,8 @@ public class SafetyRulesTests
             Polyline = "encoded",
             OriginLat = 6.9271,
             OriginLng = 79.8612,
-            DestLat = 7.2906,
-            DestLng = 80.6337,
+            DestLat = 7.0840,
+            DestLng = 79.9925,
             Allocations = lines
         };
 
@@ -182,8 +182,8 @@ public class SafetyRulesTests
             Polyline = "encoded",
             OriginLat = 95,
             OriginLng = 79.8612,
-            DestLat = 7.2906,
-            DestLng = 80.6337,
+            DestLat = 7.0840,
+            DestLng = 79.9925,
             Allocations = Array.Empty<PlanAllocationLine>()
         };
 
@@ -231,6 +231,30 @@ public class SafetyRulesTests
         var check = SafetyRules.CheckCoordinates(plan, Route() with { DistanceKm = SafetyRules.MaxPlausibleDistanceKm + 1 });
 
         Assert.False(check.Passed);
+    }
+
+    [Fact]
+    public void Coordinates_Fail_WhenAPointWasNeverSet()
+    {
+        var plan = Plan(Guid.NewGuid());
+
+        var check = SafetyRules.CheckCoordinates(plan with { DestLat = 0, DestLng = 0 }, Route());
+
+        Assert.False(check.Passed);
+        Assert.Contains("(0, 0)", check.ViolationDetail);
+    }
+
+    [Fact]
+    public void Coordinates_Fail_WhenTheRouteIsShorterThanTheStraightLine()
+    {
+        // Colombo → Gampaha is about 22.6 km in a straight line; no road can be 10 km.
+        var plan = Plan(Guid.NewGuid());
+
+        var check = SafetyRules.CheckCoordinates(plan, Route() with { DistanceKm = 10 });
+
+        Assert.False(check.Passed);
+        Assert.Contains("straight line", check.ViolationDetail);
+        Assert.InRange(SafetyRules.StraightLineKm(plan.OriginLat, plan.OriginLng, plan.DestLat, plan.DestLng), 22, 23.5);
     }
 
     // ── Golden cases (agent evaluation) ───────────────────────────────────────

@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Security.Claims;
@@ -216,6 +217,16 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
+
+// Report photos saved by PhotoStorageService (wwwroot/uploads, images only) are served at /uploads.
+// The folder may not exist before the first upload, so create it and serve it explicitly.
+var uploadsPath = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "uploads");
+Directory.CreateDirectory(uploadsPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
 app.UseCors("AllowLocalDev");
 app.UseHttpsRedirection();
 app.UseAuthentication();

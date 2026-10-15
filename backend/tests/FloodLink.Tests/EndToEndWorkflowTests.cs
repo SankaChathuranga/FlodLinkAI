@@ -368,4 +368,53 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         Assert.Equal(1, page!["totalItems"]!.GetValue<int>());
         Assert.Equal(second.ToString(), page["items"]![0]!["id"]!.GetValue<string>());
     }
+
+    [Fact]
+    public async Task E2E007_ConcurrentApprovals_OneSucceeds_TheOtherGets409_AndStockIsCommittedOnce()
+    {
+        var (shelterId, userId, itemId) = await SeedAsync(stock: 500);
+        var runId = await StartWorkflowAsync("E2E concurrent approval", await SubmitReportIdAsync(shelterId, userId, quantity: 40));
+        await WaitForStatusAsync(runId, "PendingApproval");
+
+        // Two coordinators press Approve at the same moment.
+        var secondCoordinator = _factory.CreateClient().WithToken(TestAppFactory.TokenFor(Roles.Coordinator));
+        var responses = await Task.WhenAll(
+            _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "first" }),
+            secondCoordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "second" }));
+
+        Assert.Equal([HttpStatusCode.OK, HttpStatusCode.Conflict], responses.Select(r => r.StatusCode).Order());
+        await using var db = NewDb();
+        Assert.Single(db.Dispatches.Where(d => d.WorkflowRunId == runId && d.Decision == DispatchDecision.Approved));
+        var item = await db.InventoryItems.SingleAsync(i => i.Id == itemId);
+        Assert.Equal(460, item.QuantityAvailable); // 40 taken once, not twice
+        Assert.Equal(0, item.QuantityReserved);
+    }
+
+    [Fact]
+    public async Task E2E008_RetryLimit_FourthRetryReturns409_AndEachRetryIsLogged()
+    {
+        var (shelterId, userId, _) = await SeedAsync(stock: 0);
+        var runId = await StartWorkflowAsync("E2E retry limit", await SubmitReportIdAsync(shelterId, userId, quantity: 40));
+        await WaitForStatusAsync(runId, "Failed");
+
+        // Nothing is restocked, so each retry re-runs Matching and fails again.
+        for (var retry = 1; retry <= 3; retry++)
+        {
+            var response = await _coordinator.PostAsync($"/api/workflows/{runId}/retry", null);
+            Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+            Assert.Equal(retry, (await response.Content.ReadFromJsonAsync<JsonObject>())!["retryCount"]!.GetValue<int>());
+            var status = await WaitForStatusAsync(runId, "Failed");
+            Assert.Equal("Matching", status["failedAtState"]!.GetValue<string>());
+        }
+
+        var fourth = await _coordinator.PostAsync($"/api/workflows/{runId}/retry", null);
+        Assert.Equal(HttpStatusCode.Conflict, fourth.StatusCode);
+        Assert.Equal("RETRY_LIMIT_REACHED", (await fourth.Content.ReadFromJsonAsync<JsonObject>())!["error"]!.GetValue<string>());
+
+        await using var db = NewDb();
+        Assert.Equal(3, (await db.WorkflowRuns.SingleAsync(r => r.Id == runId)).RetryCount);
+        Assert.Equal(3, db.AgentExecutionLogs.Count(l => l.WorkflowRunId == runId && l.AgentName == "MatchingAgent" && l.IsRetry));
+        var list = await _coordinator.GetFromJsonAsync<JsonObject>("/api/workflows?state=Failed");
+        Assert.Equal(3, list!["items"]![0]!["retryCount"]!.GetValue<int>());
+    }
 }

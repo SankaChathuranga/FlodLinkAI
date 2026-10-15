@@ -55,7 +55,8 @@ jobs:
       - name: Run tests
         # The integration tests (WorkflowIntegrationTests) connect to the
         # Postgres service container above via TestAppFactory.TestConnectionString.
-        run: dotnet test ../FloodLink.sln --no-build --configuration Release --verbosity normal
+        # Live tests call real Gemini and need a key; they are run by hand (see AgentEvaluation/LiveAgentEvaluationTests).
+        run: dotnet test ../FloodLink.sln --no-build --configuration Release --verbosity normal --filter "Category!=Live"
 
   # -----------------------------------------------------------
   # Job 2 - Web (Node / Vite)

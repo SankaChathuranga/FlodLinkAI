@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Xunit;
 
 namespace FloodLink.Tests;
@@ -227,6 +228,30 @@ public sealed class AuthTests : IClassFixture<TestAppFactory>
         var json = await _factory.CreateCoordinatorClient().GetStringAsync("/api/reports");
         Assert.Contains("reporter", json);
         Assert.DoesNotContain("hashedPassword", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ── Tokens ────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task AUTH016_LoginToken_CarriesSubNameEmailAndRole()
+    {
+        var token = new JsonWebToken(await LoginTokenAsync("coordinator@floodlink.lk", TestAppFactory.DemoPassword));
+
+        Assert.Equal(TestAppFactory.DemoUserId(Roles.Coordinator).ToString(), token.Subject);
+        Assert.Equal("coordinator@floodlink.lk", token.GetClaim("email").Value);
+        Assert.Equal(Roles.Coordinator, token.GetClaim("role").Value);
+        Assert.False(string.IsNullOrEmpty(token.GetClaim("name").Value));
+        Assert.InRange(token.ValidTo, DateTime.UtcNow.AddHours(7.9), DateTime.UtcNow.AddHours(8.1));
+    }
+
+    [Fact]
+    public async Task AUTH017_ExpiredToken_IsRejected_EvenForMe()
+    {
+        var expired = TestAppFactory.TokenFor(Roles.Coordinator, expires: DateTime.UtcNow.AddSeconds(-1));
+
+        var response = await _factory.CreateClient().WithToken(expired).GetAsync("/api/auth/me");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }
 

@@ -122,6 +122,19 @@ change.
   Tests: `BackendQualityTests`, access-matrix rows for the new endpoints, orchestrator log-field test,
   web `Lists.test.tsx`; backend 278, web 28, Flutter 22.
 
+- 2026-10-15 — **Phase 6 backend tests and agent evaluation built** (6.01–6.16). New `AgentEvaluation/` test
+  folder: `GoldenCases.cs` (fixed "flood night" world: insulin vs routine medical with equal rule scores, a hostile
+  note, a need larger than stock; `GoldenChecks` safety invariants for Planner/Triage/Matching/Route output),
+  `AgentGoldenCaseTests` (CI, scripted LLM), `AgentSafetyApiTests` (real API + runner + Postgres: Mapbox failure →
+  safe Failed with nothing reserved; prompt injection end to end; no dispatch before PendingApproval; golden
+  report → approval → delivery) and `LiveAgentEvaluationTests` (`Category=Live`, real Gemini, writes
+  `testing-evidence/agents/`). Also `ReportApiTests`, AUTH016/017, SEC008b, E2E007 (concurrent approval),
+  E2E008 (retry limit). CI runs `--filter "Category!=Live"`. Fixes: uploaded report photos were saved but never
+  served — now `UseStaticFiles` on `wwwroot/uploads` (gitignored), JPEG/PNG/WebP only, ≤ 10 MB;
+  `SafetyRules.CoordinateSanity` rejects (0, 0) points and road distances under 0.9 × straight line (two test
+  fixtures had impossible distances and were corrected). Backend 337 tests pass. Live run: Planner/Triage used
+  Gemini (insulin +15, routine −5, hostile note 0); Matching got 429 (free-tier quota) and used greedy.
+
 ## In Progress
 
 - None.
@@ -131,7 +144,8 @@ change.
 - Set `Seed:DemoPassword` and `Jwt:SigningKey` in user-secrets (or env vars) for local runs; the demo accounts
   stay locked without a demo password.
 - Gate 4 by hand: Flutter report → React start + trace → approve → Flutter shows Approved with ETA.
-- Phase 6 (tests and agent evaluation).
+- Phase 6 remaining: 6.17–6.29 (React/Flutter tests, k6 against the deployed API, CI green on main).
+- Re-run the live evaluation when the Gemini quota resets so Matching is evaluated on model output.
 - Confirm CI runs on PRs and provides Postgres for the integration tests.
 - Run the mobile dispatch screens on an emulator/device.
 
