@@ -105,6 +105,11 @@ export function LoginPage() {
         >
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
+
+        <p className="text-xs text-slate-500 text-center">
+          No account? Staff accounts are created by an administrator. Field volunteers sign up in the
+          FloodLink mobile app.
+        </p>
       </form>
     </div>
   )

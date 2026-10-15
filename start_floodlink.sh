@@ -1,14 +1,17 @@
-# run : chmod +x start_floodlink.sh
-#       ./start_floodlink.sh 
-
-
 #!/usr/bin/env bash
+# run : chmod +x start_floodlink.sh
+#       ./start_floodlink.sh
+
 set -e
 
 cd "$(dirname "$0")"
 
 echo "Starting PostgreSQL..."
-docker-compose up -d
+if docker compose version >/dev/null 2>&1; then
+  docker compose up -d
+else
+  docker-compose up -d
+fi
 
 echo "Starting backend..."
 (
