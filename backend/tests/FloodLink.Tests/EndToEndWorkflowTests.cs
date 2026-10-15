@@ -183,8 +183,8 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         Assert.Equal(
             ["TriageAgent", "MatchingAgent", "RoutingAgent", "ValidationAgent", "StockReservation"],
             logs!.Select(l => l!["agentName"]!.GetValue<string>()).ToArray());
-        Assert.Contains("mapbox.directions", logs.ToJsonString());
-        Assert.Contains("db.inventory.read", logs.ToJsonString());
+        Assert.Contains("mapbox.directions", logs!.ToJsonString());
+        Assert.Contains("db.inventory.read", logs!.ToJsonString());
 
         // Step 4 — the approval queue lists the run.
         var pending = await _client.GetStringAsync("/api/dispatches/approval-queue");
