@@ -106,4 +106,10 @@ export function startWorkflow(tokens) {
   if (check(logs, { 'logs ok (200)': (r) => r.status === 200 })) {
     for (const step of logs.json()) agentMs.add(step.durationMs, { agent: step.agentName });
   }
+
+  // Clean up on shared databases: reject the run so its reserved stock is released.
+  if (state === 'PendingApproval') {
+    http.post(`${BASE}/api/dispatches/${runId}/reject`, JSON.stringify({ reason: 'k6 load test run — not a real plan' }),
+      auth(tokens.coordinator, { 'Content-Type': 'application/json' }));
+  }
 }
