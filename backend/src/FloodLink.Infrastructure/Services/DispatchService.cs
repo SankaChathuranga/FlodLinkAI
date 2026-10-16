@@ -3,6 +3,7 @@ using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FloodLink.Infrastructure.Services;
 
@@ -15,20 +16,25 @@ namespace FloodLink.Infrastructure.Services;
 /// report status updates and the workflow state change are saved together in a single
 /// <c>SaveChanges</c> (one database transaction). This is the only code path that commits stock.
 /// </remarks>
-public sealed class DispatchService(AppDbContext db, StockReservationService stock, IWorkflowRunQueue queue)
+public sealed class DispatchService(
+    AppDbContext db,
+    StockReservationService stock,
+    IWorkflowRunQueue queue,
+    ILogger<DispatchService> logger)
 {
     /// <summary>Approves a PendingApproval plan: commits its stock and records the dispatch.</summary>
     public async Task<DispatchOutcome> ApproveAsync(Guid workflowRunId, string? notes, int? actorId, CancellationToken ct = default)
     {
         var run = await db.WorkflowRuns.FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
         if (run is null)
-            return DispatchOutcome.NotFound(workflowRunId);
+            return Refused("approve", workflowRunId, actorId, DispatchOutcome.NotFound(workflowRunId));
         if (run.CurrentState != WorkflowState.PendingApproval)
-            return DispatchOutcome.InvalidState($"Only a PendingApproval plan can be approved; current state is {run.CurrentState}.");
+            return Refused("approve", workflowRunId, actorId,
+                DispatchOutcome.InvalidState($"Only a PendingApproval plan can be approved; current state is {run.CurrentState}."));
 
         var commit = await stock.StageCommitAsync(run.Id, ct);
         if (!commit.Succeeded)
-            return DispatchOutcome.Conflict(commit.ErrorCode!, commit.ErrorMessage!);
+            return Refused("approve", workflowRunId, actorId, DispatchOutcome.Conflict(commit.ErrorCode!, commit.ErrorMessage!));
 
         var dispatch = NewDispatch(run, DispatchDecision.Approved, notes, actorId);
         dispatch.DispatchedAt = DateTime.UtcNow;
@@ -36,27 +42,28 @@ public sealed class DispatchService(AppDbContext db, StockReservationService sto
         await SetReportStatusAsync(run, "InPlan", ct);
         WorkflowEngine.TryTransition(run, WorkflowState.Approved);
 
-        return await SaveAsync(dispatch, run, ct);
+        return await SaveAsync("approve", dispatch, run, ct);
     }
 
     /// <summary>Rejects a PendingApproval plan with a mandatory reason and releases its stock.</summary>
     public async Task<DispatchOutcome> RejectAsync(Guid workflowRunId, string? reason, int? actorId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(reason))
-            return DispatchOutcome.BadRequest("REASON_REQUIRED", "A rejection reason is mandatory.");
+            return Refused("reject", workflowRunId, actorId, DispatchOutcome.BadRequest("REASON_REQUIRED", "A rejection reason is mandatory."));
 
         var run = await db.WorkflowRuns.FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
         if (run is null)
-            return DispatchOutcome.NotFound(workflowRunId);
+            return Refused("reject", workflowRunId, actorId, DispatchOutcome.NotFound(workflowRunId));
         if (run.CurrentState != WorkflowState.PendingApproval)
-            return DispatchOutcome.InvalidState($"Only a PendingApproval plan can be rejected; current state is {run.CurrentState}.");
+            return Refused("reject", workflowRunId, actorId,
+                DispatchOutcome.InvalidState($"Only a PendingApproval plan can be rejected; current state is {run.CurrentState}."));
 
         await stock.StageReleaseAsync(run.Id, ct);
         var dispatch = NewDispatch(run, DispatchDecision.Rejected, reason, actorId);
         AddAudit(dispatch, "DispatchRejected", actorId, new { workflowRunId, reason });
         WorkflowEngine.TryTransition(run, WorkflowState.Rejected);
 
-        return await SaveAsync(dispatch, run, ct);
+        return await SaveAsync("reject", dispatch, run, ct);
     }
 
     /// <summary>
@@ -66,13 +73,14 @@ public sealed class DispatchService(AppDbContext db, StockReservationService sto
     public async Task<DispatchOutcome> RequestRevisionAsync(Guid workflowRunId, string? notes, int? actorId, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(notes))
-            return DispatchOutcome.BadRequest("NOTES_REQUIRED", "Revision notes are mandatory.");
+            return Refused("request-revision", workflowRunId, actorId, DispatchOutcome.BadRequest("NOTES_REQUIRED", "Revision notes are mandatory."));
 
         var run = await db.WorkflowRuns.FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
         if (run is null)
-            return DispatchOutcome.NotFound(workflowRunId);
+            return Refused("request-revision", workflowRunId, actorId, DispatchOutcome.NotFound(workflowRunId));
         if (run.CurrentState != WorkflowState.PendingApproval)
-            return DispatchOutcome.InvalidState($"Only a PendingApproval plan can be sent for revision; current state is {run.CurrentState}.");
+            return Refused("request-revision", workflowRunId, actorId,
+                DispatchOutcome.InvalidState($"Only a PendingApproval plan can be sent for revision; current state is {run.CurrentState}."));
 
         await stock.StageReleaseAsync(run.Id, ct);
         var dispatch = NewDispatch(run, DispatchDecision.RevisionRequested, notes, actorId);
@@ -81,7 +89,7 @@ public sealed class DispatchService(AppDbContext db, StockReservationService sto
             new RevisionRequest(notes, actorId, DateTime.UtcNow));
         WorkflowEngine.TryTransition(run, WorkflowState.RevisionRequested);
 
-        var outcome = await SaveAsync(dispatch, run, ct);
+        var outcome = await SaveAsync("request-revision", dispatch, run, ct);
         if (outcome.Status == DispatchOutcomeStatus.Ok)
             await queue.EnqueueAsync(run.Id, ct);
         return outcome;
@@ -96,22 +104,23 @@ public sealed class DispatchService(AppDbContext db, StockReservationService sto
     {
         var run = await db.WorkflowRuns.FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
         if (run is null)
-            return DispatchOutcome.NotFound(workflowRunId);
+            return Refused("confirm-delivery", workflowRunId, actorId, DispatchOutcome.NotFound(workflowRunId));
         if (run.CurrentState != WorkflowState.Approved)
-            return DispatchOutcome.InvalidState($"Delivery confirmation requires state Approved; current state is {run.CurrentState}.");
+            return Refused("confirm-delivery", workflowRunId, actorId,
+                DispatchOutcome.InvalidState($"Delivery confirmation requires state Approved; current state is {run.CurrentState}."));
 
         var dispatch = await db.Dispatches
             .Where(d => d.WorkflowRunId == workflowRunId && d.Decision == DispatchDecision.Approved)
             .OrderByDescending(d => d.CreatedAt)
             .FirstOrDefaultAsync(ct);
         if (dispatch is null)
-            return DispatchOutcome.Conflict("DISPATCH_NOT_FOUND", "No approved dispatch exists for this workflow run.");
+            return Refused("confirm-delivery", workflowRunId, actorId, DispatchOutcome.Conflict("DISPATCH_NOT_FOUND", "No approved dispatch exists for this workflow run."));
 
         AddAudit(dispatch, "DeliveryConfirmed", actorId,
             new { workflowRunId, notes, photoReference, deliveredAt = DateTime.UtcNow });
         await SetReportStatusAsync(run, "Resolved", ct);
 
-        return await SaveAsync(dispatch, run, ct);
+        return await SaveAsync("confirm-delivery", dispatch, run, ct, actorId);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -150,18 +159,30 @@ public sealed class DispatchService(AppDbContext db, StockReservationService sto
             report.Status = status;
     }
 
-    private async Task<DispatchOutcome> SaveAsync(Dispatch dispatch, WorkflowRun run, CancellationToken ct)
+    private async Task<DispatchOutcome> SaveAsync(string action, Dispatch dispatch, WorkflowRun run, CancellationToken ct,
+        int? actorId = null)
     {
+        actorId ??= dispatch.ApprovedById;
         try
         {
             await db.SaveChangesAsync(ct);
-            return DispatchOutcome.Ok(dispatch, run.CurrentState);
         }
         catch (DbUpdateConcurrencyException)
         {
-            return DispatchOutcome.Conflict("STOCK_CONFLICT",
-                "The plan or its stock changed while this decision was being saved. Reload and try again.");
+            return Refused(action, run.Id, actorId, DispatchOutcome.Conflict("STOCK_CONFLICT",
+                "The plan or its stock changed while this decision was being saved. Reload and try again."));
         }
+
+        logger.LogInformation("Dispatch {Action} on workflow {WorkflowRunId} by user {UserId}: dispatch {DispatchId}, state {State}",
+            action, run.Id, actorId, dispatch.Id, run.CurrentState);
+        return DispatchOutcome.Ok(dispatch, run.CurrentState);
+    }
+
+    private DispatchOutcome Refused(string action, Guid workflowRunId, int? actorId, DispatchOutcome outcome)
+    {
+        logger.LogWarning("Dispatch {Action} on workflow {WorkflowRunId} by user {UserId} refused: {Code} {Message}",
+            action, workflowRunId, actorId, outcome.ErrorCode, outcome.Message);
+        return outcome;
     }
 
     /// <summary>Coordinator revision notes stored under the plan's <c>revision</c> key.</summary>

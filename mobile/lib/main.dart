@@ -2,29 +2,57 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'api/api_client.dart';
+import 'auth/auth_provider.dart';
+import 'auth/route_guard.dart';
+import 'auth/token_store.dart';
+import 'config/api_config.dart';
 import 'providers/report_provider.dart';
 import 'providers/inventory_provider.dart';
 import 'screens/reports_list_screen.dart';
 import 'screens/new_report_screen.dart';
 import 'screens/camera_capture_screen.dart';
 import 'screens/gps_capture_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
+import 'screens/workflow_status_screen.dart';
 
 import 'screens/my_submitted_reports_screen.dart';
 import 'screens/stock_check_in_screen.dart';
 import 'screens/field_home_screen.dart';
 import 'state/app_state.dart';
 
-void main() {
-  runApp(
-    MultiProvider(
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final auth = AuthProvider(baseUrl: kApiBaseUrl, store: SecureTokenStore());
+  final api = ApiClient(baseUrl: kApiBaseUrl, auth: auth);
+  runApp(FloodLinkProviders(auth: auth, api: api, child: const FloodLinkApp()));
+  // Restores a saved session; until it finishes the router shows the splash screen.
+  await auth.restore();
+}
+
+/// The app's provider tree. Every provider reaches the API through the one [ApiClient],
+/// which adds the signed-in user's token. Tests build the same tree with fakes.
+class FloodLinkProviders extends StatelessWidget {
+  const FloodLinkProviders({super.key, required this.auth, required this.api, required this.child});
+
+  final AuthProvider auth;
+  final ApiClient api;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
       providers: [
+        ChangeNotifierProvider<AuthProvider>.value(value: auth),
+        Provider<ApiClient>.value(value: api),
         ChangeNotifierProvider(create: (_) => AppState()),
-        ChangeNotifierProvider(create: (_) => ReportProvider()),
-        ChangeNotifierProvider(create: (_) => InventoryProvider()),
+        ChangeNotifierProvider(create: (_) => ReportProvider(api)),
+        ChangeNotifierProvider(create: (_) => InventoryProvider(api)),
       ],
-      child: const FloodLinkApp(),
-    ),
-  );
+      child: child,
+    );
+  }
 }
 
 // ── Design tokens mirroring ui-context.md CSS variables ─────────────────────
@@ -52,9 +80,25 @@ class FloodLinkColors {
 
 // ── App widget ───────────────────────────────────────────────────────────────
 
-final GoRouter _router = GoRouter(
+/// Routes, guarded by [authRedirect]: signed-out users only see /login and /register,
+/// volunteers their reports and status, depot managers stock check-in.
+GoRouter buildRouter(AuthProvider auth) => GoRouter(
   initialLocation: '/',
+  refreshListenable: auth,
+  redirect: (context, state) => authRedirect(auth, state.matchedLocation),
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const Scaffold(body: Center(child: CircularProgressIndicator())),
+    ),
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/register',
+      builder: (context, state) => const RegisterScreen(),
+    ),
     GoRoute(
       path: '/',
       builder: (context, state) => const ReportsListScreen(),
@@ -80,14 +124,31 @@ final GoRouter _router = GoRouter(
       builder: (context, state) => const FieldHomeScreen(),
     ),
     GoRoute(
+      path: '/status/:runId',
+      builder: (context, state) => WorkflowStatusScreen(workflowRunId: state.pathParameters['runId']!),
+    ),
+    GoRoute(
       path: '/gps',
       builder: (context, state) => const GpsCaptureScreen(),
     ),
   ],
 );
 
-class FloodLinkApp extends StatelessWidget {
+class FloodLinkApp extends StatefulWidget {
   const FloodLinkApp({super.key});
+
+  @override
+  State<FloodLinkApp> createState() => _FloodLinkAppState();
+}
+
+class _FloodLinkAppState extends State<FloodLinkApp> {
+  late final GoRouter _router = buildRouter(context.read<AuthProvider>());
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

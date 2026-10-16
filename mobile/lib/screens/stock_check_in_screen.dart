@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../auth/logout_button.dart';
+
 import '../models/inventory.dart';
 import '../providers/inventory_provider.dart';
 
@@ -62,7 +64,10 @@ class _StockCheckInScreenState extends State<StockCheckInScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Stock Check-in')),
+      appBar: AppBar(
+        title: const Text('Stock Check-in'),
+        actions: const [LogoutButton()],
+      ),
       body: provider.isLoadingDepots
           ? const Center(child: CircularProgressIndicator())
           : Padding(

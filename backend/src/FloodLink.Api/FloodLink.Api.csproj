@@ -15,6 +15,7 @@
     <ProjectReference Include="..\FloodLink.Agents.Triage\FloodLink.Agents.Triage.csproj" />
     <ProjectReference Include="..\FloodLink.Agents.Matching\FloodLink.Agents.Matching.csproj" />
     <ProjectReference Include="..\FloodLink.Agents.Validation\FloodLink.Agents.Validation.csproj" />
+    <ProjectReference Include="..\FloodLink.Agents.Planner\FloodLink.Agents.Planner.csproj" />
   </ItemGroup>
 
 

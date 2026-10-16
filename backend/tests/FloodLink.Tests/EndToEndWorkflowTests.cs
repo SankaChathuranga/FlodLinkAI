@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
+using FloodLink.Domain.Security;
 using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Mapbox;
 using Microsoft.AspNetCore.Hosting;
@@ -27,22 +28,12 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting("ConnectionStrings:DefaultConnection", TestAppFactory.TestConnectionString);
-            builder.UseSetting("Jwt:SigningKey", "test-only-signing-key-at-least-32-bytes-long!!");
+            TestAppFactory.ConfigureTestHost(builder);
             builder.UseSetting("Mapbox:ApiKey", "stub");
-            // Disable auto-migration so ResetDatabase controls the schema lifecycle.
-            builder.UseSetting("Database:MigrateOnStartup", "false");
             builder.ConfigureTestServices(services => services.AddScoped<IMapboxClient, StubMapbox>());
         }
 
-        public void ResetDatabase()
-        {
-            // Drop all tables via raw SQL before migrating, to avoid "relation already exists".
-            TestAppFactory.DropAllTablesDirectStatic();
-            using var scope = Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.Database.Migrate();
-        }
+        public void ResetDatabase() => TestAppFactory.ResetDatabase(Services);
     }
 
     /// <summary>Returns a fixed 12.5 km / 25 minute route for any coordinates.</summary>
@@ -59,14 +50,20 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
     }
 
     private readonly Factory _factory;
-    private readonly HttpClient _client;
+    private readonly HttpClient _coordinator;
+    private readonly HttpClient _depotManager;
+    private HttpClient? _volunteer;
 
     public EndToEndWorkflowTests(Factory factory)
     {
         _factory = factory;
         _factory.ResetDatabase();
-        _client = _factory.CreateClient();
+        _coordinator = _factory.CreateClient().WithToken(TestAppFactory.TokenFor(Roles.Coordinator));
+        _depotManager = _factory.CreateClient().WithToken(TestAppFactory.TokenFor(Roles.DepotManager));
     }
+
+    /// <summary>The volunteer created by <see cref="SeedAsync"/>: submits reports, polls its run, confirms delivery.</summary>
+    private HttpClient Volunteer => _volunteer ?? throw new InvalidOperationException("Call SeedAsync first.");
 
     private AppDbContext NewDb() =>
         _factory.Services.CreateScope().ServiceProvider.GetRequiredService<AppDbContext>();
@@ -91,6 +88,7 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         var item = new InventoryItem { DepotId = depot.Id, ItemName = "Water", Unit = "bottles", QuantityAvailable = stock };
         db.InventoryItems.Add(item);
         await db.SaveChangesAsync();
+        _volunteer = _factory.CreateClient().WithToken(TestAppFactory.TokenFor(Roles.Volunteer, user.Id));
         return (shelter.Id, user.Id, item.Id);
     }
 
@@ -99,11 +97,10 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         var form = new MultipartFormDataContent
         {
             { new StringContent(shelterId.ToString()), "ShelterId" },
-            { new StringContent(userId.ToString()), "ReportedBy" },
             { new StringContent("Water"), "NeedType" },
             { new StringContent(quantity.ToString()), "QuantityNeeded" }
         };
-        return await _client.PostAsync("/api/reports", form);
+        return await Volunteer.PostAsync("/api/reports", form);
     }
 
     private async Task<int> SubmitReportIdAsync(int shelterId, int userId, int quantity)
@@ -115,7 +112,7 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
 
     private async Task<Guid> StartWorkflowAsync(string objective, params int[] reportIds)
     {
-        var create = await _client.PostAsJsonAsync("/api/workflows", new { objective, reportIds });
+        var create = await _coordinator.PostAsJsonAsync("/api/workflows", new { objective, reportIds });
         Assert.Equal(HttpStatusCode.Accepted, create.StatusCode);
         return Guid.Parse((await create.Content.ReadFromJsonAsync<JsonObject>())!["id"]!.GetValue<string>());
     }
@@ -127,7 +124,7 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         JsonObject? status = null;
         while (DateTime.UtcNow < deadline)
         {
-            status = await _client.GetFromJsonAsync<JsonObject>($"/api/workflows/{runId}/status");
+            status = await Volunteer.GetFromJsonAsync<JsonObject>($"/api/workflows/{runId}/status");
             if (states.Contains(status!["state"]!.GetValue<string>()))
                 return status;
             await Task.Delay(50);
@@ -179,36 +176,48 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         }
 
         // Step 3 — the execution summary lists every step with its tool calls.
-        var logs = await _client.GetFromJsonAsync<JsonArray>($"/api/workflows/{runId}/logs");
+        var logs = await _coordinator.GetFromJsonAsync<JsonArray>($"/api/workflows/{runId}/logs");
         Assert.Equal(
-            ["TriageAgent", "MatchingAgent", "RoutingAgent", "ValidationAgent", "StockReservation"],
+            ["PlannerAgent", "TriageAgent", "MatchingAgent", "RoutingAgent", "ValidationAgent", "StockReservation"],
             logs!.Select(l => l!["agentName"]!.GetValue<string>()).ToArray());
-        Assert.Contains("mapbox.directions", logs!.ToJsonString());
-        Assert.Contains("db.inventory.read", logs!.ToJsonString());
+        Assert.Contains("mapbox.directions", logs.ToJsonString());
+        Assert.Contains("db.inventory.read", logs.ToJsonString());
 
         // Step 4 — the approval queue lists the run.
-        var pending = await _client.GetStringAsync("/api/dispatches/approval-queue");
-        Assert.Contains(runId.ToString(), pending);
+        var pending = await _coordinator.GetFromJsonAsync<JsonObject>("/api/dispatches/approval-queue");
+        var queued = pending!["items"]!.AsArray().Single(i => i!["workflowRunId"]!.GetValue<string>() == runId.ToString())!;
+        // …with a plan summary: one allocation of the 40 units, the stub route (12.5 km / 25 min), checks passed.
+        Assert.Equal(1, queued["allocationCount"]!.GetValue<int>());
+        Assert.Equal(40, queued["totalQuantity"]!.GetValue<double>());
+        Assert.Equal(12.5, queued["distanceKm"]!.GetValue<double>());
+        Assert.Equal(25, queued["etaMinutes"]!.GetValue<double>());
+        Assert.True(queued["validationPassed"]!.GetValue<bool>());
 
         // Step 5 — coordinator approves; a dispatch and an audit entry with the approver are written.
-        var approve = await _client.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "E2E approve" });
+        var approve = await _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "E2E approve" });
         Assert.Equal(HttpStatusCode.OK, approve.StatusCode);
         var dispatchId = Guid.Parse((await approve.Content.ReadFromJsonAsync<JsonObject>())!["dispatchId"]!.GetValue<string>());
 
-        var audit = await _client.GetStringAsync($"/api/audit/{dispatchId}");
+        var audit = await _coordinator.GetStringAsync($"/api/audit/{dispatchId}");
         Assert.Contains("DispatchApproved", audit);
+
+        // The decision history names the approver (shown in the trace and the volunteer's status).
+        var decisions = await _coordinator.GetFromJsonAsync<JsonObject>($"/api/dispatches/by-workflow/{runId}");
+        var decision = decisions!["decisions"]!.AsArray().Single()!;
+        Assert.Equal("Jane Smith", decision["decidedBy"]!.GetValue<string>());
+        Assert.Equal("E2E approve", decision["notes"]!.GetValue<string>());
 
         await using (var db = NewDb())
         {
             Assert.Equal(WorkflowState.Approved, (await db.WorkflowRuns.SingleAsync(r => r.Id == runId)).CurrentState);
             var dispatch = Assert.Single(db.Dispatches.Where(d => d.WorkflowRunId == runId));
-            Assert.Equal(2, dispatch.ApprovedById); // the Development coordinator (seeded user 2)
+            Assert.Equal(2, dispatch.ApprovedById); // the coordinator token's user (demo account 2)
             Assert.Equal(2, (await db.AuditTrail.SingleAsync(a => a.DispatchId == dispatchId)).ActorId);
             Assert.Equal("InPlan", (await db.Reports.SingleAsync()).Status);
         }
 
         // Step 6 — a second approval is refused and never creates a duplicate dispatch.
-        var again = await _client.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "dup" });
+        var again = await _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "dup" });
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
         await using (var db = NewDb())
         {
@@ -216,9 +225,9 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         }
 
         // Step 7 — delivery confirmed: the report is resolved and the status shows it.
-        var delivered = await _client.PostAsJsonAsync($"/api/dispatches/{runId}/confirm-delivery", new { notes = "Arrived" });
+        var delivered = await Volunteer.PostAsJsonAsync($"/api/dispatches/{runId}/confirm-delivery", new { notes = "Arrived" });
         Assert.Equal(HttpStatusCode.OK, delivered.StatusCode);
-        var final = await _client.GetFromJsonAsync<JsonObject>($"/api/workflows/{runId}/status");
+        var final = await Volunteer.GetFromJsonAsync<JsonObject>($"/api/workflows/{runId}/status");
         Assert.True(final!["isDelivered"]!.GetValue<bool>());
         await using (var db = NewDb())
         {
@@ -234,7 +243,7 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         var runId = await StartWorkflowAsync("E2E stock commit", reportId);
         await WaitForStatusAsync(runId, "PendingApproval");
 
-        await _client.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "commit" });
+        await _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "commit" });
 
         await using var db = NewDb();
         var item = await db.InventoryItems.SingleAsync(i => i.Id == itemId);
@@ -255,7 +264,7 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         Assert.Equal("Matching", status["failedAtState"]!.GetValue<string>());
         Assert.StartsWith("NO_STOCK_AVAILABLE", status["failureReason"]!.GetValue<string>());
 
-        var approve = await _client.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "should fail" });
+        var approve = await _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "should fail" });
         Assert.Equal(HttpStatusCode.Conflict, approve.StatusCode);
         await using (var db = NewDb())
         {
@@ -264,9 +273,9 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         }
 
         // Depot staff restock, the coordinator retries the failed stage, and the plan completes.
-        var checkIn = await _client.PutAsJsonAsync($"/api/inventory/{itemId}/check-in", new { quantityReceived = 100 });
+        var checkIn = await _depotManager.PutAsJsonAsync($"/api/inventory/{itemId}/check-in", new { quantityReceived = 100 });
         Assert.Equal(HttpStatusCode.OK, checkIn.StatusCode);
-        var retry = await _client.PostAsync($"/api/workflows/{runId}/retry", null);
+        var retry = await _coordinator.PostAsync($"/api/workflows/{runId}/retry", null);
         Assert.Equal(HttpStatusCode.Accepted, retry.StatusCode);
 
         await WaitForStatusAsync(runId, "PendingApproval");
@@ -288,7 +297,7 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         var runId = await StartWorkflowAsync("E2E reject", reportId);
         await WaitForStatusAsync(runId, "PendingApproval");
 
-        var reject = await _client.PostAsJsonAsync($"/api/dispatches/{runId}/reject", new { reason = "Road closed" });
+        var reject = await _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/reject", new { reason = "Road closed" });
         Assert.Equal(HttpStatusCode.OK, reject.StatusCode);
 
         await using var db = NewDb();
@@ -307,7 +316,7 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         var runId = await StartWorkflowAsync("E2E revision", reportId);
         await WaitForStatusAsync(runId, "PendingApproval");
 
-        var revise = await _client.PostAsJsonAsync($"/api/dispatches/{runId}/request-revision", new { notes = "Use the morning truck" });
+        var revise = await _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/request-revision", new { notes = "Use the morning truck" });
         Assert.Equal(HttpStatusCode.OK, revise.StatusCode);
 
         // The runner re-matches; the run comes back for a new decision.
@@ -323,7 +332,7 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         }
 
         // A second decision is possible after a revision.
-        var approve = await _client.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "ok now" });
+        var approve = await _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "ok now" });
         Assert.Equal(HttpStatusCode.OK, approve.StatusCode);
         await using (var db = NewDb())
         {
@@ -339,10 +348,10 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         var runId = await StartWorkflowAsync("E2E first", reportId);
         await WaitForStatusAsync(runId, "PendingApproval");
 
-        var second = await _client.PostAsJsonAsync("/api/workflows", new { objective = "E2E second", reportIds = new[] { reportId } });
+        var second = await _coordinator.PostAsJsonAsync("/api/workflows", new { objective = "E2E second", reportIds = new[] { reportId } });
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
 
-        var unknown = await _client.PostAsJsonAsync("/api/workflows", new { objective = "E2E unknown", reportIds = new[] { 999_999 } });
+        var unknown = await _coordinator.PostAsJsonAsync("/api/workflows", new { objective = "E2E unknown", reportIds = new[] { 999_999 } });
         Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
     }
 
@@ -355,8 +364,57 @@ public sealed class EndToEndWorkflowTests : IClassFixture<EndToEndWorkflowTests.
         await WaitForStatusAsync(first, "PendingApproval");
         await WaitForStatusAsync(second, "PendingApproval");
 
-        var page = await _client.GetFromJsonAsync<JsonObject>("/api/workflows?search=beta&state=PendingApproval&pageSize=1");
+        var page = await _coordinator.GetFromJsonAsync<JsonObject>("/api/workflows?search=beta&state=PendingApproval&pageSize=1");
         Assert.Equal(1, page!["totalItems"]!.GetValue<int>());
         Assert.Equal(second.ToString(), page["items"]![0]!["id"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task E2E007_ConcurrentApprovals_OneSucceeds_TheOtherGets409_AndStockIsCommittedOnce()
+    {
+        var (shelterId, userId, itemId) = await SeedAsync(stock: 500);
+        var runId = await StartWorkflowAsync("E2E concurrent approval", await SubmitReportIdAsync(shelterId, userId, quantity: 40));
+        await WaitForStatusAsync(runId, "PendingApproval");
+
+        // Two coordinators press Approve at the same moment.
+        var secondCoordinator = _factory.CreateClient().WithToken(TestAppFactory.TokenFor(Roles.Coordinator));
+        var responses = await Task.WhenAll(
+            _coordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "first" }),
+            secondCoordinator.PostAsJsonAsync($"/api/dispatches/{runId}/approve", new { notes = "second" }));
+
+        Assert.Equal([HttpStatusCode.OK, HttpStatusCode.Conflict], responses.Select(r => r.StatusCode).Order());
+        await using var db = NewDb();
+        Assert.Single(db.Dispatches.Where(d => d.WorkflowRunId == runId && d.Decision == DispatchDecision.Approved));
+        var item = await db.InventoryItems.SingleAsync(i => i.Id == itemId);
+        Assert.Equal(460, item.QuantityAvailable); // 40 taken once, not twice
+        Assert.Equal(0, item.QuantityReserved);
+    }
+
+    [Fact]
+    public async Task E2E008_RetryLimit_FourthRetryReturns409_AndEachRetryIsLogged()
+    {
+        var (shelterId, userId, _) = await SeedAsync(stock: 0);
+        var runId = await StartWorkflowAsync("E2E retry limit", await SubmitReportIdAsync(shelterId, userId, quantity: 40));
+        await WaitForStatusAsync(runId, "Failed");
+
+        // Nothing is restocked, so each retry re-runs Matching and fails again.
+        for (var retry = 1; retry <= 3; retry++)
+        {
+            var response = await _coordinator.PostAsync($"/api/workflows/{runId}/retry", null);
+            Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+            Assert.Equal(retry, (await response.Content.ReadFromJsonAsync<JsonObject>())!["retryCount"]!.GetValue<int>());
+            var status = await WaitForStatusAsync(runId, "Failed");
+            Assert.Equal("Matching", status["failedAtState"]!.GetValue<string>());
+        }
+
+        var fourth = await _coordinator.PostAsync($"/api/workflows/{runId}/retry", null);
+        Assert.Equal(HttpStatusCode.Conflict, fourth.StatusCode);
+        Assert.Equal("RETRY_LIMIT_REACHED", (await fourth.Content.ReadFromJsonAsync<JsonObject>())!["error"]!.GetValue<string>());
+
+        await using var db = NewDb();
+        Assert.Equal(3, (await db.WorkflowRuns.SingleAsync(r => r.Id == runId)).RetryCount);
+        Assert.Equal(3, db.AgentExecutionLogs.Count(l => l.WorkflowRunId == runId && l.AgentName == "MatchingAgent" && l.IsRetry));
+        var list = await _coordinator.GetFromJsonAsync<JsonObject>("/api/workflows?state=Failed");
+        Assert.Equal(3, list!["items"]![0]!["retryCount"]!.GetValue<int>());
     }
 }

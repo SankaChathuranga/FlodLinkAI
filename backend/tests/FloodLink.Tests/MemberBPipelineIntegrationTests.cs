@@ -50,8 +50,8 @@ public class MemberBPipelineIntegrationTests
 
     private sealed class MatchingInvoker(MatchingAgent agent) : IMatchingAgentInvoker
     {
-        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, CancellationToken ct = default)
-            => agent.ExecuteAsync(plan, ct);
+        public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, string? revisionNotes = null, CancellationToken ct = default)
+            => agent.ExecuteAsync(plan, revisionNotes, ct);
     }
 
     private sealed class RoutingInvoker(Guid workflowRunId) : IRoutingAgentInvoker

@@ -1,13 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-
-import '../config/api_config.dart';
+import '../api/api_client.dart';
 import '../models/inventory.dart';
 
+/// Depots and stock for the depot manager's check-in screen, through [ApiClient].
 class InventoryProvider extends ChangeNotifier {
-  final String _apiBaseUrl = kApiBaseUrl;
+  InventoryProvider(this._api);
+
+  final ApiClient _api;
 
   List<Depot> _depots = [];
   List<InventoryItem> _items = [];
@@ -28,14 +29,14 @@ class InventoryProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final response = await http
-          .get(Uri.parse('$_apiBaseUrl/api/depots'))
-          .timeout(const Duration(seconds: 10));
+      final response = await _api.get('/api/depots?pageSize=100');
       if (response.statusCode != 200) {
-        _error = 'Failed to load depots (HTTP ${response.statusCode}).';
+        _error = response.statusCode == 403
+            ? 'Your account cannot view depots.'
+            : 'Failed to load depots (HTTP ${response.statusCode}).';
         return;
       }
-      final data = jsonDecode(response.body) as List<dynamic>;
+      final data = _pageItems(response.body);
       _depots = data
           .map((item) => Depot.fromJson(item as Map<String, dynamic>))
           .toList();
@@ -53,14 +54,12 @@ class InventoryProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final response = await http
-          .get(Uri.parse('$_apiBaseUrl/api/inventory?depotId=$depotId'))
-          .timeout(const Duration(seconds: 10));
+      final response = await _api.get('/api/inventory?depotId=$depotId&sort=item&pageSize=100');
       if (response.statusCode != 200) {
         _error = 'Failed to load stock (HTTP ${response.statusCode}).';
         return;
       }
-      final data = jsonDecode(response.body) as List<dynamic>;
+      final data = _pageItems(response.body);
       _items = data
           .map((item) => InventoryItem.fromJson(item as Map<String, dynamic>))
           .toList();
@@ -77,13 +76,10 @@ class InventoryProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final response = await http
-          .put(
-            Uri.parse('$_apiBaseUrl/api/inventory/$itemId/check-in'),
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode({'quantityReceived': quantityReceived}),
-          )
-          .timeout(const Duration(seconds: 10));
+      final response = await _api.putJson(
+        '/api/inventory/$itemId/check-in',
+        {'quantityReceived': quantityReceived},
+      );
       if (response.statusCode != 200) {
         _error = 'Stock update failed (HTTP ${response.statusCode}).';
         return false;
@@ -97,4 +93,8 @@ class InventoryProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// List endpoints return a page: `{ items, page, pageSize, totalItems, totalPages }`.
+  static List<dynamic> _pageItems(String body) =>
+      (jsonDecode(body) as Map<String, dynamic>)['items'] as List<dynamic>;
 }

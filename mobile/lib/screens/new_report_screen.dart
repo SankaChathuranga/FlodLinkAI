@@ -309,6 +309,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
                 TextFormField(
                   controller: _notesController,
                   maxLines: 3,
+                  maxLength: 500, // server limit; notes are read by the triage LLM as data
                   decoration: const InputDecoration(
                     fillColor: Color(0xFFFFFFFF),
                     filled: true,

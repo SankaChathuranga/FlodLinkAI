@@ -4,11 +4,12 @@ namespace FloodLink.Domain;
 
 /// <summary>
 /// Reads and writes the keyed sections of <c>WorkflowRun.PlanJson</c>
-/// (<c>triagePlan</c>, <c>allocationProposal</c>, <c>route</c>, <c>validationResults</c>,
+/// (<c>plan</c>, <c>triagePlan</c>, <c>allocationProposal</c>, <c>route</c>, <c>validationResults</c>,
 /// <c>revision</c>). Each agent's output lives under its own key; nothing else is stored there.
 /// </summary>
 public static class WorkflowPlan
 {
+    public const string ExecutionPlanKey = "plan";
     public const string TriagePlanKey = "triagePlan";
     public const string AllocationProposalKey = "allocationProposal";
     public const string RouteKey = "route";

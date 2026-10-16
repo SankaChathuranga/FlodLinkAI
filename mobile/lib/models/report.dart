@@ -11,6 +11,12 @@ class FieldReport {
   final String status;
   final DateTime? createdAt;
 
+  // From GET /api/reports/mine: the run handling this report and the coordinator's decision.
+  final String? shelterName;
+  final String? workflowRunId;
+  final String? workflowState;
+  final String? decision;
+
   FieldReport({
     this.id,
     required this.shelterId,
@@ -23,6 +29,10 @@ class FieldReport {
     this.gpsLng,
     required this.status,
     this.createdAt,
+    this.shelterName,
+    this.workflowRunId,
+    this.workflowState,
+    this.decision,
   });
 
   factory FieldReport.fromJson(Map<String, dynamic> json) {
@@ -40,6 +50,10 @@ class FieldReport {
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,
+      shelterName: json['shelterName'] as String?,
+      workflowRunId: json['workflowRunId'] as String?,
+      workflowState: json['workflowState'] as String?,
+      decision: json['decision'] as String?,
     );
   }
 }

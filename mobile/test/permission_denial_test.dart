@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:floodlink_mobile/providers/report_provider.dart';
+
+import 'helpers/test_app.dart';
 import 'package:floodlink_mobile/screens/camera_capture_screen.dart';
 import 'package:floodlink_mobile/screens/gps_capture_screen.dart';
 
 void main() {
   testWidgets('CameraCaptureScreen renders camera options and handles permission state', (WidgetTester tester) async {
-    final reportProvider = ReportProvider();
+    final reportProvider = ReportProvider(TestBackend().api);
 
     await tester.pumpWidget(
       MultiProvider(
@@ -29,7 +31,7 @@ void main() {
   });
 
   testWidgets('GpsCaptureScreen renders GPS controls and manual location adjust options', (WidgetTester tester) async {
-    final reportProvider = ReportProvider();
+    final reportProvider = ReportProvider(TestBackend().api);
 
     await tester.pumpWidget(
       MultiProvider(

@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import '../api/api_client.dart';
 import '../models/shelter.dart';
 import '../models/report.dart';
 
+/// Shelters, the signed-in volunteer's own reports, and report submission.
+/// All calls go through [ApiClient], which adds the bearer token.
 class ReportProvider extends ChangeNotifier {
-  String _apiBaseUrl = kApiBaseUrl;
+  ReportProvider(this._api);
+
+  final ApiClient _api;
 
   List<Shelter> _shelters = [];
   List<FieldReport> _reports = [];
@@ -25,7 +29,7 @@ class ReportProvider extends ChangeNotifier {
   double? _selectedLng;
 
   // Getters
-  String get apiBaseUrl => _apiBaseUrl;
+  String get apiBaseUrl => _api.baseUrl;
   List<Shelter> get shelters => _shelters;
   List<FieldReport> get reports => _reports;
 
@@ -40,11 +44,6 @@ class ReportProvider extends ChangeNotifier {
   String? get capturedPhotoPath => _capturedPhotoPath;
   double? get selectedLat => _selectedLat;
   double? get selectedLng => _selectedLng;
-
-  void setApiBaseUrl(String url) {
-    _apiBaseUrl = url;
-    notifyListeners();
-  }
 
   void setCapturedPhoto(String? path) {
     _capturedPhotoPath = path;
@@ -70,9 +69,7 @@ class ReportProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await http
-          .get(Uri.parse('$_apiBaseUrl/api/shelters?pageSize=100'))
-          .timeout(const Duration(seconds: 10));
+      final response = await _api.get('/api/shelters?pageSize=100');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -95,9 +92,8 @@ class ReportProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await http
-          .get(Uri.parse('$_apiBaseUrl/api/reports'))
-          .timeout(const Duration(seconds: 10));
+      // Only the signed-in volunteer's reports, with their workflow stage.
+      final response = await _api.get('/api/reports/mine');
 
       if (response.statusCode == 200) {
         final List data = jsonDecode(response.body);
@@ -124,14 +120,15 @@ class ReportProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final uri = Uri.parse('$_apiBaseUrl/api/reports');
-      final request = http.MultipartRequest('POST', uri);
+      final request = http.MultipartRequest('POST', _api.uri('/api/reports'));
 
       request.fields['ShelterId'] = shelterId.toString();
-      request.fields['ReportedBy'] = '1';
       request.fields['NeedType'] = needType;
       request.fields['QuantityNeeded'] = quantityNeeded.toString();
       request.fields['Status'] = 'New';
+      if (notes.isNotEmpty) {
+        request.fields['Notes'] = notes;
+      }
 
       if (_selectedLat != null) {
         request.fields['GpsLat'] = _selectedLat.toString();
@@ -144,8 +141,8 @@ class ReportProvider extends ChangeNotifier {
         request.files.add(await http.MultipartFile.fromPath('Photo', _capturedPhotoPath!));
       }
 
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 15));
-      final response = await http.Response.fromStream(streamedResponse);
+      // The server takes the reporter from the token, never from the form.
+      final response = await _api.sendMultipart(request);
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         clearCapturedData();

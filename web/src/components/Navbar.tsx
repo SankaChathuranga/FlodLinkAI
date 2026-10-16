@@ -1,32 +1,26 @@
-export type TabId =
-  | 'shelters'
-  | 'reports'
-  | 'triage'
-  | 'inventory'
-  | 'approvals'
-  | 'dispatches'
-  | 'analytics'
+import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { PAGES, canOpen } from '../routes'
 
-interface NavbarProps {
-  activeTab: TabId
-  setActiveTab: (tab: TabId) => void
-}
+/** Top bar: only the links the signed-in role may open, plus the user and a sign-out button. */
+export function Navbar() {
+  const { user, role, logout } = useAuth()
+  const navigate = useNavigate()
+  const links = PAGES.filter((p) => canOpen(p, role))
 
-const MEMBER_D_TABS: { id: TabId; label: string }[] = [
-  { id: 'approvals', label: 'Approval Queue' },
-  { id: 'dispatches', label: 'Dispatch History' },
-  { id: 'analytics', label: 'Analytics' },
-]
+  const signOut = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
 
-export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   return (
     <header className="bg-slate-900 text-white shadow-md border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex flex-wrap items-center justify-between gap-3 py-3">
           {/* Logo & Branding */}
           <div className="flex items-center space-x-3">
             <div className="bg-blue-600 p-2 rounded-lg text-white">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
@@ -36,76 +30,39 @@ export function Navbar({ activeTab, setActiveTab }: NavbarProps) {
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <nav className="flex space-x-2">
-            <button
-              onClick={() => setActiveTab('shelters')}
-              className={`px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center space-x-1.5 ${
-                activeTab === 'shelters'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              <span>Shelters Overview</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('reports')}
-              className={`px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center space-x-1.5 ${
-                activeTab === 'reports'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span>Report Review Queue</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('triage')}
-              className={`px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center space-x-1.5 ${
-                activeTab === 'triage'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <span>Triage Plan Viewer</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('inventory')}
-              className={`px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center space-x-1.5 ${
-                activeTab === 'inventory'
-                  ? 'bg-blue-600 text-white shadow'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <span>Inventory</span>
-            </button>
-
-            {MEMBER_D_TABS.map((t) => (
+          {user && (
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-slate-300">
+                {user.name} <span className="text-slate-500">·</span>{' '}
+                <span className="text-blue-300">{role}</span>
+              </span>
               <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={`px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-                  activeTab === t.id
-                    ? 'bg-blue-600 text-white shadow'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
+                onClick={signOut}
+                className="px-3 py-1.5 rounded-md border border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-white"
               >
-                {t.label}
+                Sign out
               </button>
+            </div>
+          )}
+        </div>
+
+        {user && (
+          <nav aria-label="Main" className="flex flex-wrap gap-2 pb-3">
+            {links.map((page) => (
+              <NavLink
+                key={page.path}
+                to={page.path}
+                className={({ isActive }) =>
+                  `px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                    isActive ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  }`
+                }
+              >
+                {page.label}
+              </NavLink>
             ))}
           </nav>
-        </div>
+        )}
       </div>
     </header>
   )

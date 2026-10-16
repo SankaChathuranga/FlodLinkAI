@@ -268,3 +268,25 @@ body {
 .inventory-dashboard__field {
   margin-top: 1.5rem;
 }
+
+.inventory-dashboard__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.inventory-dashboard__toolbar .cds--search {
+  flex: 1 1 16rem;
+}
+
+.inventory-dashboard__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.inventory-dashboard__empty {
+  padding: 1.5rem 0;
+}

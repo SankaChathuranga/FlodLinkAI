@@ -25,8 +25,8 @@ public sealed class StockReservationServiceTests
     public StockReservationServiceTests()
     {
         using var db = new AppDbContext(Options);
-        TestAppFactory.DropAllTablesDirectStatic();
-        db.Database.Migrate(); // Use Migrate() instead of EnsureCreated() to match WebApplicationFactory startup path
+        db.Database.EnsureDeleted();
+        db.Database.EnsureCreated();
         db.InventoryItems.RemoveRange(db.InventoryItems);
         db.SaveChanges();
 

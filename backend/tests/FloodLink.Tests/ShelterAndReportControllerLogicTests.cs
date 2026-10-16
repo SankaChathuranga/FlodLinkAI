@@ -1,13 +1,15 @@
 using FloodLink.Agents.Triage;
 using FloodLink.Api.Controllers;
 using FloodLink.Api.DTOs;
+using FloodLink.Api.Services;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Exceptions;
-using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Services;
+using FloodLink.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -96,12 +98,12 @@ public class ShelterAndReportControllerLogicTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, urgencyService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
+        controller.SignInAs(1);
 
         var dto = new CreateReportDto
         {
             ShelterId = 1,
-            ReportedBy = 1,
             NeedType = "Water",
             QuantityNeeded = 200,
             Status = "New"
@@ -129,14 +131,16 @@ public class ShelterAndReportControllerLogicTests
         var mockEnv = new Mock<IWebHostEnvironment>();
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
-        var controller = new ReportsController(context, urgencyService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, urgencyService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
+        controller.SignInAs(1);
 
         // Filter by urgency >= 50 and sort by urgency descending
         var actionResult = await controller.GetReports(shelterId: 1, status: null, urgency: 50, sort: "urgency_desc");
         var okResult = Assert.IsType<OkObjectResult>(actionResult.Result);
-        var reports = Assert.IsAssignableFrom<IEnumerable<Report>>(okResult.Value);
+        var page = Assert.IsType<PaginatedResult<Report>>(okResult.Value);
 
-        Assert.Single(reports);
-        Assert.Equal(90, reports.First().UrgencyLevel);
+        Assert.Single(page.Items);
+        Assert.Equal(1, page.TotalItems);
+        Assert.Equal(90, page.Items.First().UrgencyLevel);
     }
 }

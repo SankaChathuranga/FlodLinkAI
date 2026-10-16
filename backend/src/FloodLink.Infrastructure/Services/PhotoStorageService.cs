@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Hosting;
+using FloodLink.Domain.Exceptions;
 using Microsoft.AspNetCore.Http;
 
 namespace FloodLink.Infrastructure.Services;
@@ -8,8 +9,23 @@ public interface IPhotoStorageService
     Task<string?> SavePhotoAsync(IFormFile? photoFile);
 }
 
+/// <summary>
+/// Saves report photos under <c>wwwroot/uploads/reports</c> (served at <c>/uploads/reports/…</c>) with a
+/// random name. Only JPEG, PNG and WebP images up to <see cref="MaxBytes"/> are accepted, so nothing a
+/// browser would run (HTML, SVG, scripts) can be uploaded and then served.
+/// </summary>
 public class PhotoStorageService : IPhotoStorageService
 {
+    public const long MaxBytes = 10 * 1024 * 1024;
+
+    private static readonly Dictionary<string, string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [".jpg"] = "image/jpeg",
+        [".jpeg"] = "image/jpeg",
+        [".png"] = "image/png",
+        [".webp"] = "image/webp"
+    };
+
     private readonly IWebHostEnvironment _environment;
 
     public PhotoStorageService(IWebHostEnvironment environment)
@@ -24,6 +40,25 @@ public class PhotoStorageService : IPhotoStorageService
             return null;
         }
 
+        if (photoFile.Length > MaxBytes)
+        {
+            throw new BadRequestException($"Photo must be at most {MaxBytes / (1024 * 1024)} MB.");
+        }
+
+        // The extension decides how the file is served, so it must be an image type; files without
+        // one are taken as JPEG (camera uploads). The declared content type must agree.
+        string extension = Path.GetExtension(photoFile.FileName);
+        if (string.IsNullOrEmpty(extension))
+        {
+            extension = ".jpg";
+        }
+        if (!AllowedTypes.TryGetValue(extension, out var expectedType) ||
+            (!string.IsNullOrEmpty(photoFile.ContentType) && photoFile.ContentType != "application/octet-stream" &&
+             !string.Equals(photoFile.ContentType, expectedType, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new BadRequestException("Photo must be a JPEG, PNG or WebP image.");
+        }
+
         string webRootPath = _environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot");
         string uploadsFolder = Path.Combine(webRootPath, "uploads", "reports");
 
@@ -32,13 +67,7 @@ public class PhotoStorageService : IPhotoStorageService
             Directory.CreateDirectory(uploadsFolder);
         }
 
-        string extension = Path.GetExtension(photoFile.FileName);
-        if (string.IsNullOrEmpty(extension))
-        {
-            extension = ".jpg";
-        }
-
-        string uniqueFileName = $"{Guid.NewGuid():N}{extension}";
+        string uniqueFileName = $"{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
         string filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
         using (var stream = new FileStream(filePath, FileMode.Create))

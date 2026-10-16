@@ -5,6 +5,7 @@ using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
 using FloodLink.Infrastructure;
+using FloodLink.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,7 @@ namespace FloodLink.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/validations")]
-[Authorize(Roles = "Coordinator")]
+[Authorize(Policy = Policies.Coordinator)]
 public sealed class ValidationController : ControllerBase
 {
     /// <summary>Body contract for POST /api/validations/run.</summary>

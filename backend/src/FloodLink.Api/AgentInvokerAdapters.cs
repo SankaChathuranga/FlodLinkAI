@@ -25,8 +25,8 @@ public sealed class TriageAgentInvoker(ITriageAgent agent) : ITriageAgentInvoker
 /// <summary>Adapts Member B's <see cref="IMatchingAgent"/> to <see cref="IMatchingAgentInvoker"/>.</summary>
 public sealed class MatchingAgentInvoker(IMatchingAgent agent) : IMatchingAgentInvoker
 {
-    public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, CancellationToken ct = default)
-        => agent.ExecuteAsync(plan, ct);
+    public Task<AgentResult<AllocationProposal>> ExecuteAsync(TriagePlan plan, string? revisionNotes = null, CancellationToken ct = default)
+        => agent.ExecuteAsync(plan, revisionNotes, ct);
 }
 
 /// <summary>

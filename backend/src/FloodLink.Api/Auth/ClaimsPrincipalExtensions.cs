@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FloodLink.Domain.Security;
 
 namespace FloodLink.Api.Auth;
 
@@ -14,4 +15,15 @@ public static class ClaimsPrincipalExtensions
         var value = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub");
         return int.TryParse(value, out var id) ? id : null;
     }
+}
+
+/// <summary>Role checks that apply the "Admin is in every staff check" rule.</summary>
+public static class AccessExtensions
+{
+    public static bool IsInAnyRoleOrAdmin(this ClaimsPrincipal user, params string[] roles)
+        => user.IsInRole(Roles.Admin) || roles.Any(user.IsInRole);
+
+    /// <summary>Coordinators and Admins see every report, run and dispatch.</summary>
+    public static bool IsCoordinatorOrAdmin(this ClaimsPrincipal user)
+        => user.IsInAnyRoleOrAdmin(Roles.Coordinator);
 }

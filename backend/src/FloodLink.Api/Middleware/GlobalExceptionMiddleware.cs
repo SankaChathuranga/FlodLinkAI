@@ -56,6 +56,10 @@ public class GlobalExceptionMiddleware
                 statusCode = (int)HttpStatusCode.Forbidden; // 403
                 message = forbiddenEx.Message;
                 break;
+            case ConflictException conflictEx:
+                statusCode = (int)HttpStatusCode.Conflict; // 409
+                message = conflictEx.Message;
+                break;
             case DbUpdateConcurrencyException:
                 statusCode = (int)HttpStatusCode.Conflict; // 409
                 message = "The record was changed by another request. Reload and try again.";

@@ -10,6 +10,20 @@ export interface WorkflowRunQueueItem {
   objective: string
   state: string
   createdAt: string
+  // Plan summary (optional: older API versions return only the fields above).
+  reportCount?: number
+  shelterCount?: number
+  allocationCount?: number
+  totalQuantity?: number
+  unfulfillableCount?: number
+  distanceKm?: number | null
+  etaMinutes?: number | null
+  routeLegs?: number
+  validationPassed?: boolean | null
+  failedChecks?: number
+  planSource?: string | null
+  scoringMethod?: string | null
+  isRevision?: boolean
 }
 
 /** A single deterministic safety check from the Validation/Safety Agent. */

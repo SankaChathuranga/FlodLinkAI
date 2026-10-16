@@ -5,7 +5,7 @@ namespace FloodLink.Domain.Entities;
 /// <summary>
 /// Represents a field report submitted by a volunteer (Member A component).
 /// </summary>
-public class Report
+public class Report : IHasUpdatedAt
 {
     public int Id { get; set; }
 
@@ -23,6 +23,13 @@ public class Report
 
     public int QuantityNeeded { get; set; }
 
+    /// <summary>
+    /// Free-text notes from the volunteer (max 500). Untrusted: passed to the LLM only as fenced
+    /// data, never as instructions.
+    /// </summary>
+    [MaxLength(500)]
+    public string? Notes { get; set; }
+
     public int UrgencyLevel { get; set; }
 
     [MaxLength(500)]
@@ -37,6 +44,9 @@ public class Report
     public string Status { get; set; } = "New";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>UTC time of the last change; stamped automatically on save.</summary>
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>The workflow run currently (or most recently) handling this report.</summary>
     public Guid? WorkflowRunId { get; set; }

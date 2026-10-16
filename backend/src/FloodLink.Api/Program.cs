@@ -1,22 +1,33 @@
 using FloodLink.Agents.Matching;
+using FloodLink.Agents.Planner;
 using FloodLink.Agents.Routing;
 using FloodLink.Agents.Triage;
 using FloodLink.Agents.Validation;
+using FloodLink.Api.Auth;
+using FloodLink.Api.Controllers;
 using FloodLink.Api.Middleware;
 using FloodLink.Api;
+using FloodLink.Api.Services;
 using FloodLink.Api.Workflows;
 using FloodLink.Domain;
+using FloodLink.Domain.Llm;
 using FloodLink.Domain.Services;
 using FloodLink.Infrastructure;
+using FloodLink.Infrastructure.Llm;
 using FloodLink.Infrastructure.Mapbox;
 using FloodLink.Infrastructure.Services;
-using Microsoft.AspNetCore.Authentication;
+using FloodLink.Domain.Entities;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
-using System.Text;
+using System.Threading.RateLimiting;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +39,18 @@ if (!string.IsNullOrWhiteSpace(hostedPort))
     builder.WebHost.UseUrls($"http://0.0.0.0:{hostedPort}");
 }
 
+// Outside Development, logs are written as JSON so the host can index the structured fields
+// (WorkflowRunId, Agent, DurationMs, UserId, ...) that the services log.
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Logging.AddJsonConsole(options =>
+    {
+        options.IncludeScopes = true;
+        options.UseUtcTimestamp = true;
+        options.TimestampFormat = "O";
+    });
+}
+
 // ── Services ──────────────────────────────────────────────────────────────────
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -36,6 +59,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IUrgencyScoringService, UrgencyScoringService>();
 builder.Services.AddScoped<IPhotoStorageService, PhotoStorageService>();
 builder.Services.AddScoped<ITriageAgent, TriageAgent>();
+builder.Services.AddScoped<ReportService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -47,6 +71,7 @@ builder.Services.AddControllers()
 builder.Services.AddScoped<IAgentExecutionLogger, AgentExecutionLogger>();
 builder.Services.AddScoped<IWorkflowRunRepository, WorkflowRunRepository>();
 builder.Services.AddScoped<WorkflowOrchestrator>();
+builder.Services.AddScoped<WorkflowService>();
 
 // Background runner: started, retried and revised runs are queued and advanced off the request thread.
 builder.Services.AddSingleton<WorkflowRunQueue>();
@@ -62,6 +87,18 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "FloodLink AI API", Version = "v1" });
+    // "Authorize" button: paste the token from POST /api/auth/login.
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Token from POST /api/auth/login (without the 'Bearer ' prefix)."
+    });
+    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
 });
 builder.Services.AddCors(options =>
 {
@@ -71,12 +108,16 @@ builder.Services.AddCors(options =>
         var extraOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(o => o.TrimEnd('/'));
-        policy.WithOrigins(
-                  new[]
-                  {
-                      "http://localhost:5173", // React development server
-                      "http://localhost:5174"  // Flutter Web development server
-                  }.Concat(extraOrigins).ToArray())
+        var allowedOrigins = new[]
+        {
+            "http://localhost:5173", // React development server
+            "http://localhost:5174"  // Flutter Web development server
+        }.Concat(extraOrigins).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var isDevelopment = builder.Environment.IsDevelopment();
+        // In Development any localhost port is allowed: `flutter run -d chrome` picks a random port.
+        policy.SetIsOriginAllowed(origin =>
+                  allowedOrigins.Contains(origin) ||
+                  (isDevelopment && Uri.TryCreate(origin, UriKind.Absolute, out var uri) && uri.IsLoopback))
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -85,57 +126,50 @@ builder.Services.AddCors(options =>
 // Standard RFC 7807 problem-details responses for all error results.
 builder.Services.AddProblemDetails();
 
-// JWT tokens are issued by the shared authentication component. This API only
-// validates them; the signing key is intentionally supplied through user-secrets
-// or the Jwt__SigningKey environment variable, never committed configuration.
-var jwtIssuer = builder.Configuration["Jwt:Issuer"]
-    ?? throw new InvalidOperationException("Jwt:Issuer configuration is required.");
-var jwtAudience = builder.Configuration["Jwt:Audience"]
-    ?? throw new InvalidOperationException("Jwt:Audience configuration is required.");
-var jwtSigningKey = builder.Configuration["Jwt:SigningKey"]
-    ?? throw new InvalidOperationException(
-        "Jwt:SigningKey configuration is required. Set it through user-secrets or Jwt__SigningKey.");
+// ── Authentication and role-based access (Phase 2) ───────────────────────────
+// The API issues its own tokens (POST /api/auth/login) and validates them on every request.
+// The signing key comes from user-secrets or the Jwt__SigningKey environment variable, never
+// committed configuration. There is no token-less fallback in any environment.
+var jwtSettings = JwtSettings.FromConfiguration(builder.Configuration);
+builder.Services.AddSingleton(jwtSettings);
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<JwtTokenService>();
+builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddScoped<AuthService>();
 
-var authBuilder = builder.Services
+builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSigningKey)),
+            IssuerSigningKey = jwtSettings.Key,
             ValidateIssuer = true,
-            ValidIssuer = jwtIssuer,
+            ValidIssuer = jwtSettings.Issuer,
             ValidateAudience = true,
-            ValidAudience = jwtAudience,
+            ValidAudience = jwtSettings.Audience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero,
-            RoleClaimType = ClaimTypes.Role
+            RoleClaimType = ClaimTypes.Role,
+            NameClaimType = ClaimTypes.Name
         };
     });
 
-// Development-only: requests without a bearer token are auto-authenticated as a
-// Coordinator so Member D's [Authorize(Roles="Coordinator")] endpoints stay demoable
-// before the shared login flow exists. Requests WITH a bearer token still go through
-// real JWT validation. Never registered outside Development.
-if (builder.Environment.IsDevelopment())
+builder.Services.AddSingleton<IAuthorizationHandler, RoleOrAdminHandler>();
+builder.Services.AddAuthorization(options => options.AddFloodLinkPolicies());
+
+// Login and registration are rate-limited per client IP to slow password guessing.
+builder.Services.AddRateLimiter(options =>
 {
-    authBuilder
-        .AddScheme<AuthenticationSchemeOptions, FloodLink.Api.Auth.DevCoordinatorHandler>("Dev", null)
-        .AddPolicyScheme("JwtOrDev", "JWT or dev coordinator", options =>
-        {
-            options.ForwardDefaultSelector = context =>
-                context.Request.Headers.ContainsKey("Authorization")
-                    ? JwtBearerDefaults.AuthenticationScheme
-                    : "Dev";
-        });
-    builder.Services.Configure<AuthenticationOptions>(o =>
-    {
-        o.DefaultAuthenticateScheme = "JwtOrDev";
-        o.DefaultChallengeScheme = "JwtOrDev";
-    });
-}
-builder.Services.AddAuthorization();
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    var permitLimit = builder.Configuration.GetValue("Auth:LoginPermitLimit", 10);
+    var window = TimeSpan.FromSeconds(builder.Configuration.GetValue("Auth:LoginWindowSeconds", 60));
+    options.AddPolicy(AuthController.LoginRateLimitPolicy, context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = permitLimit, Window = window, QueueLimit = 0 }));
+});
 
 // ── Phase 5: Mapbox client + Route/ETA Agent ─────────────────────────────────
 
@@ -146,6 +180,13 @@ builder.Services.AddHttpClient<IMapboxClient, MapboxClient>(client =>
 });
 builder.Services.AddScoped<IRouteRepository, RouteRepository>();
 builder.Services.AddScoped<IRoutingAgentInvoker, RoutingAgentInvoker>();
+
+// ── Phase 3: LLM (Gemini) ─────────────────────────────────────────────────────
+// Planner, Triage and Matching ask Gemini for structured JSON and check it; without
+// Gemini:ApiKey (or when Gemini fails) they fall back to rule-based logic. The client applies
+// its own per-attempt timeout (Gemini:TimeoutSeconds), so the HttpClient's is only a backstop.
+builder.Services.AddHttpClient<ILlmClient, GeminiClient>(client => client.Timeout = TimeSpan.FromMinutes(2));
+builder.Services.AddScoped<IPlannerInvoker, PlannerAgent>();
 
 // Agent invokers.
 builder.Services.AddScoped<IMatchingAgent, MatchingAgent>();
@@ -164,15 +205,33 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
     scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
 }
 
+// Demo accounts (one per role) get their password hash from Seed:DemoPassword. Skipped when unset.
+// Tests reset their database after startup and seed it themselves.
+if (!app.Configuration.GetValue<bool>("Seed:SkipOnStartup"))
+{
+    await DemoAccountSeeder.SeedAsync(app.Services, app.Configuration["Seed:DemoPassword"]);
+}
+
 // Swagger is served in every environment so the deployed API documents itself.
 app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
+
+// Report photos saved by PhotoStorageService (wwwroot/uploads, images only) are served at /uploads.
+// The folder may not exist before the first upload, so create it and serve it explicitly.
+var uploadsPath = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "uploads");
+Directory.CreateDirectory(uploadsPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
 app.UseCors("AllowLocalDev");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
 

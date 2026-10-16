@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace FloodLink.Domain.Entities;
 
 /// <summary>Persisted allocation produced by the Matching Agent. Owned by Member B.</summary>
-public class AllocationProposalEntity
+public class AllocationProposalEntity : IHasUpdatedAt
 {
     public int Id { get; set; }
 
@@ -30,4 +30,7 @@ public class AllocationProposalEntity
     public string Status { get; set; } = "Proposed";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>UTC time of the last change; stamped automatically on save.</summary>
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

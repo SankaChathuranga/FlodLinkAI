@@ -6,9 +6,11 @@ import type {
   ValidationReport,
   WorkflowRunQueueItem,
 } from './types'
+import { apiFetch } from './http'
 
 /**
  * Minimal JSON API client for the FloodLink backend (Member D — approval queue).
+ * Requests go through apiFetch, which adds the bearer token and handles 401.
  * Non-2xx responses throw an ApiError carrying the backend's { error, message }.
  */
 
@@ -25,10 +27,10 @@ export class ApiError extends Error {
 
 const isOk = (status: number) => status >= 200 && status < 300
 
-async function request<T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${baseUrl}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+export async function request<T>(baseUrl: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await apiFetch(`${baseUrl}${path}`, {
     ...init,
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
   })
 
   const body = (await res.json().catch(() => null)) as

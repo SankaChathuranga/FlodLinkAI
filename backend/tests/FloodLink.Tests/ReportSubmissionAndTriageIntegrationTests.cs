@@ -1,14 +1,16 @@
 using FloodLink.Agents.Triage;
 using FloodLink.Api.Controllers;
 using FloodLink.Api.DTOs;
+using FloodLink.Api.Services;
 using FloodLink.Contracts;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Exceptions;
-using FloodLink.Infrastructure;
 using FloodLink.Infrastructure.Services;
+using FloodLink.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -60,12 +62,12 @@ public class ReportSubmissionAndTriageIntegrationTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, scoringService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
+        controller.SignInAs(1);
 
         var dto = new CreateReportDto
         {
             ShelterId = 9999, // Invalid shelter ID
-            ReportedBy = 1,
             NeedType = "Water",
             QuantityNeeded = 50,
             Status = "New"
@@ -76,7 +78,7 @@ public class ReportSubmissionAndTriageIntegrationTests
     }
 
     [Fact]
-    public async Task CreateReport_NonExistentReporterId_ThrowsBadRequestException()
+    public async Task CreateReport_SignedInUserNoLongerExists_ThrowsUnauthorizedException()
     {
         // Arrange
         using var context = CreateDbContext();
@@ -85,19 +87,19 @@ public class ReportSubmissionAndTriageIntegrationTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, scoringService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
+        controller.SignInAs(8888); // a token for a user that is not in the database
 
         var dto = new CreateReportDto
         {
             ShelterId = 1,
-            ReportedBy = 8888, // Invalid reporter user ID
             NeedType = "Food",
             QuantityNeeded = 100,
             Status = "New"
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<BadRequestException>(async () => await controller.CreateReport(dto));
+        await Assert.ThrowsAsync<UnauthorizedException>(async () => await controller.CreateReport(dto));
     }
 
     [Fact]
@@ -110,13 +112,13 @@ public class ReportSubmissionAndTriageIntegrationTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, scoringService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
+        controller.SignInAs(1);
         controller.ModelState.AddModelError("NeedType", "The NeedType field is required.");
 
         var dto = new CreateReportDto
         {
             ShelterId = 1,
-            ReportedBy = 1,
             NeedType = "",
             QuantityNeeded = 10,
             Status = "New"
@@ -139,12 +141,12 @@ public class ReportSubmissionAndTriageIntegrationTests
         var photoService = new PhotoStorageService(mockEnv.Object);
         var mockAgent = new Mock<ITriageAgent>();
 
-        var controller = new ReportsController(context, scoringService, photoService, mockAgent.Object);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), mockAgent.Object);
+        controller.SignInAs(1);
 
         var dto = new CreateReportDto
         {
             ShelterId = 1,
-            ReportedBy = 1,
             NeedType = "Medical",
             QuantityNeeded = 30,
             Status = "New",
@@ -177,13 +179,13 @@ public class ReportSubmissionAndTriageIntegrationTests
 
         // Instantiate concrete TriageAgent
         var triageAgent = new TriageAgent(context, scoringService);
-        var controller = new ReportsController(context, scoringService, photoService, triageAgent);
+        var controller = new ReportsController(new ReportService(context, scoringService, photoService, NullLogger<ReportService>.Instance), triageAgent);
+        controller.SignInAs(1);
 
         // Step 1: Submit a report via controller
         var createDto = new CreateReportDto
         {
             ShelterId = 1,
-            ReportedBy = 1,
             NeedType = "Water",
             QuantityNeeded = 250,
             Status = "New"

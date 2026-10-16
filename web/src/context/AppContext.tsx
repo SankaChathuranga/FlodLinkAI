@@ -54,7 +54,9 @@ const AppContext = createContext<AppContextValue | undefined>(undefined)
 export function AppProvider({ children }: { children: ReactNode }) {
   // Read API base URL from Vite environment variable.
   // VITE_ prefix is required for Vite to expose env vars to the client.
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000'
+  // Trailing slashes are dropped: paths are appended as `${apiBaseUrl}/api/...`, and a base URL
+  // ending in "/" would produce "//api/..." which the API does not route (404).
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000').replace(/\/+$/, '')
 
   // TODO: useState hooks for real shared state go here.
   // Example:

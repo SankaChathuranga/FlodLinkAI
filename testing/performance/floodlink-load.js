@@ -1,10 +1,21 @@
 // PERF-001..PERF-003: FloodLink API load test (k6).
 // Run:  docker run --rm --network host -v "$PWD/testing:/testing" grafana/k6 run /testing/performance/floodlink-load.js
-// Env:  BASE_URL (default http://localhost:5055)
+// Env:  BASE_URL (default http://localhost:5055), DEMO_PASSWORD (the API's Seed:DemoPassword; requests need a token)
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const BASE = __ENV.BASE_URL || 'http://localhost:5055';
+
+// Every endpoint needs a token (Phase 2): sign the demo accounts in once.
+function login(email) {
+  const res = http.post(`${BASE}/api/auth/login`, JSON.stringify({ email, password: __ENV.DEMO_PASSWORD }),
+    { headers: { 'Content-Type': 'application/json' } });
+  return res.json('token');
+}
+
+export function setup() {
+  return { volunteer: login('volunteer@floodlink.lk'), coordinator: login('coordinator@floodlink.lk') };
+}
 const NEEDS = ['Water', 'Food', 'Medical'];
 
 export const options = {
@@ -28,22 +39,22 @@ export const options = {
   summaryTrendStats: ['avg', 'min', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
 };
 
-export function submitReport() {
+export function submitReport(tokens) {
   const res = http.post(`${BASE}/api/reports`, {
     ShelterId: '1',
-    ReportedBy: '1',
     NeedType: NEEDS[Math.floor(Math.random() * NEEDS.length)],
     QuantityNeeded: String(10 + Math.floor(Math.random() * 90)),
-  });
+  }, { headers: { Authorization: `Bearer ${tokens.volunteer}` } });
   check(res, { 'report created (201)': (r) => r.status === 201 });
   sleep(1);
 }
 
-export function readDashboards() {
+export function readDashboards(tokens) {
+  const params = { headers: { Authorization: `Bearer ${tokens.coordinator}` } };
   const responses = http.batch([
-    ['GET', `${BASE}/api/inventory`],
-    ['GET', `${BASE}/api/shelters`],
-    ['GET', `${BASE}/api/dispatches/approval-queue`],
+    ['GET', `${BASE}/api/inventory`, null, params],
+    ['GET', `${BASE}/api/shelters`, null, params],
+    ['GET', `${BASE}/api/dispatches/approval-queue`, null, params],
   ]);
   responses.forEach((r) => check(r, { 'dashboard read ok (200)': (x) => x.status === 200 }));
   sleep(1);

@@ -1,3 +1,4 @@
+using FloodLink.Domain.Security;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
@@ -14,7 +15,7 @@ namespace FloodLink.Tests;
 /// End-to-end tests for Member D's surface (Ijini): the Validation/Safety Agent
 /// pipeline plus the guarded coordinator approval/dispatch/audit flow.
 /// Runs against a real Postgres test database (floodlink_test) through the in-memory
-/// TestServer, so it exercises routing, auth (Development auto-auth), controllers,
+/// TestServer, so it exercises routing, auth (a Coordinator bearer token), controllers,
 /// EF, Npgsql and the audit trail exactly as the demo does.
 /// </summary>
 [Collection(PostgresCollection.Name)]
@@ -27,7 +28,7 @@ public sealed class WorkflowIntegrationTests : IClassFixture<TestAppFactory>
     {
         _factory = factory;
         _factory.ResetDatabase();
-        _client = _factory.CreateClient();
+        _client = _factory.CreateClientAs(Roles.Coordinator);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ public sealed class WorkflowIntegrationTests : IClassFixture<TestAppFactory>
             ["Polyline"] = "abc",
             ["OriginLat"] = 6.90,
             ["OriginLng"] = 79.80,
-            ["DestLat"] = 6.02,
+            ["DestLat"] = 6.70,
             ["DestLng"] = 80.00,
             ["Allocations"] = new JsonArray(new JsonObject
             {

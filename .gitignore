@@ -99,3 +99,6 @@ FloodLink_Finish_Plan.md
 FloodLink_Finish_Plan.md
 FloodLink_Project_Finalization.md
 FloodLink_Finish_Plan.md
+
+# Report photos uploaded while running the API locally or in tests
+backend/src/FloodLink.Api/wwwroot/uploads/

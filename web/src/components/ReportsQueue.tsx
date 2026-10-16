@@ -1,11 +1,19 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
-import type { Report, Shelter } from '../types'
+import { apiFetch } from '../api/http'
+import { startWorkflow } from '../api/workflows'
+import { describeApiError } from '../lib/apiError'
+import { useDebouncedValue } from '../lib/useDebouncedValue'
+import type { PaginatedResult, Report, Shelter } from '../types'
+
+const PAGE_SIZE = 10
 
 export function ReportsQueue() {
   const { apiBaseUrl } = useAppContext()
 
   const [reports, setReports] = useState<Report[]>([])
+  const [paging, setPaging] = useState({ page: 1, totalPages: 1, totalItems: 0 })
   const [shelters, setShelters] = useState<Shelter[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -15,10 +23,57 @@ export function ReportsQueue() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [urgencyThreshold, setUrgencyThreshold] = useState<number>(0)
   const [sortOrder, setSortOrder] = useState<string>('urgency_desc')
+  const [search, setSearch] = useState<string>('')
+  const debouncedSearch = useDebouncedValue(search.trim())
+  const [page, setPage] = useState<number>(1)
+
+  // A new filter, sort or search starts again from the first page.
+  useEffect(() => {
+    setPage(1)
+  }, [selectedShelterId, statusFilter, urgencyThreshold, sortOrder, debouncedSearch])
+
+  // Start workflow (4.04): pick reports, describe the objective, start a run.
+  const navigate = useNavigate()
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [objective, setObjective] = useState('')
+  const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
+
+  // Only reports that are not yet planned can join a new run.
+  const canSelect = (report: Report) => report.status === 'New' || report.status === 'Triaged'
+
+  const toggleSelected = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const onStart = async (e: FormEvent) => {
+    e.preventDefault()
+    setStartError(null)
+    if (selected.size === 0) {
+      setStartError('Select at least one report.')
+      return
+    }
+    if (!objective.trim()) {
+      setStartError('Describe what this workflow should achieve.')
+      return
+    }
+    setStarting(true)
+    try {
+      const run = await startWorkflow(apiBaseUrl, objective.trim(), [...selected])
+      navigate(`/workflows/${run.id}`)
+    } catch (err) {
+      setStartError(describeApiError(err))
+      setStarting(false)
+    }
+  }
 
   // Fetch shelters dropdown items
   useEffect(() => {
-    fetch(`${apiBaseUrl}/api/shelters?pageSize=100`)
+    apiFetch(`${apiBaseUrl}/api/shelters?pageSize=100`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.items) setShelters(data.items)
@@ -26,7 +81,11 @@ export function ReportsQueue() {
       .catch(() => {})
   }, [apiBaseUrl])
 
+  // Only the latest request may update the list (a filter change and its page reset both fetch).
+  const latestRequest = useRef(0)
+
   const fetchReports = useCallback(async () => {
+    const requestId = ++latestRequest.current
     setLoading(true)
     setError(null)
 
@@ -36,20 +95,29 @@ export function ReportsQueue() {
       if (statusFilter) queryParams.append('status', statusFilter)
       if (urgencyThreshold > 0) queryParams.append('urgency', urgencyThreshold.toString())
       if (sortOrder) queryParams.append('sort', sortOrder)
+      if (debouncedSearch) queryParams.append('search', debouncedSearch)
+      queryParams.append('page', String(page))
+      queryParams.append('pageSize', String(PAGE_SIZE))
 
-      const response = await fetch(`${apiBaseUrl}/api/reports?${queryParams.toString()}`)
+      const response = await apiFetch(`${apiBaseUrl}/api/reports?${queryParams.toString()}`)
       if (!response.ok) {
         throw new Error(`Failed to fetch report queue (HTTP ${response.status})`)
       }
 
-      const data: Report[] = await response.json()
-      setReports(data || [])
+      const data: PaginatedResult<Report> = await response.json()
+      if (requestId !== latestRequest.current) return
+      const items = data?.items ?? []
+      setReports(items)
+      setPaging({ page: data.page, totalPages: data.totalPages, totalItems: data.totalItems })
+      // Selections on other pages are kept; drop listed ones that can no longer join a run.
+      setSelected((prev) => new Set([...prev].filter((id) => items.every((r) => r.id !== id || canSelect(r)))))
     } catch (err) {
+      if (requestId !== latestRequest.current) return
       setError(err instanceof Error ? err.message : 'Failed to connect to backend server.')
     } finally {
-      setLoading(false)
+      if (requestId === latestRequest.current) setLoading(false)
     }
-  }, [apiBaseUrl, selectedShelterId, statusFilter, urgencyThreshold, sortOrder])
+  }, [apiBaseUrl, selectedShelterId, statusFilter, urgencyThreshold, sortOrder, debouncedSearch, page])
 
   useEffect(() => {
     fetchReports()
@@ -82,11 +150,23 @@ export function ReportsQueue() {
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Report Review Queue</h2>
-          <p className="text-sm text-slate-500">Triage field reports, review auto-calculated urgency scores, and prepare AI triage plans.</p>
+          <p className="text-sm text-slate-500">Review field reports, then select New or Triaged ones and start a workflow.</p>
         </div>
 
         {/* Filters Bar */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <label className="text-sm">
+            <span className="sr-only">Search reports</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search need, notes, shelter or #id"
+              className="w-56 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </label>
+
           {/* Shelter Filter */}
           <select
             value={selectedShelterId}
@@ -136,6 +216,8 @@ export function ReportsQueue() {
             <option value="urgency_asc">Lowest Urgency First</option>
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
+            <option value="quantity_desc">Largest Quantity First</option>
+            <option value="quantity_asc">Smallest Quantity First</option>
           </select>
 
           <button
@@ -149,6 +231,46 @@ export function ReportsQueue() {
           </button>
         </div>
       </div>
+
+      {/* START WORKFLOW */}
+      <form
+        onSubmit={(e) => void onStart(e)}
+        aria-label="Start workflow"
+        className="sticky top-2 z-10 flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm md:flex-row md:items-center"
+      >
+        <span className="text-sm font-semibold text-blue-900" aria-live="polite">
+          {selected.size} report{selected.size === 1 ? '' : 's'} selected
+        </span>
+        <label className="flex-1 text-sm">
+          <span className="sr-only">Objective</span>
+          <input
+            value={objective}
+            onChange={(e) => setObjective(e.target.value)}
+            maxLength={1000}
+            placeholder="Objective, e.g. Water and medical supplies for Kaduwela shelters"
+            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+          />
+        </label>
+        <div className="flex items-center gap-2">
+          {selected.size > 0 && (
+            <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-slate-600 underline">
+              Clear
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={starting}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+          >
+            {starting ? 'Starting…' : 'Start workflow'}
+          </button>
+        </div>
+        {startError && (
+          <p role="alert" className="text-sm text-rose-700 md:basis-full">
+            {startError}
+          </p>
+        )}
+      </form>
 
       {/* ERROR STATE */}
       {error && (
@@ -194,6 +316,7 @@ export function ReportsQueue() {
           <p className="text-sm text-slate-500 max-w-sm mx-auto">No reports match your active filter criteria or shelter selection.</p>
           <button
             onClick={() => {
+              setSearch('')
               setSelectedShelterId('')
               setStatusFilter('')
               setUrgencyThreshold(0)
@@ -214,6 +337,19 @@ export function ReportsQueue() {
               key={report.id}
               className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row md:items-center justify-between gap-6"
             >
+              {/* Selection */}
+              <div className="md:self-start">
+                <input
+                  type="checkbox"
+                  aria-label={`Select report ${report.id} for a workflow`}
+                  checked={selected.has(report.id)}
+                  disabled={!canSelect(report)}
+                  title={canSelect(report) ? undefined : `Report is ${report.status} and cannot join a new workflow`}
+                  onChange={() => toggleSelected(report.id)}
+                  className="h-5 w-5 disabled:opacity-30"
+                />
+              </div>
+
               {/* Left Details */}
               <div className="space-y-2 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -232,6 +368,12 @@ export function ReportsQueue() {
                 <h3 className="text-lg font-bold text-slate-900">
                   Quantity Required: <span className="text-blue-600">{report.quantityNeeded} units</span>
                 </h3>
+
+                {report.notes && (
+                  <p className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded px-3 py-2 whitespace-pre-line break-words">
+                    <span className="font-semibold text-slate-800">Field notes:</span> {report.notes}
+                  </p>
+                )}
 
                 <div className="text-xs text-slate-600 space-y-1">
                   <p>
@@ -278,6 +420,31 @@ export function ReportsQueue() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* PAGING */}
+      {!loading && !error && paging.totalItems > 0 && (
+        <nav aria-label="Report pages" className="flex items-center justify-between text-sm text-slate-600">
+          <span>
+            Page {paging.page} of {paging.totalPages} ({paging.totalItems} report{paging.totalItems === 1 ? '' : 's'})
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => p - 1)}
+              disabled={paging.page <= 1}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={paging.page >= paging.totalPages}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </nav>
       )}
     </div>
   )

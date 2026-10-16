@@ -1,3 +1,4 @@
+using FloodLink.Domain.Security;
 using System.Net;
 using System.Net.Http.Json;
 using FloodLink.Domain.Entities;
@@ -24,7 +25,7 @@ public sealed class DatabaseTests : IClassFixture<TestAppFactory>
     {
         _factory = factory;
         _factory.ResetDatabase();
-        _client = _factory.CreateClient();
+        _client = _factory.CreateClientAs(Roles.DepotManager);
     }
 
     private AppDbContext NewDb() =>

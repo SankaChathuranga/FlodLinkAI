@@ -5,7 +5,7 @@ namespace FloodLink.Api.DTOs;
 public class CreateShelterDto
 {
     [Required(ErrorMessage = "Shelter name is required.")]
-    [StringLength(150, ErrorMessage = "Shelter name cannot exceed 150 characters.")]
+    [StringLength(150, MinimumLength = 1, ErrorMessage = "Shelter name must be 1–150 characters.")]
     public string Name { get; set; } = string.Empty;
 
     [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90.")]
@@ -20,6 +20,7 @@ public class CreateShelterDto
     [Range(0, int.MaxValue, ErrorMessage = "Current occupancy cannot be negative.")]
     public int CurrentOccupancy { get; set; }
 
+    [Range(1, int.MaxValue, ErrorMessage = "ContactVolunteerId must be a valid user id.")]
     public int? ContactVolunteerId { get; set; }
 
     [Required(ErrorMessage = "Status is required.")]
@@ -30,7 +31,7 @@ public class CreateShelterDto
 public class UpdateShelterDto
 {
     [Required(ErrorMessage = "Shelter name is required.")]
-    [StringLength(150, ErrorMessage = "Shelter name cannot exceed 150 characters.")]
+    [StringLength(150, MinimumLength = 1, ErrorMessage = "Shelter name must be 1–150 characters.")]
     public string Name { get; set; } = string.Empty;
 
     [Range(-90.0, 90.0, ErrorMessage = "Latitude must be between -90 and 90.")]
@@ -45,6 +46,7 @@ public class UpdateShelterDto
     [Range(0, int.MaxValue, ErrorMessage = "Current occupancy cannot be negative.")]
     public int CurrentOccupancy { get; set; }
 
+    [Range(1, int.MaxValue, ErrorMessage = "ContactVolunteerId must be a valid user id.")]
     public int? ContactVolunteerId { get; set; }
 
     [Required(ErrorMessage = "Status is required.")]

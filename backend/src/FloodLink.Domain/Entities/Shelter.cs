@@ -5,7 +5,7 @@ namespace FloodLink.Domain.Entities;
 /// <summary>
 /// Represents an emergency shelter location (Member A component).
 /// </summary>
-public class Shelter
+public class Shelter : IHasUpdatedAt
 {
     public int Id { get; set; }
 

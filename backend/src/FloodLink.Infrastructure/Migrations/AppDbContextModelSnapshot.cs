@@ -100,6 +100,9 @@ namespace FloodLink.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("WorkflowRunId")
                         .HasColumnType("uuid");
 
@@ -108,6 +111,8 @@ namespace FloodLink.Infrastructure.Migrations
                     b.HasIndex("DepotId");
 
                     b.HasIndex("ShelterId");
+
+                    b.HasIndex("Status");
 
                     b.HasIndex("WorkflowRunId", "Status");
 
@@ -143,6 +148,8 @@ namespace FloodLink.Infrastructure.Migrations
 
                     b.HasIndex("DispatchId");
 
+                    b.HasIndex("EventType");
+
                     b.ToTable("AuditTrail");
                 });
 
@@ -163,12 +170,20 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Property<double>("Longitude")
                         .HasColumnType("double precision");
 
+                    b.Property<int?>("ManagerId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ManagerId");
 
                     b.ToTable("Depots");
 
@@ -179,7 +194,9 @@ namespace FloodLink.Infrastructure.Migrations
                             CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
                             Latitude = 6.9355000000000002,
                             Longitude = 79.848699999999994,
-                            Name = "Colombo Central Depot"
+                            ManagerId = 3,
+                            Name = "Colombo Central Depot",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
@@ -187,7 +204,9 @@ namespace FloodLink.Infrastructure.Migrations
                             CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
                             Latitude = 6.9061000000000003,
                             Longitude = 79.957999999999998,
-                            Name = "Kaduwela Supply Depot"
+                            ManagerId = 3,
+                            Name = "Kaduwela Supply Depot",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
 
@@ -213,6 +232,9 @@ namespace FloodLink.Infrastructure.Migrations
                         .HasColumnType("character varying(30)");
 
                     b.Property<DateTime?>("DispatchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("WorkflowRunId")
@@ -346,6 +368,10 @@ namespace FloodLink.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("PhotoUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -363,6 +389,9 @@ namespace FloodLink.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("UrgencyLevel")
                         .HasColumnType("integer");
@@ -395,6 +424,7 @@ namespace FloodLink.Infrastructure.Migrations
                             ReportedBy = 1,
                             ShelterId = 1,
                             Status = "New",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
                             UrgencyLevel = 5
                         },
                         new
@@ -409,6 +439,7 @@ namespace FloodLink.Infrastructure.Migrations
                             ReportedBy = 1,
                             ShelterId = 1,
                             Status = "Triaged",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
                             UrgencyLevel = 4
                         },
                         new
@@ -422,6 +453,7 @@ namespace FloodLink.Infrastructure.Migrations
                             ReportedBy = 2,
                             ShelterId = 2,
                             Status = "New",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
                             UrgencyLevel = 5
                         },
                         new
@@ -436,6 +468,7 @@ namespace FloodLink.Infrastructure.Migrations
                             ReportedBy = 1,
                             ShelterId = 2,
                             Status = "InPlan",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
                             UrgencyLevel = 3
                         },
                         new
@@ -449,6 +482,7 @@ namespace FloodLink.Infrastructure.Migrations
                             ReportedBy = 2,
                             ShelterId = 3,
                             Status = "Resolved",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
                             UrgencyLevel = 2
                         });
                 });
@@ -618,6 +652,10 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("HashedPassword")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -638,7 +676,13 @@ namespace FloodLink.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.ToTable("Users");
 
@@ -647,19 +691,45 @@ namespace FloodLink.Infrastructure.Migrations
                         {
                             Id = 1,
                             CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
-                            HashedPassword = "hashed_password_1",
+                            Email = "volunteer@floodlink.lk",
+                            HashedPassword = "!",
                             Name = "John Doe",
                             Phone = "+94771234567",
-                            Role = "Volunteer"
+                            Role = "Volunteer",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 2,
                             CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
-                            HashedPassword = "hashed_password_2",
+                            Email = "coordinator@floodlink.lk",
+                            HashedPassword = "!",
                             Name = "Jane Smith",
                             Phone = "+94779876543",
-                            Role = "Coordinator"
+                            Role = "Coordinator",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "depot@floodlink.lk",
+                            HashedPassword = "!",
+                            Name = "Kamal Perera",
+                            Phone = "+94775550101",
+                            Role = "DepotManager",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CreatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "admin@floodlink.lk",
+                            HashedPassword = "!",
+                            Name = "Admin User",
+                            Phone = "+94775550100",
+                            Role = "Admin",
+                            UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
 
@@ -803,6 +873,16 @@ namespace FloodLink.Infrastructure.Migrations
                     b.Navigation("Actor");
 
                     b.Navigation("Dispatch");
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.Depot", b =>
+                {
+                    b.HasOne("FloodLink.Domain.Entities.User", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Manager");
                 });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.Dispatch", b =>

@@ -1,0 +1,31 @@
+
+     ✓ read ok (200)
+     ✓ report created (201)
+     ✓ workflow accepted (202)
+     ✓ logs ok (200)
+
+     agent_duration_ms...................: avg=42.63ms min=0s     med=4ms     p(90)=93.8ms   p(95)=165.54ms max=537ms   
+   ✓ checks..............................: 100.00% 5349 out of 5349
+     data_received.......................: 11 MB   176 kB/s
+     data_sent...........................: 2.4 MB  40 kB/s
+     db_read_ms..........................: avg=17.48ms min=1.27ms med=11.57ms p(90)=20.62ms  p(95)=30.44ms  max=358.52ms
+     http_req_blocked....................: avg=25.7µs  min=926ns  med=6.85µs  p(90)=12.91µs  p(95)=17.06µs  max=8.05ms  
+     http_req_connecting.................: avg=12.1µs  min=0s     med=0s      p(90)=0s       p(95)=0s       max=6.94ms  
+     http_req_duration...................: avg=17.75ms min=1.27ms med=11.58ms p(90)=20.81ms  p(95)=30.9ms   max=358.52ms
+       { expected_response:true }........: avg=17.75ms min=1.27ms med=11.58ms p(90)=20.81ms  p(95)=30.9ms   max=358.52ms
+     ✓ { scenario:read_endpoints }.......: avg=17.48ms min=1.27ms med=11.57ms p(90)=20.62ms  p(95)=30.44ms  max=358.52ms
+     http_req_failed.....................: 0.00%   0 out of 5367
+     ✓ { scenario:read_endpoints }.......: 0.00%   0 out of 5334
+     http_req_receiving..................: avg=67.77µs min=8.45µs med=43.4µs  p(90)=119.64µs p(95)=138.01µs max=6.31ms  
+     http_req_sending....................: avg=43.58µs min=3.16µs med=18.25µs p(90)=34.82µs  p(95)=49.15µs  max=4.86ms  
+     http_req_tls_handshaking............: avg=0s      min=0s     med=0s      p(90)=0s       p(95)=0s       max=0s      
+     http_req_waiting....................: avg=17.64ms min=1.21ms med=11.47ms p(90)=20.67ms  p(95)=30.85ms  max=358.42ms
+     http_reqs...........................: 5367    87.535965/s
+     iteration_duration..................: avg=1.02s   min=1s     med=1.01s   p(90)=1.02s    p(95)=1.03s    max=2.33s   
+     iterations..........................: 1193    19.457873/s
+     vus.................................: 8       min=8            max=25
+     vus_max.............................: 25      min=25           max=25
+     workflow_e2e_ms.....................: avg=1.54s   min=1.14s  med=1.64s   p(90)=1.94s    p(95)=2.04s    max=2.15s   
+   ✓ workflow_reached_pending_approval...: 100.00% 5 out of 5
+     workflows_started...................: 5       0.08155/s
+
