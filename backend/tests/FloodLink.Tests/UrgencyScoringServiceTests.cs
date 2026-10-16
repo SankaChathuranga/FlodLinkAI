@@ -169,7 +169,7 @@ public class UrgencyScoringServiceTests
     }
 
     [Fact]
-    public void CalculateUrgencyScore_ShelterRepairWithSpace_ScoresAsShelterRepair()
+    public void CalculateUrgencyScore_ShelterRepairWithSpace_ReturnsExpectedScore()
     {
         var shelter = new Shelter
         {
