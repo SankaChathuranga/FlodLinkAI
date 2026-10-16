@@ -155,7 +155,9 @@ change.
 - Set `Seed:DemoPassword` and `Jwt:SigningKey` in user-secrets (or env vars) for local runs; the demo accounts
   stay locked without a demo password.
 - Gate 4 by hand: Flutter report → React start + trace → approve → Flutter shows Approved with ETA.
-- Phase 7 (deployment and APK); then re-run `floodlink-workflow-load.js` against the deployed API (6.28).
+- Phase 7 (deployment and APK). Deployed 6.28 run done 16 Oct: set `Gemini__ApiKey` and
+  `ASPNETCORE_ENVIRONMENT=Production` on Render; consider putting Neon and Render in the same region
+  (~90 ms per DB round trip); reads p95 2.5 s vs 750 ms target.
 - Re-run the live evaluation when the Gemini quota resets so Matching is evaluated on model output.
 - Confirm CI runs on PRs and provides Postgres for the integration tests.
 - Run the mobile dispatch screens on an emulator/device.

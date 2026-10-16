@@ -1,0 +1,33 @@
+
+     ✗ read ok (200)
+      ↳  99% — ✓ 1960 / ✗ 2
+     ✓ report created (201)
+     ✓ workflow accepted (202)
+     ✓ logs ok (200)
+
+     agent_duration_ms...................: avg=637.9ms  min=101ms    med=384.5ms p(90)=1.44s    p(95)=1.96s    max=2.71s  
+   ✓ checks..............................: 99.89%  1975 out of 1977
+     data_received.......................: 4.5 MB  69 kB/s
+     data_sent...........................: 155 kB  2.4 kB/s
+     db_read_ms..........................: avg=1.71s    min=278.15ms med=1.55s   p(90)=2.09s    p(95)=2.49s    max=7.9s   
+     http_req_blocked....................: avg=2.47ms   min=62ns     med=393ns   p(90)=944ns    p(95)=1.23µs   max=1.09s  
+     http_req_connecting.................: avg=2.17ms   min=0s       med=0s      p(90)=0s       p(95)=0s       max=1.06s  
+     http_req_duration...................: avg=1.68s    min=278.15ms med=1.49s   p(90)=2.09s    p(95)=2.49s    max=7.9s   
+       { expected_response:true }........: avg=1.68s    min=278.15ms med=1.49s   p(90)=2.09s    p(95)=2.49s    max=7.9s   
+     ✗ { scenario:read_endpoints }.......: avg=1.71s    min=278.15ms med=1.55s   p(90)=2.09s    p(95)=2.49s    max=7.9s   
+     http_req_failed.....................: 0.09%   2 out of 2071
+     ✓ { scenario:read_endpoints }.......: 0.10%   2 out of 1962
+     http_req_receiving..................: avg=2.11ms   min=9.64µs   med=80.21µs p(90)=876.68µs p(95)=2.25ms   max=1.36s  
+     http_req_sending....................: avg=160.21µs min=5.46µs   med=81.41µs p(90)=167.52µs p(95)=243.01µs max=9.72ms 
+     http_req_tls_handshaking............: avg=292.53µs min=0s       med=0s      p(90)=0s       p(95)=0s       max=43.43ms
+     http_req_waiting....................: avg=1.67s    min=277.23ms med=1.49s   p(90)=2.09s    p(95)=2.47s    max=7.9s   
+     http_reqs...........................: 2071    31.696775/s
+     iteration_duration..................: avg=3.19s    min=1.34s    med=2.74s   p(90)=3.23s    p(95)=8.74s    max=42.77s 
+     iterations..........................: 429     6.56587/s
+     vus.................................: 5       min=0            max=25
+     vus_max.............................: 25      min=25           max=25
+     workflow_e2e_ms.....................: avg=26.83s   min=16.28s   med=27.04s  p(90)=35.18s   p(95)=36.21s   max=37.24s 
+   ✓ workflow_reached_pending_approval...: 100.00% 5 out of 5
+     workflows_started...................: 5       0.076525/s
+
+time="2026-10-16T06:56:42Z" level=error msg="thresholds on metrics 'http_req_duration{scenario:read_endpoints}' have been crossed"
