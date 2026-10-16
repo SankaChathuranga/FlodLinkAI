@@ -73,31 +73,51 @@ public sealed class ValidationController : ControllerBase
             return UnprocessableEntity(new { error = "PLAN_NOT_FOUND", message = "Workflow run has no PlanJson to validate." });
         }
 
-        PlanDocument plan;
-        try
+        Route route;
+        var orchestratorRoute = WorkflowPlan.TryRead<Route>(run.PlanJson, WorkflowPlan.RouteKey);
+        if (orchestratorRoute is not null)
         {
-            plan = JsonSerializer.Deserialize<PlanDocument>(run.PlanJson, JsonOptions)
-                   ?? throw new JsonException("Plan parsed to null.");
+            route = orchestratorRoute;
         }
-        catch (JsonException ex)
+        else
         {
-            return UnprocessableEntity(new { error = "INVALID_PLAN", message = $"PlanJson is not a valid plan document: {ex.Message}" });
-        }
+            PlanDocument plan;
+            try
+            {
+                plan = JsonSerializer.Deserialize<PlanDocument>(run.PlanJson, JsonOptions)
+                       ?? throw new JsonException("Plan parsed to null.");
+            }
+            catch (JsonException ex)
+            {
+                return UnprocessableEntity(new { error = "INVALID_PLAN", message = $"PlanJson is not a valid plan document: {ex.Message}" });
+            }
 
-        var route = new Route
-        {
-            WorkflowRunId = run.Id,
-            AllocationProposalId = plan.AllocationProposalId,
-            DistanceKm = plan.DistanceKm,
-            EtaMinutes = plan.EtaMinutes,
-            Polyline = plan.Polyline
-        };
+            route = new Route
+            {
+                WorkflowRunId = run.Id,
+                AllocationProposalId = plan.AllocationProposalId,
+                DistanceKm = plan.DistanceKm,
+                EtaMinutes = plan.EtaMinutes,
+                Polyline = plan.Polyline,
+                Legs = plan.Legs.Select(l => new RouteLeg
+                {
+                    DepotId = l.DepotId,
+                    ShelterId = l.ShelterId,
+                    DistanceKm = l.DistanceKm,
+                    EtaMinutes = l.EtaMinutes,
+                    Polyline = ""
+                }).ToList()
+            };
+        }
 
         var agentResult = await _validationAgent.ExecuteAsync(route, ct);
         if (!agentResult.Success)
         {
             return UnprocessableEntity(new { error = agentResult.ErrorCode, message = agentResult.ErrorMessage });
         }
+
+        var previous = await _db.ValidationResults.Where(v => v.WorkflowRunId == run.Id).ToListAsync(ct);
+        _db.ValidationResults.RemoveRange(previous);
 
         foreach (var check in agentResult.Data!.Checks)
         {
@@ -119,6 +139,8 @@ public sealed class ValidationController : ControllerBase
                 checkCount = agentResult.Data.Checks.Count
             })
         });
+
+        run.PlanJson = WorkflowPlan.Merge(run.PlanJson, WorkflowPlan.ValidationResultsKey, agentResult.Data);
 
         var targetState = agentResult.Data.OverallPassed ? WorkflowState.PendingApproval : WorkflowState.Failed;
         string? failureReason = agentResult.Data.OverallPassed
