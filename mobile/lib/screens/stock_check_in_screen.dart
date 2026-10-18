@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/logout_button.dart';
@@ -66,7 +67,14 @@ class _StockCheckInScreenState extends State<StockCheckInScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stock Check-in'),
-        actions: const [LogoutButton()],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.warning_amber_rounded),
+            tooltip: 'Low stock',
+            onPressed: () => context.push('/low-stock'),
+          ),
+          const LogoutButton(),
+        ],
       ),
       body: provider.isLoadingDepots
           ? const Center(child: CircularProgressIndicator())

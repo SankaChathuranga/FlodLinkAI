@@ -44,6 +44,11 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.house_outlined, color: Colors.white),
+            tooltip: 'Shelter status',
+            onPressed: () => context.push('/shelters'),
+          ),
+          IconButton(
             icon: const Icon(Icons.local_shipping_outlined, color: Colors.white),
             tooltip: 'Dispatch & Delivery',
             onPressed: () => context.push('/dispatch'),

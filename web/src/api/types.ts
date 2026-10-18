@@ -79,13 +79,25 @@ export interface RejectionReasonCount {
 }
 
 /** Reporting/analytics payload (GET /api/dispatches/summary). */
+/** Decisions on the runs delivering to one shelter. */
+export interface ShelterDispatchCount {
+  shelterId: number
+  shelterName: string
+  approved: number
+  rejected: number
+  revisionsRequested: number
+}
+
 export interface DispatchSummary {
   total: number
   approved: number
   rejected: number
   revisionsRequested: number
+  /** Minutes from starting a workflow until the coordinator approved it. */
   avgApprovalMinutes: number | null
+  medianApprovalMinutes?: number | null
   topRejectionReasons: RejectionReasonCount[]
+  dispatchesPerShelter?: ShelterDispatchCount[]
 }
 
 /** One append-only audit event (GET /api/audit/{dispatchId}). */

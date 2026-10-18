@@ -287,6 +287,11 @@ body {
   gap: 0.25rem;
 }
 
+.depot-form {
+  display: grid;
+  gap: 1rem;
+}
+
 .inventory-dashboard__empty {
   padding: 1.5rem 0;
 }

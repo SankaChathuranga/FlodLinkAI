@@ -45,6 +45,23 @@ public sealed class DepotsController(AppDbContext context, ILogger<DepotsControl
             .ToPageAsync(page, pageSize, ct));
     }
 
+    /// <summary>A DepotManager account that can be assigned to a depot.</summary>
+    public sealed record DepotManagerOption(int Id, string Name, string? Email);
+
+    /// <summary>
+    /// GET /api/depots/managers — the DepotManager accounts, for the "assign manager" picker
+    /// (the full user list is Admin-only; this exposes only id, name and email).
+    /// </summary>
+    [HttpGet("managers")]
+    [Authorize(Policy = Policies.DepotManager)]
+    [ProducesResponseType<IReadOnlyList<DepotManagerOption>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<DepotManagerOption>>> GetManagers(CancellationToken ct)
+        => Ok(await context.Users.AsNoTracking()
+            .Where(u => u.Role == Roles.DepotManager)
+            .OrderBy(u => u.Name)
+            .Select(u => new DepotManagerOption(u.Id, u.Name, u.Email))
+            .ToListAsync(ct));
+
     /// <summary>GET /api/depots/{id}</summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType<DepotDto>(StatusCodes.Status200OK)]

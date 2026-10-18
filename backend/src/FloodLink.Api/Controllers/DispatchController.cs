@@ -301,17 +301,24 @@ public sealed class DispatchController : ControllerBase
         return Ok(new { page, pageSize, total, items });
     }
 
-    /// <summary>Reporting/analytics: totals, approval turnaround and rejection reasons.</summary>
+    /// <summary>
+    /// Reporting/analytics: decision totals, approval turnaround (workflow start → coordinator decision),
+    /// top rejection reasons, and decisions per shelter.
+    /// </summary>
     [HttpGet("summary")]
     [Authorize(Policy = Policies.Coordinator)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> SummaryAsync(CancellationToken ct)
     {
-        var dispatches = await _db.Dispatches.AsNoTracking().ToListAsync(ct);
+        var dispatches = await _db.Dispatches.AsNoTracking()
+            .Select(d => new { d.WorkflowRunId, d.Decision, d.ApprovalNotes, d.CreatedAt, RunCreatedAt = d.WorkflowRun!.CreatedAt })
+            .ToListAsync(ct);
 
+        // Turnaround: how long from starting the workflow until the coordinator approved it.
         var approvedMinutes = dispatches
-            .Where(d => d.Decision == DispatchDecision.Approved && d.DispatchedAt.HasValue)
-            .Select(d => (d.DispatchedAt!.Value - d.CreatedAt).TotalMinutes)
+            .Where(d => d.Decision == DispatchDecision.Approved)
+            .Select(d => Math.Max(0, (d.CreatedAt - d.RunCreatedAt).TotalMinutes))
+            .OrderBy(m => m)
             .ToList();
 
         var rejectionReasons = dispatches
@@ -322,6 +329,30 @@ public sealed class DispatchController : ControllerBase
             .Select(g => new { reason = g.Key, count = g.Count() })
             .ToList();
 
+        // A run's shelters are the shelters its allocations deliver to (any revision of the plan).
+        var runShelters = await _db.AllocationProposals.AsNoTracking()
+            .Select(a => new { a.WorkflowRunId, a.ShelterId, ShelterName = a.Shelter!.Name })
+            .Distinct()
+            .ToListAsync(ct);
+        var perShelter = runShelters
+            .GroupBy(s => new { s.ShelterId, s.ShelterName })
+            .Select(g =>
+            {
+                var runs = g.Select(s => s.WorkflowRunId).ToHashSet();
+                var decisions = dispatches.Where(d => runs.Contains(d.WorkflowRunId)).ToList();
+                return new
+                {
+                    shelterId = g.Key.ShelterId,
+                    shelterName = g.Key.ShelterName,
+                    approved = decisions.Count(d => d.Decision == DispatchDecision.Approved),
+                    rejected = decisions.Count(d => d.Decision == DispatchDecision.Rejected),
+                    revisionsRequested = decisions.Count(d => d.Decision == DispatchDecision.RevisionRequested)
+                };
+            })
+            .Where(s => s.approved + s.rejected + s.revisionsRequested > 0)
+            .OrderByDescending(s => s.approved).ThenBy(s => s.shelterName)
+            .ToList();
+
         return Ok(new
         {
             total = dispatches.Count,
@@ -329,9 +360,18 @@ public sealed class DispatchController : ControllerBase
             rejected = dispatches.Count(d => d.Decision == DispatchDecision.Rejected),
             revisionsRequested = dispatches.Count(d => d.Decision == DispatchDecision.RevisionRequested),
             avgApprovalMinutes = approvedMinutes.Count == 0 ? null : (double?)approvedMinutes.Average(),
-            topRejectionReasons = rejectionReasons
+            medianApprovalMinutes = Median(approvedMinutes),
+            topRejectionReasons = rejectionReasons,
+            dispatchesPerShelter = perShelter
         });
     }
+
+    private static double? Median(IReadOnlyList<double> sorted) => sorted.Count switch
+    {
+        0 => null,
+        var n when n % 2 == 1 => sorted[n / 2],
+        var n => (sorted[n / 2 - 1] + sorted[n / 2]) / 2
+    };
 
     private static DispatchResponse ToResponse(DispatchOutcome outcome) => new(
         outcome.Dispatch!.Id,

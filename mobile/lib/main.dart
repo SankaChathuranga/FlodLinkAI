@@ -20,6 +20,8 @@ import 'screens/workflow_status_screen.dart';
 import 'screens/my_submitted_reports_screen.dart';
 import 'screens/stock_check_in_screen.dart';
 import 'screens/field_home_screen.dart';
+import 'screens/low_stock_screen.dart';
+import 'screens/shelter_status_screen.dart';
 import 'state/app_state.dart';
 
 Future<void> main() async {
@@ -126,6 +128,14 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
     GoRoute(
       path: '/status/:runId',
       builder: (context, state) => WorkflowStatusScreen(workflowRunId: state.pathParameters['runId']!),
+    ),
+    GoRoute(
+      path: '/low-stock',
+      builder: (context, state) => const LowStockScreen(),
+    ),
+    GoRoute(
+      path: '/shelters',
+      builder: (context, state) => const ShelterStatusScreen(),
     ),
     GoRoute(
       path: '/gps',

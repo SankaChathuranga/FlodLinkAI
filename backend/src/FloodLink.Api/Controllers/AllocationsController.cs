@@ -1,4 +1,6 @@
+using FloodLink.Api.Dtos;
 using FloodLink.Api.DTOs;
+using FloodLink.Api.Workflows;
 using FloodLink.Domain.Entities;
 using FloodLink.Infrastructure;
 using FloodLink.Api.Auth;
@@ -12,7 +14,7 @@ namespace FloodLink.Api.Controllers;
 [ApiController]
 [Route("api/allocations")]
 [Authorize(Policy = Policies.StockReader)]
-public sealed class AllocationsController(AppDbContext context) : ControllerBase
+public sealed class AllocationsController(AppDbContext context, WorkflowService workflows) : ControllerBase
 {
     /// <summary>One allocation line: which depot sends how much of what to which shelter.</summary>
     public sealed record AllocationDto(
@@ -71,5 +73,31 @@ public sealed class AllocationsController(AppDbContext context) : ControllerBase
             TotalItems = total,
             TotalPages = (int)Math.Ceiling(total / (double)pageSize)
         });
+    }
+
+    /// <summary>
+    /// POST /api/allocations/{id}/trigger-matching — runs Matching again for the workflow run this
+    /// allocation belongs to, when that run failed (e.g. after a restock). Same rules and limit as
+    /// POST /api/workflows/{id}/retry, which it delegates to. To change a plan that is awaiting
+    /// approval, use request-revision instead.
+    /// </summary>
+    [HttpPost("{id:int}/trigger-matching")]
+    [Authorize(Policy = Policies.Coordinator)]
+    [ProducesResponseType<WorkflowRetryResponse>(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> TriggerMatching(int id, CancellationToken ct)
+    {
+        var runId = await context.AllocationProposals.AsNoTracking()
+            .Where(a => a.Id == id)
+            .Select(a => (Guid?)a.WorkflowRunId)
+            .FirstOrDefaultAsync(ct);
+        if (runId is null)
+            return NotFound(new { error = "ALLOCATION_NOT_FOUND", message = $"No allocation with id {id}." });
+
+        var result = await workflows.RetryAsync(runId.Value, User.GetUserId(), ct);
+        return result.Error is not null
+            ? StatusCode(result.Error.StatusCode, new { error = result.Error.Code, message = result.Error.Message })
+            : Accepted($"/api/workflows/{runId}/status", result.Value);
     }
 }

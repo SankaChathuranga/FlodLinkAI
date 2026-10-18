@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import mapboxgl from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 import type { Shelter } from '../types'
 
 interface ShelterMapProps {
@@ -7,7 +9,7 @@ interface ShelterMapProps {
   onSelectShelter?: (shelter: Shelter) => void
 }
 
-export function ShelterMap({ shelters, selectedShelterId, onSelectShelter }: ShelterMapProps) {
+function SimulatedShelterMap({ shelters, selectedShelterId, onSelectShelter }: ShelterMapProps) {
   const [activeHoverId, setActiveHoverId] = useState<number | null>(null)
 
   // Normalize lat/lng to map coordinates (Colombo area bounding box default)
@@ -100,4 +102,70 @@ export function ShelterMap({ shelters, selectedShelterId, onSelectShelter }: She
       })}
     </div>
   )
+}
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined
+
+function pinColor(shelter: Shelter) {
+  const pct = shelter.capacity > 0 ? (shelter.currentOccupancy / shelter.capacity) * 100 : 0
+  if (shelter.status.toLowerCase() === 'closed') return '#475569'
+  if (pct >= 100) return '#e11d48'
+  if (pct >= 80) return '#f59e0b'
+  return '#059669'
+}
+
+function MapboxShelterMap({ shelters, selectedShelterId, onSelectShelter }: ShelterMapProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<mapboxgl.Map | null>(null)
+  const markersRef = useRef<mapboxgl.Marker[]>([])
+  const onSelectRef = useRef(onSelectShelter)
+  onSelectRef.current = onSelectShelter
+
+  useEffect(() => {
+    if (!containerRef.current) return
+    mapboxgl.accessToken = MAPBOX_TOKEN as string
+    const map = new mapboxgl.Map({
+      container: containerRef.current,
+      style: 'mapbox://styles/mapbox/outdoors-v12',
+      center: [79.8612, 6.9271],
+      zoom: 9,
+    })
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
+    mapRef.current = map
+    return () => {
+      map.remove()
+      mapRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    markersRef.current.forEach((m) => m.remove())
+    markersRef.current = shelters.map((shelter) => {
+      const pct = shelter.capacity > 0 ? Math.round((shelter.currentOccupancy / shelter.capacity) * 100) : 0
+      const el = document.createElement('div')
+      el.textContent = `${pct}%`
+      el.style.cssText = `width:28px;height:28px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font:700 11px sans-serif;color:#fff;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.5);background:${pinColor(shelter)};${
+        shelter.id === selectedShelterId ? 'outline:4px solid #60a5fa;' : ''
+      }`
+      el.addEventListener('click', () => onSelectRef.current?.(shelter))
+      const popup = new mapboxgl.Popup({ offset: 18, closeButton: false }).setHTML(
+        `<strong>${shelter.name.replace(/</g, '&lt;')}</strong><br/>${shelter.currentOccupancy} / ${shelter.capacity} (${pct}%) · ${shelter.status.replace(/</g, '&lt;')}`,
+      )
+      return new mapboxgl.Marker({ element: el }).setLngLat([shelter.longitude, shelter.latitude]).setPopup(popup).addTo(map)
+    })
+    if (shelters.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds()
+      shelters.forEach((s) => bounds.extend([s.longitude, s.latitude]))
+      map.fitBounds(bounds, { padding: 60, maxZoom: 13, duration: 0 })
+    }
+  }, [shelters, selectedShelterId])
+
+  return <div ref={containerRef} className="relative w-full h-80 rounded-xl overflow-hidden border border-slate-800" />
+}
+
+export function ShelterMap(props: ShelterMapProps) {
+  // Falls back to the simulated grid map when no Mapbox token is configured.
+  return MAPBOX_TOKEN ? <MapboxShelterMap {...props} /> : <SimulatedShelterMap {...props} />
 }

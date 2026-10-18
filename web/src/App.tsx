@@ -10,6 +10,8 @@ import { InventoryDashboard } from './components/InventoryDashboard'
 import { WorkflowMonitor } from './components/WorkflowMonitor'
 import { WorkflowTrace } from './components/WorkflowTrace'
 import { UsersAdmin } from './components/UsersAdmin'
+import { DepotsPage } from './components/DepotsPage'
+import { AllocationsPage } from './components/AllocationsPage'
 import ApprovalQueue from './components/ApprovalQueue'
 import DispatchHistory from './components/DispatchHistory'
 import Analytics from './components/Analytics'
@@ -22,6 +24,8 @@ const ELEMENTS: Record<string, ReactElement> = {
   '/triage': <TriagePlanViewer />,
   '/workflows': <WorkflowMonitor />,
   '/inventory': <InventoryDashboard />,
+  '/depots': <DepotsPage />,
+  '/allocations': <AllocationsPage />,
   '/approvals': <ApprovalQueue />,
   '/dispatches': <DispatchHistory />,
   '/analytics': <Analytics />,

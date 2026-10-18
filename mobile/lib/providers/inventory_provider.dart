@@ -11,6 +11,9 @@ class InventoryProvider extends ChangeNotifier {
   final ApiClient _api;
 
   List<Depot> _depots = [];
+  List<InventoryItem> _lowStock = [];
+  bool _isLoadingLowStock = false;
+  String? _lowStockError;
   List<InventoryItem> _items = [];
   bool _isLoadingDepots = false;
   bool _isLoadingItems = false;
@@ -18,6 +21,32 @@ class InventoryProvider extends ChangeNotifier {
   String? _error;
 
   List<Depot> get depots => _depots;
+  List<InventoryItem> get lowStock => _lowStock;
+  bool get isLoadingLowStock => _isLoadingLowStock;
+  String? get lowStockError => _lowStockError;
+
+  /// Low-stock lines of the depots the signed-in manager runs, least free stock first.
+  Future<void> fetchLowStock() async {
+    _isLoadingLowStock = true;
+    _lowStockError = null;
+    notifyListeners();
+    try {
+      final response =
+          await _api.get('/api/inventory?managedByMe=true&lowStock=true&sort=quantity_asc&pageSize=100');
+      if (response.statusCode != 200) {
+        _lowStockError = 'Failed to load low stock (HTTP ${response.statusCode}).';
+        return;
+      }
+      _lowStock = _pageItems(response.body)
+          .map((item) => InventoryItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      _lowStockError = 'No internet connection. Please try again.';
+    } finally {
+      _isLoadingLowStock = false;
+      notifyListeners();
+    }
+  }
   List<InventoryItem> get items => _items;
   bool get isLoadingDepots => _isLoadingDepots;
   bool get isLoadingItems => _isLoadingItems;

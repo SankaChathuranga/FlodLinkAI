@@ -56,16 +56,24 @@ function Analytics() {
     { label: 'Rejected',           value: String(summary.rejected),             color: 'var(--state-error)' },
     { label: 'Revisions requested',value: String(summary.revisionsRequested),   color: 'var(--text-primary)' /* warning on bg only, not text */ },
     {
-      label: 'Avg approval time',
+      label: 'Avg time to approval',
       value: summary.avgApprovalMinutes === null ? '–' : formatMinutes(summary.avgApprovalMinutes),
       color: 'var(--accent-primary)',
     },
+    {
+      label: 'Median time to approval',
+      value: summary.medianApprovalMinutes == null ? '–' : formatMinutes(summary.medianApprovalMinutes),
+      color: 'var(--accent-primary)',
+    },
   ]
+  const perShelter = summary.dispatchesPerShelter ?? []
 
   return (
     <div>
       <h1 className="fl-section-title">Analytics</h1>
-      <p className="fl-section-desc">Coordinator decision metrics derived from the dispatch log.</p>
+      <p className="fl-section-desc">
+        Coordinator decision metrics derived from the dispatch log. Time to approval runs from starting a workflow to the approval.
+      </p>
 
       {/* Metric tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9rem, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -77,6 +85,37 @@ function Analytics() {
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{card.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* Decisions per shelter */}
+      <div className="fl-card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 0.875rem' }}>
+          Decisions per shelter
+        </h2>
+        {perShelter.length === 0 ? (
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>No decisions recorded yet.</p>
+        ) : (
+          <table aria-label="Decisions per shelter" style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', color: 'var(--text-muted)' }}>
+                <th scope="col" style={{ padding: '0.375rem 0' }}>Shelter</th>
+                <th scope="col">Approved</th>
+                <th scope="col">Rejected</th>
+                <th scope="col">Revisions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {perShelter.map((s) => (
+                <tr key={s.shelterId} style={{ borderTop: '1px solid var(--border-subtle, #e0e0e0)' }}>
+                  <td style={{ padding: '0.375rem 0', color: 'var(--text-primary)' }}>{s.shelterName}</td>
+                  <td style={{ color: 'var(--state-success)' }}>{s.approved}</td>
+                  <td style={{ color: 'var(--state-error)' }}>{s.rejected}</td>
+                  <td>{s.revisionsRequested}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Top rejection reasons panel */}

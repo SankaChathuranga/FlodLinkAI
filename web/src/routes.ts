@@ -16,6 +16,8 @@ export const PAGES: PageDef[] = [
   { path: '/triage', label: 'Triage', roles: ['Coordinator'] },
   { path: '/workflows', label: 'Workflows', roles: ['Coordinator'] },
   { path: '/inventory', label: 'Inventory', roles: ['Coordinator', 'DepotManager'] },
+  { path: '/depots', label: 'Depots', roles: ['Coordinator', 'DepotManager'] },
+  { path: '/allocations', label: 'Allocations', roles: ['Coordinator', 'DepotManager'] },
   { path: '/approvals', label: 'Approvals', roles: ['Coordinator'] },
   { path: '/dispatches', label: 'Dispatches', roles: ['Coordinator'] },
   { path: '/analytics', label: 'Analytics', roles: ['Coordinator'] },

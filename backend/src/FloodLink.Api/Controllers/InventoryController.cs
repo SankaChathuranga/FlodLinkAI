@@ -18,15 +18,17 @@ namespace FloodLink.Api.Controllers;
 public sealed class InventoryController(AppDbContext context, StockReservationService stock) : ControllerBase
 {
     /// <summary>
-    /// GET /api/inventory?depotId=&amp;search=&amp;lowStock=&amp;sort=&amp;page=&amp;pageSize=
+    /// GET /api/inventory?depotId=&amp;managedByMe=&amp;search=&amp;lowStock=&amp;sort=&amp;page=&amp;pageSize=
     /// One page of stock lines. <c>search</c> matches item or depot name; <c>lowStock=true</c> keeps
     /// lines whose free stock (available − reserved) is at or below the reorder threshold.
-    /// <c>sort</c>: depot (default), item, quantity_asc, quantity_desc, updated.
+    /// <c>sort</c>: depot (default), item, quantity_asc, quantity_desc, updated. <c>managedByMe=true</c>
+    /// keeps the depots whose manager is the signed-in user.
     /// </summary>
     [HttpGet]
     [ProducesResponseType<PaginatedResult<InventoryItem>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginatedResult<InventoryItem>>> GetInventory(
         [FromQuery] int? depotId,
+        [FromQuery] bool? managedByMe,
         [FromQuery] string? search,
         [FromQuery] bool? lowStock,
         [FromQuery] string? sort,
@@ -41,6 +43,12 @@ public sealed class InventoryController(AppDbContext context, StockReservationSe
 
         if (depotId.HasValue)
             query = query.Where(item => item.DepotId == depotId.Value);
+
+        if (managedByMe == true)
+        {
+            var userId = User.GetUserId();
+            query = query.Where(item => item.Depot!.ManagerId == userId);
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {

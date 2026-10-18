@@ -4,7 +4,7 @@ import 'auth_provider.dart';
 const publicPaths = {'/login', '/register'};
 
 /// Pages only depot managers (and admins) use; everything else is the volunteer side.
-const depotManagerPaths = {'/stock-check-in'};
+const depotManagerPaths = {'/stock-check-in', '/low-stock'};
 
 /// The screen a role starts on after signing in.
 String homeFor(AuthUser user) => user.isDepotManager ? '/stock-check-in' : '/';

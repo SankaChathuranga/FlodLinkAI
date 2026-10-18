@@ -42,8 +42,13 @@ public sealed class AccessMatrixTests : IClassFixture<TestAppFactory>
         // Depots, inventory, allocations
         { "GET", "/api/depots", null, [C, D] },
         { "GET", "/api/depots/1", null, [C, D] },
+        { "GET", "/api/depots/managers", null, [D] },
         { "GET", "/api/inventory", null, [C, D] },
         { "GET", "/api/allocations", null, [C, D] },
+        { "POST", "/api/allocations/999999/trigger-matching", null, [C] },
+        { "POST", "/api/routes/calculate", "{}", [C] },
+        { "GET", $"/api/routes/{Run}", null, [C] },
+        { "GET", $"/api/routes?workflowRunId={Run}", null, [C] },
         { "POST", "/api/depots", "{}", [D] },
         { "PUT", "/api/depots/999999", "{}", [D] },
         { "POST", "/api/inventory", "{}", [D] },

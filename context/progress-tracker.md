@@ -146,6 +146,16 @@ change.
   `floodlink_perf` holds Oct 9 ZAP-scan junk (52k reports); don't use it for measurements. Tests: backend 337,
   web 41, Flutter 40.
 
+- 2026-10-18 — **Phase 8 batch 1** (8.01, 8.02, 8.04, 8.07, 8.13, 8.14, 8.17). API: `RoutesController`
+  (calculate via Mapbox without storing; read stored legs), `POST /api/allocations/{id}/trigger-matching` (→
+  `WorkflowService.RetryAsync`), `GET /api/depots/managers` (DepotManager picker; `/api/users` stays Admin-only),
+  inventory `managedByMe`, dispatch summary `medianApprovalMinutes` + `dispatchesPerShelter`, and turnaround fixed
+  (run start → approval). React: `DepotsPage` (`/depots`), `AllocationsPage` (`/allocations`), `api/stock.ts`,
+  Analytics per-shelter table. Flutter: `LowStockScreen` (`/low-stock`, depot-manager side of the guard),
+  `ShelterStatusScreen` (`/shelters`); `InventoryItem` gains reserved/threshold/depot name, `Shelter` gains
+  `updatedAt`. Tests: `Phase8ApiTests`, access-matrix rows, `Phase8.test.tsx`, `phase8_screens_test.dart`;
+  backend 352, web 50, Flutter 46. 8.08 deferred to 8.11 (map pin needs a map package).
+
 ## In Progress
 
 - None.
@@ -217,3 +227,5 @@ change.
 - 2026-10-15 CORS: in Development the API now allows any loopback origin (Flutter web via
   `flutter run -d chrome` uses a random port). Production still uses the fixed list + `Cors__AllowedOrigins`.
   `start_floodlink.sh` now uses `docker compose` (falls back to `docker-compose`) and has the shebang on line 1.
+
+- Shelters map: `ShelterMap` now renders a real Mapbox GL map (outdoors-v12, colored occupancy pins, popups, auto-fit) when `VITE_MAPBOX_TOKEN` is set in `web/.env`; otherwise it falls back to the old simulated grid map. Added `mapbox-gl` dependency.
