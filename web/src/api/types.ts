@@ -24,6 +24,14 @@ export interface WorkflowRunQueueItem {
   planSource?: string | null
   scoringMethod?: string | null
   isRevision?: boolean
+  /** Depot staff's physical checks of the reserved lines (8.05); absent when nothing is reserved. */
+  stockCheck?: StockCheckSummary | null
+}
+
+export interface StockCheckSummary {
+  reservedLines: number
+  confirmedLines: number
+  shortfalls: { depotName: string | null; itemName: string; reserved: number; counted: number | null; note: string | null }[]
 }
 
 /** A single deterministic safety check from the Validation/Safety Agent. */

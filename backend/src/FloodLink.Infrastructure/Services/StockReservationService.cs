@@ -71,6 +71,7 @@ public sealed class StockReservationService(AppDbContext db, ILogger<StockReserv
             item.QuantityReserved += line.Sum(p => p.Quantity);
             foreach (var proposal in line)
                 proposal.Status = Reserved;
+            Record(item, StockMovementKinds.PlanReserve, line.Sum(p => p.Quantity), workflowRunId, userId: null);
         }
 
         var reserved = await SaveAsync(ToolCallFor("db.inventory.reserve", workflowRunId, proposals, sw, succeeded: true), cancellationToken);
@@ -94,6 +95,11 @@ public sealed class StockReservationService(AppDbContext db, ILogger<StockReserv
     /// lines that were never reserved must still fit in free stock. Does not save.
     /// </summary>
     public async Task<StockOperationResult> StageCommitAsync(Guid workflowRunId, CancellationToken cancellationToken = default)
+        => await StageCommitAsync(workflowRunId, userId: null, cancellationToken);
+
+    /// <inheritdoc cref="StageCommitAsync(Guid, CancellationToken)"/>
+    /// <param name="userId">The approver, recorded on the stock movements.</param>
+    public async Task<StockOperationResult> StageCommitAsync(Guid workflowRunId, int? userId, CancellationToken cancellationToken = default)
     {
         var proposals = await db.AllocationProposals
             .Where(p => p.WorkflowRunId == workflowRunId && (p.Status == Reserved || p.Status == Proposed))
@@ -126,6 +132,7 @@ public sealed class StockReservationService(AppDbContext db, ILogger<StockReserv
             if (wasReserved)
                 item.QuantityReserved = Math.Max(0, item.QuantityReserved - proposal.Quantity);
             proposal.Status = Committed;
+            Record(item, StockMovementKinds.PlanCommit, proposal.Quantity, workflowRunId, userId);
         }
 
         _logger.LogInformation("Stock commit staged for run {WorkflowRunId}: {Lines} lines, {TotalQuantity} units",
@@ -135,6 +142,11 @@ public sealed class StockReservationService(AppDbContext db, ILogger<StockReserv
 
     /// <summary>Returns the run's reserved stock and marks its open proposals Released. Does not save.</summary>
     public async Task<IReadOnlyList<AllocationProposalEntity>> StageReleaseAsync(Guid workflowRunId, CancellationToken cancellationToken = default)
+        => await StageReleaseAsync(workflowRunId, userId: null, cancellationToken);
+
+    /// <inheritdoc cref="StageReleaseAsync(Guid, CancellationToken)"/>
+    /// <param name="userId">The coordinator who rejected or revised the plan, recorded on the stock movements.</param>
+    public async Task<IReadOnlyList<AllocationProposalEntity>> StageReleaseAsync(Guid workflowRunId, int? userId, CancellationToken cancellationToken = default)
     {
         var proposals = await db.AllocationProposals
             .Where(p => p.WorkflowRunId == workflowRunId && (p.Status == Reserved || p.Status == Proposed))
@@ -146,7 +158,8 @@ public sealed class StockReservationService(AppDbContext db, ILogger<StockReserv
             if (proposal.Status == Reserved && items.TryGetValue((proposal.DepotId, proposal.ItemName), out var item))
             {
                 item.QuantityReserved = Math.Max(0, item.QuantityReserved - proposal.Quantity);
-                }
+                Record(item, StockMovementKinds.PlanRelease, proposal.Quantity, workflowRunId, userId);
+            }
 
             proposal.Status = Released;
         }
@@ -169,6 +182,7 @@ public sealed class StockReservationService(AppDbContext db, ILogger<StockReserv
             return (StockOperationResult.Fail("INSUFFICIENT_STOCK", $"Only {free} {item.ItemName} is free to reserve."), item);
 
         item.QuantityReserved += quantity;
+        Record(item, StockMovementKinds.ManualHold, quantity, workflowRunId: null, userId);
         return (await SaveItemChangeAsync("reserve", item, quantity, userId, cancellationToken), item);
     }
 
@@ -184,6 +198,7 @@ public sealed class StockReservationService(AppDbContext db, ILogger<StockReserv
             return (StockOperationResult.Fail("NOT_RESERVED", $"Only {item.QuantityReserved} {item.ItemName} is reserved."), item);
 
         item.QuantityReserved -= quantity;
+        Record(item, StockMovementKinds.ManualRelease, quantity, workflowRunId: null, userId);
         return (await SaveItemChangeAsync("release", item, quantity, userId, cancellationToken), item);
     }
 
@@ -196,10 +211,63 @@ public sealed class StockReservationService(AppDbContext db, ILogger<StockReserv
             return (StockOperationResult.Fail("NOT_FOUND", $"Inventory item {inventoryItemId} was not found."), null);
 
         item.QuantityAvailable += quantity;
+        Record(item, StockMovementKinds.CheckIn, quantity, workflowRunId: null, userId);
         return (await SaveItemChangeAsync("check-in", item, quantity, userId, cancellationToken), item);
     }
 
+    /// <summary>
+    /// Depot staff's physical check of a reserved allocation line before dispatch (8.05): records how many
+    /// they counted on the shelf and a note. Changes no quantities. Only the depot's manager (or an Admin)
+    /// may confirm, and only while the line is Reserved.
+    /// </summary>
+    public async Task<(StockOperationResult Result, AllocationProposalEntity? Allocation)> ConfirmReservedStockAsync(
+        int allocationId, double countedQuantity, string? note, int userId, bool isAdmin, CancellationToken cancellationToken = default)
+    {
+        var allocation = await db.AllocationProposals.Include(a => a.Depot)
+            .FirstOrDefaultAsync(a => a.Id == allocationId, cancellationToken);
+        if (allocation is null)
+            return (StockOperationResult.Fail("NOT_FOUND", $"Allocation {allocationId} was not found."), null);
+        if (!isAdmin && allocation.Depot?.ManagerId != userId)
+            return (StockOperationResult.Fail("NOT_YOUR_DEPOT", $"Only the manager of {allocation.Depot?.Name ?? "this depot"} can confirm its stock."), allocation);
+        if (allocation.Status != Reserved)
+            return (StockOperationResult.Fail("NOT_RESERVED", $"Only reserved stock can be confirmed; this line is {allocation.Status}."), allocation);
+
+        var item = await db.InventoryItems.FirstOrDefaultAsync(
+            i => i.DepotId == allocation.DepotId && i.ItemName == allocation.ItemName, cancellationToken);
+        allocation.CountedQuantity = countedQuantity;
+        allocation.ConfirmationNote = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        allocation.ConfirmedById = userId;
+        allocation.ConfirmedAt = DateTime.UtcNow;
+        if (item is not null)
+        {
+            var movementNote = countedQuantity < allocation.Quantity
+                ? $"Counted {countedQuantity} of {allocation.Quantity} reserved. {allocation.ConfirmationNote}".Trim()
+                : allocation.ConfirmationNote;
+            Record(item, StockMovementKinds.PhysicalCount, countedQuantity, allocation.WorkflowRunId, userId, movementNote);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation(
+            "Reserved stock of allocation {AllocationId} (run {WorkflowRunId}) counted by user {UserId}: {Counted} of {Quantity} {ItemName}",
+            allocation.Id, allocation.WorkflowRunId, userId, countedQuantity, allocation.Quantity, allocation.ItemName);
+        return (StockOperationResult.Ok(), allocation);
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────
+
+    // Called after changing the line, so the movement carries the line's state after the change.
+    private void Record(InventoryItem item, string kind, double quantity, Guid? workflowRunId, int? userId, string? note = null)
+        => db.StockMovements.Add(new StockMovement
+        {
+            InventoryItemId = item.Id,
+            Kind = kind,
+            Quantity = quantity,
+            AvailableAfter = item.QuantityAvailable,
+            ReservedAfter = item.QuantityReserved,
+            WorkflowRunId = workflowRunId,
+            UserId = userId,
+            Note = note
+        });
 
     private async Task<StockOperationResult> SaveItemChangeAsync(
         string operation, InventoryItem item, double quantity, int? userId, CancellationToken ct)
@@ -235,8 +303,10 @@ public sealed class StockReservationService(AppDbContext db, ILogger<StockReserv
         }
         catch (DbUpdateConcurrencyException)
         {
-            // Another request changed the same stock first. Discard our in-memory changes so
-            // the context can still be used, and report the conflict.
+            // Another request changed the same stock first. Discard our in-memory changes (and the
+            // movements that described them) so the context can still be used, and report the conflict.
+            foreach (var added in db.ChangeTracker.Entries<StockMovement>().Where(e => e.State == EntityState.Added).ToList())
+                added.State = EntityState.Detached;
             foreach (var entry in db.ChangeTracker.Entries()
                          .Where(e => e.Entity is InventoryItem or AllocationProposalEntity && e.State == EntityState.Modified)
                          .ToList())

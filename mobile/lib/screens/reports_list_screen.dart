@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../offline/queued_reports_banner.dart';
 import '../providers/report_provider.dart';
 import '../models/report.dart';
 import '../auth/auth_provider.dart';
@@ -82,7 +83,9 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
           borderRadius: BorderRadius.circular(4), // rounded-sm
         ),
       ),
-      body: RefreshIndicator(
+      body: Column(children: [
+        const QueuedReportsBanner(),
+        Expanded(child: RefreshIndicator(
         onRefresh: () => reportProvider.fetchReports(),
         color: const Color(0xFF0F62FE),
         child: Builder(
@@ -267,7 +270,8 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
             );
           },
         ),
-      ),
+      )),
+      ]),
     );
   }
 }

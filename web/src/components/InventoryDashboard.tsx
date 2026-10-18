@@ -21,7 +21,9 @@ import {
   Tag,
   Tile,
 } from '@carbon/react'
-import { Add, Locked, Renew, Unlocked } from '@carbon/icons-react'
+import { Add, Locked, QrCode, Renew, Unlocked } from '@carbon/icons-react'
+import QRCode from 'qrcode'
+import { Link } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
 import { apiFetch } from '../api/http'
 import { useAuth } from '../context/AuthContext'
@@ -54,6 +56,9 @@ const stockActions: Record<StockActionKind, { heading: string; verb: string; fie
   release: { heading: 'Release held stock', verb: 'Release held stock of', field: 'Quantity to release', submit: 'Release stock' },
 }
 
+/** Text of a stock line's QR label; the app's scanner reads it (8.06). */
+export const qrPayload = (item: InventoryItem) => `FLI:${item.id}`
+
 /** Free stock: on hand minus what pending plans hold. */
 const freeStock = (item: InventoryItem) => item.quantityAvailable - (item.quantityReserved ?? 0)
 
@@ -78,6 +83,15 @@ export function InventoryDashboard() {
   const [quantity, setQuantity] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [label, setLabel] = useState<{ item: InventoryItem; image: string } | null>(null)
+
+  const openLabel = async (item: InventoryItem) => {
+    try {
+      setLabel({ item, image: await QRCode.toDataURL(qrPayload(item), { margin: 1, width: 240 }) })
+    } catch {
+      setError('Could not draw the QR label.')
+    }
+  }
 
   // A new search, filter or sort starts again from the first page.
   useEffect(() => {
@@ -229,8 +243,17 @@ export function InventoryDashboard() {
                                     Low stock
                                   </Tag>
                                 </>
-                              ) : cell.info.header === 'action' && item && canCheckIn ? (
+                              ) : cell.info.header === 'action' && item ? (
                                 <div className="inventory-dashboard__actions">
+                                  <Link to={`/stock-history?itemId=${item.id}`} className="cds--link"
+                                    aria-label={`Stock history of ${item.itemName} at ${item.depot?.name ?? `depot ${item.depotId}`}`}>
+                                    History
+                                  </Link>
+                                  <Button kind="ghost" size="sm" renderIcon={QrCode} onClick={() => void openLabel(item)}
+                                    aria-label={`QR label for ${item.itemName} at ${item.depot?.name ?? `depot ${item.depotId}`}`}>
+                                    QR label
+                                  </Button>
+                                  {canCheckIn && <>
                                   <Button kind="ghost" size="sm" renderIcon={Add} onClick={() => openAction('check-in', item)}
                                     aria-label={`Check in ${item.itemName} at ${item.depot?.name ?? `depot ${item.depotId}`}`}>
                                     Check in
@@ -245,6 +268,7 @@ export function InventoryDashboard() {
                                       Release
                                     </Button>
                                   )}
+                                  </>}
                                 </div>
                               ) : cell.info.header === 'action' ? '—' : cell.value}
                             </TableCell>
@@ -272,6 +296,27 @@ export function InventoryDashboard() {
           />
         )}
       </Tile>
+
+      <Modal
+        open={label !== null}
+        passiveModal
+        modalHeading="Stock label"
+        onRequestClose={() => setLabel(null)}
+      >
+        {label && (
+          <div className="stock-label">
+            <img src={label.image} alt={`QR code ${qrPayload(label.item)}`} width={240} height={240} />
+            <p className="cds--body-compact-01">
+              <strong>{label.item.itemName}</strong> · {label.item.depot?.name ?? `Depot #${label.item.depotId}`}<br />
+              <code>{qrPayload(label.item)}</code>
+            </p>
+            <p className="cds--helper-text-01">Print and stick on the shelf. Scanning it in the FloodLink app opens check-in for this line.</p>
+            <a className="cds--link" href={label.image} download={`floodlink-${label.item.itemName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${label.item.id}.png`}>
+              Download label
+            </a>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={action !== null}

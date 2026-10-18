@@ -21,16 +21,24 @@ import 'screens/my_submitted_reports_screen.dart';
 import 'screens/stock_check_in_screen.dart';
 import 'screens/field_home_screen.dart';
 import 'screens/low_stock_screen.dart';
+import 'screens/reservation_confirmation_screen.dart';
 import 'screens/shelter_status_screen.dart';
 import 'state/app_state.dart';
 import 'notifications/status_notifier.dart';
+import 'offline/report_queue.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final auth = AuthProvider(baseUrl: kApiBaseUrl, store: SecureTokenStore());
   final api = ApiClient(baseUrl: kApiBaseUrl, auth: auth);
   final notifier = LocalStatusNotifier();
-  runApp(FloodLinkProviders(auth: auth, api: api, notifier: notifier, child: const FloodLinkApp()));
+  runApp(FloodLinkProviders(
+    auth: auth,
+    api: api,
+    notifier: notifier,
+    reportQueue: ReportQueue(SharedPreferencesQueueStore()),
+    child: const FloodLinkApp(),
+  ));
   // Ask for notification permission and set up the channel without delaying the first frame.
   await notifier.init();
   // Restores a saved session; until it finishes the router shows the splash screen.
@@ -46,7 +54,11 @@ class FloodLinkProviders extends StatelessWidget {
     required this.api,
     required this.child,
     this.notifier = const SilentStatusNotifier(),
+    this.reportQueue,
   });
+
+  /// Where reports wait while offline; in-memory unless given (the app passes persistent storage).
+  final ReportQueue? reportQueue;
 
   final AuthProvider auth;
   final ApiClient api;
@@ -61,7 +73,7 @@ class FloodLinkProviders extends StatelessWidget {
         Provider<ApiClient>.value(value: api),
         Provider<StatusNotifier>.value(value: notifier),
         ChangeNotifierProvider(create: (_) => AppState()),
-        ChangeNotifierProvider(create: (_) => ReportProvider(api)),
+        ChangeNotifierProvider(create: (_) => ReportProvider(api, queue: reportQueue)),
         ChangeNotifierProvider(create: (_) => InventoryProvider(api)),
       ],
       child: child,
@@ -144,6 +156,10 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
     GoRoute(
       path: '/low-stock',
       builder: (context, state) => const LowStockScreen(),
+    ),
+    GoRoute(
+      path: '/reservations',
+      builder: (context, state) => const ReservationConfirmationScreen(),
     ),
     GoRoute(
       path: '/shelters',

@@ -359,11 +359,34 @@ function PlanSummary({ item }: { item: WorkflowRunQueueItem }) {
           Revised plan
         </span>
       )}
+      <StockCheckBadge check={item.stockCheck} />
       <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
         Plan: {item.planSource === 'llm' ? 'LLM' : 'default'} · Triage: {item.scoringMethod === 'llm-adjusted' ? 'rules + LLM' : 'rules only'} ·
         Safety checks: {item.validationPassed ? 'passed' : `${item.failedChecks ?? 0} failed`}
       </span>
     </p>
+  )
+}
+
+/** Whether depot staff confirmed the reserved stock is on the shelf (8.05). */
+function StockCheckBadge({ check }: { check?: WorkflowRunQueueItem['stockCheck'] }) {
+  if (!check || check.reservedLines === 0) return null
+  if (check.shortfalls.length > 0) {
+    const detail = check.shortfalls
+      .map((s) => `${s.depotName ?? 'Depot'}: ${s.counted} of ${s.reserved} ${s.itemName} on the shelf${s.note ? ` (${s.note})` : ''}`)
+      .join('; ')
+    return (
+      <span className="fl-badge fl-badge-warning" style={{ marginLeft: '0.5rem' }} title={detail}>
+        Shortfall reported by depot
+        <span className="sr-only">: {detail}</span>
+      </span>
+    )
+  }
+  const all = check.confirmedLines === check.reservedLines
+  return (
+    <span className={`fl-badge ${all ? 'fl-badge-success' : 'fl-badge-info'}`} style={{ marginLeft: '0.5rem' }}>
+      {all ? 'Depot confirmed stock' : `Depot confirmed ${check.confirmedLines} of ${check.reservedLines} lines`}
+    </span>
   )
 }
 

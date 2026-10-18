@@ -287,6 +287,13 @@ body {
   gap: 0.25rem;
 }
 
+.stock-label {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
 .depot-form {
   display: grid;
   gap: 1rem;

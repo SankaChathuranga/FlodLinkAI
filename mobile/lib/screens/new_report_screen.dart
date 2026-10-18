@@ -65,30 +65,32 @@ class _NewReportScreenState extends State<NewReportScreen> {
     final provider = context.read<ReportProvider>();
     final int quantity = int.parse(_quantityController.text.trim());
 
-    final bool success = await provider.submitReport(
+    final outcome = await provider.submitReport(
       shelterId: _selectedShelterId!,
       needType: _selectedNeedType,
       quantityNeeded: quantity,
       notes: _notesController.text.trim(),
     );
 
-    if (mounted) {
-      if (success) {
+    if (!mounted) return;
+    switch (outcome) {
+      case SubmitOutcome.sent:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Field report submitted successfully!'), backgroundColor: Colors.green),
+        );
+        context.pop();
+      case SubmitOutcome.queued:
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Field report submitted successfully!'),
-            backgroundColor: Colors.green,
+            content: Text('No connection — the report is saved on this phone and will be sent automatically.'),
+            backgroundColor: Color(0xFF0043CE),
           ),
         );
         context.pop();
-      } else {
+      case SubmitOutcome.failed:
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(provider.submitError ?? 'Submission failed.'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(provider.submitError ?? 'Submission failed.'), backgroundColor: Colors.red),
         );
-      }
     }
   }
 

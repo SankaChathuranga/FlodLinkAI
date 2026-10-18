@@ -29,6 +29,20 @@ public class AllocationProposalEntity : IHasUpdatedAt
     [MaxLength(20)]
     public string Status { get; set; } = "Proposed";
 
+    /// <summary>
+    /// Depot staff's physical check of a reserved line before dispatch (8.05): how many they counted on the
+    /// shelf, when, by whom, and any note. Null until checked.
+    /// </summary>
+    public double? CountedQuantity { get; set; }
+
+    public DateTime? ConfirmedAt { get; set; }
+
+    public int? ConfirmedById { get; set; }
+
+    public User? ConfirmedBy { get; set; }
+
+    public string? ConfirmationNote { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>UTC time of the last change; stamped automatically on save.</summary>

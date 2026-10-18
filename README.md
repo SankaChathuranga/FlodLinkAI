@@ -8,6 +8,12 @@ route/ETA → deterministic validation → **human approval** → dispatch.
 
 ---
 
+## User Guide
+
+See the [FloodLink User Guide](docs/USER-GUIDE.md) for sign-in, field reporting, workflow review, approvals, inventory management, and delivery confirmation instructions for each role.
+
+---
+
 ## Repository Structure
 
 ```

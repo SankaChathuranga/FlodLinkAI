@@ -252,6 +252,22 @@ public sealed class DispatchController : ControllerBase
             .OrderBy(r => r.CreatedAt)
             .ToListAsync(ct);
 
+        // Depot staff's physical checks of the reserved lines (8.05), per run.
+        var runIds = runs.Select(r => r.Id).ToList();
+        var checks = (await _db.AllocationProposals.AsNoTracking()
+                .Where(a => runIds.Contains(a.WorkflowRunId) && a.Status == StockReservationService.Reserved)
+                .Select(a => new { a.WorkflowRunId, a.Quantity, a.CountedQuantity, a.ItemName, DepotName = a.Depot!.Name, a.ConfirmationNote })
+                .ToListAsync(ct))
+            .GroupBy(a => a.WorkflowRunId)
+            .ToDictionary(g => g.Key, g => new
+            {
+                reservedLines = g.Count(),
+                confirmedLines = g.Count(a => a.CountedQuantity.HasValue),
+                shortfalls = g.Where(a => a.CountedQuantity < a.Quantity)
+                    .Select(a => new { a.DepotName, a.ItemName, reserved = a.Quantity, counted = a.CountedQuantity, note = a.ConfirmationNote })
+                    .ToList()
+            });
+
         // A one-line summary of each plan so the coordinator can compare before opening one.
         var items = runs.Select(r =>
         {
@@ -278,7 +294,8 @@ public sealed class DispatchController : ControllerBase
                 failedChecks = validation?.Checks.Count(c => !c.Passed) ?? 0,
                 planSource = plan?.Source,
                 scoringMethod = triage?.ScoringMethod,
-                isRevision = WorkflowPlan.TryRead<DispatchService.RevisionRequest>(r.PlanJson, WorkflowPlan.RevisionKey) is not null
+                isRevision = WorkflowPlan.TryRead<DispatchService.RevisionRequest>(r.PlanJson, WorkflowPlan.RevisionKey) is not null,
+                stockCheck = checks.GetValueOrDefault(r.Id)
             };
         }).ToList();
 

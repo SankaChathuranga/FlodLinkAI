@@ -123,6 +123,79 @@ class InventoryProvider extends ChangeNotifier {
     }
   }
 
+  // ── Scanned stock labels (8.06) ───────────────────────────────────────────
+
+  /// One stock line by id (from a scanned label), or null with [error] set when it can't be found.
+  Future<InventoryItem?> fetchItem(int id) async {
+    _error = null;
+    try {
+      final response = await _api.get('/api/inventory/$id');
+      if (response.statusCode == 200) {
+        return InventoryItem.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      }
+      _error = response.statusCode == 404
+          ? 'This label is for a stock line that no longer exists.'
+          : 'Could not look up the label (HTTP ${response.statusCode}).';
+    } catch (_) {
+      _error = 'No internet connection. Please try again.';
+    }
+    notifyListeners();
+    return null;
+  }
+
+  // ── Reserved stock to check (8.05) ────────────────────────────────────────
+
+  List<ReservedLine> _reservations = [];
+  bool _isLoadingReservations = false;
+  String? _reservationsError;
+
+  List<ReservedLine> get reservations => _reservations;
+  bool get isLoadingReservations => _isLoadingReservations;
+  String? get reservationsError => _reservationsError;
+
+  /// Reserved lines at the depots the signed-in manager runs, waiting for a coordinator's decision.
+  Future<void> fetchReservations() async {
+    _isLoadingReservations = true;
+    _reservationsError = null;
+    notifyListeners();
+    try {
+      final response = await _api.get('/api/allocations?status=Reserved&managedByMe=true&pageSize=100');
+      if (response.statusCode != 200) {
+        _reservationsError = 'Failed to load reserved stock (HTTP ${response.statusCode}).';
+        return;
+      }
+      _reservations = _pageItems(response.body)
+          .map((item) => ReservedLine.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      _reservationsError = 'No internet connection. Please try again.';
+    } finally {
+      _isLoadingReservations = false;
+      notifyListeners();
+    }
+  }
+
+  /// Records what was counted on the shelf for a reserved line. Returns null on success, else the reason.
+  Future<String?> confirmReservation(int allocationId, double countedQuantity, {String? note}) async {
+    try {
+      final response = await _api.postJson('/api/allocations/$allocationId/confirm-stock', {
+        'countedQuantity': countedQuantity,
+        'note': (note == null || note.trim().isEmpty) ? null : note.trim(),
+      });
+      if (response.statusCode != 200) {
+        final body = response.body.isEmpty ? null : jsonDecode(response.body);
+        return (body is Map<String, dynamic> ? body['message'] as String? : null) ??
+            'Could not save the count (HTTP ${response.statusCode}).';
+      }
+      final updated = ReservedLine.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      _reservations = [for (final r in _reservations) r.id == allocationId ? updated : r];
+      notifyListeners();
+      return null;
+    } catch (_) {
+      return 'No internet connection. Please try again.';
+    }
+  }
+
   /// List endpoints return a page: `{ items, page, pageSize, totalItems, totalPages }`.
   static List<dynamic> _pageItems(String body) =>
       (jsonDecode(body) as Map<String, dynamic>)['items'] as List<dynamic>;

@@ -43,6 +43,13 @@ public class Report : IHasUpdatedAt
     [MaxLength(20)]
     public string Status { get; set; } = "New";
 
+    /// <summary>
+    /// An id the mobile app generates for each report it submits (8.09), so a report re-sent from the
+    /// offline queue after a lost response is recognised instead of saved twice. Unique per reporter.
+    /// </summary>
+    [MaxLength(64)]
+    public string? ClientReference { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>UTC time of the last change; stamped automatically on save.</summary>

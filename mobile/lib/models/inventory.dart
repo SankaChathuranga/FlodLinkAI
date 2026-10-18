@@ -53,3 +53,43 @@ class InventoryItem {
         depotName: (json['depot'] as Map<String, dynamic>?)?['name'] as String?,
       );
 }
+
+/// A reserved allocation line at one of the manager's depots, to check on the shelf before dispatch (8.05).
+class ReservedLine {
+  const ReservedLine({
+    required this.id,
+    required this.workflowRunId,
+    required this.depotName,
+    required this.shelterName,
+    required this.itemName,
+    required this.quantity,
+    this.countedQuantity,
+    this.confirmedBy,
+    this.confirmationNote,
+  });
+
+  final int id;
+  final String workflowRunId;
+  final String depotName;
+  final String shelterName;
+  final String itemName;
+  final double quantity;
+  final double? countedQuantity;
+  final String? confirmedBy;
+  final String? confirmationNote;
+
+  bool get isChecked => countedQuantity != null;
+  bool get isShort => countedQuantity != null && countedQuantity! < quantity;
+
+  factory ReservedLine.fromJson(Map<String, dynamic> json) => ReservedLine(
+        id: json['id'] as int,
+        workflowRunId: json['workflowRunId'] as String,
+        depotName: json['depotName'] as String? ?? 'Depot #${json['depotId']}',
+        shelterName: json['shelterName'] as String? ?? 'Shelter #${json['shelterId']}',
+        itemName: json['itemName'] as String? ?? 'Item',
+        quantity: (json['quantity'] as num).toDouble(),
+        countedQuantity: (json['countedQuantity'] as num?)?.toDouble(),
+        confirmedBy: json['confirmedBy'] as String?,
+        confirmationNote: json['confirmationNote'] as String?,
+      );
+}

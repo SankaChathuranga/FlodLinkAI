@@ -96,8 +96,95 @@ public sealed class InventoryController(AppDbContext context, StockReservationSe
         };
 
         context.InventoryItems.Add(item);
+        // The opening quantity is the line's first movement (saved together with the line).
+        context.StockMovements.Add(new StockMovement
+        {
+            InventoryItem = item,
+            Kind = StockMovementKinds.Opening,
+            Quantity = item.QuantityAvailable,
+            AvailableAfter = item.QuantityAvailable,
+            UserId = User.GetUserId()
+        });
         await context.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(GetInventory), new { depotId = item.DepotId }, item);
+        return CreatedAtAction(nameof(GetItem), new { id = item.Id }, item);
+    }
+
+    /// <summary>
+    /// GET /api/inventory/{id} — one stock line with its depot. Used by the app after scanning a stock
+    /// label's QR code (8.06), whose text is <c>FLI:{id}</c>.
+    /// </summary>
+    [HttpGet("{id:int}")]
+    [ProducesResponseType<InventoryItem>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<InventoryItem>> GetItem(int id, CancellationToken ct)
+        => await context.InventoryItems.Include(i => i.Depot).AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, ct)
+           ?? throw new NotFoundException($"Inventory item with ID {id} was not found.");
+
+    /// <summary>One stock movement as the history view shows it.</summary>
+    public sealed record StockMovementDto(
+        long Id,
+        int InventoryItemId,
+        string ItemName,
+        string Unit,
+        int DepotId,
+        string? DepotName,
+        string Kind,
+        double Quantity,
+        double AvailableAfter,
+        double ReservedAfter,
+        Guid? WorkflowRunId,
+        int? UserId,
+        string? UserName,
+        string? Note,
+        DateTime CreatedAt);
+
+    /// <summary>
+    /// GET /api/inventory/movements?inventoryItemId=&amp;depotId=&amp;kind=&amp;workflowRunId=&amp;dateFrom=&amp;dateTo=&amp;page=&amp;pageSize=
+    /// The stock history (8.03), newest first: every check-in, hold, release, plan reserve/commit/release
+    /// and physical count, with the line's stock after each change and who or which plan caused it.
+    /// </summary>
+    [HttpGet("movements")]
+    [ProducesResponseType<PaginatedResult<StockMovementDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetMovements(
+        [FromQuery] int? inventoryItemId,
+        [FromQuery] int? depotId,
+        [FromQuery] string? kind,
+        [FromQuery] Guid? workflowRunId,
+        [FromQuery] DateTime? dateFrom,
+        [FromQuery] DateTime? dateTo,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Paging.DefaultPageSize,
+        CancellationToken ct = default)
+    {
+        (page, pageSize) = Paging.Normalize(page, pageSize);
+        IQueryable<StockMovement> query = context.StockMovements.AsNoTracking();
+
+        if (inventoryItemId.HasValue)
+            query = query.Where(m => m.InventoryItemId == inventoryItemId.Value);
+        if (depotId.HasValue)
+            query = query.Where(m => m.InventoryItem!.DepotId == depotId.Value);
+        if (!string.IsNullOrWhiteSpace(kind))
+        {
+            var match = StockMovementKinds.All.FirstOrDefault(k => string.Equals(k, kind.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (match is null)
+                return BadRequest(new { error = "INVALID_KIND", message = $"Kind must be one of: {string.Join(", ", StockMovementKinds.All)}." });
+            query = query.Where(m => m.Kind == match);
+        }
+        if (workflowRunId.HasValue)
+            query = query.Where(m => m.WorkflowRunId == workflowRunId.Value);
+        if (dateFrom.HasValue)
+            query = query.Where(m => m.CreatedAt >= dateFrom.Value.AsUtc());
+        if (dateTo.HasValue)
+            query = query.Where(m => m.CreatedAt <= dateTo.Value.AsUtc());
+
+        return Ok(await query
+            .OrderByDescending(m => m.CreatedAt).ThenByDescending(m => m.Id)
+            .Select(m => new StockMovementDto(
+                m.Id, m.InventoryItemId, m.InventoryItem!.ItemName, m.InventoryItem.Unit, m.InventoryItem.DepotId,
+                m.InventoryItem.Depot!.Name, m.Kind, m.Quantity, m.AvailableAfter, m.ReservedAfter, m.WorkflowRunId,
+                m.UserId, m.User != null ? m.User.Name : null, m.Note, m.CreatedAt))
+            .ToPageAsync(page, pageSize, ct));
     }
 
     /// <summary>Adds a delivery of stock to an item (depot staff check-in).</summary>

@@ -57,3 +57,33 @@ export function listAllocations(
   if (params.workflowRunId) qs.set('workflowRunId', params.workflowRunId)
   return request<PaginatedResult<Allocation>>(baseUrl, `/api/allocations?${qs.toString()}`)
 }
+
+/** One stock change (GET /api/inventory/movements). */
+export interface StockMovement {
+  id: number
+  inventoryItemId: number
+  itemName: string
+  unit: string
+  depotId: number
+  depotName: string | null
+  kind: 'Opening' | 'CheckIn' | 'ManualHold' | 'ManualRelease' | 'PlanReserve' | 'PlanCommit' | 'PlanRelease' | 'PhysicalCount' | string
+  quantity: number
+  availableAfter: number
+  reservedAfter: number
+  workflowRunId: string | null
+  userId: number | null
+  userName: string | null
+  note: string | null
+  createdAt: string
+}
+
+export function listMovements(
+  baseUrl: string,
+  params: { inventoryItemId?: number; depotId?: number; kind?: string; page?: number; pageSize?: number } = {},
+) {
+  const qs = new URLSearchParams({ page: String(params.page ?? 1), pageSize: String(params.pageSize ?? 20) })
+  if (params.inventoryItemId) qs.set('inventoryItemId', String(params.inventoryItemId))
+  if (params.depotId) qs.set('depotId', String(params.depotId))
+  if (params.kind) qs.set('kind', params.kind)
+  return request<PaginatedResult<StockMovement>>(baseUrl, `/api/inventory/movements?${qs.toString()}`)
+}

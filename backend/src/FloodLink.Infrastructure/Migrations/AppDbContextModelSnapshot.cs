@@ -78,6 +78,19 @@ namespace FloodLink.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ConfirmationNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ConfirmedById")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("CountedQuantity")
+                        .HasColumnType("double precision");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -107,6 +120,8 @@ namespace FloodLink.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ConfirmedById");
 
                     b.HasIndex("DepotId");
 
@@ -354,6 +369,10 @@ namespace FloodLink.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ClientReference")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -408,6 +427,10 @@ namespace FloodLink.Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.HasIndex("WorkflowRunId");
+
+                    b.HasIndex("ReportedBy", "ClientReference")
+                        .IsUnique()
+                        .HasFilter("\"ClientReference\" IS NOT NULL");
 
                     b.ToTable("Reports");
 
@@ -607,6 +630,57 @@ namespace FloodLink.Infrastructure.Migrations
                             Status = "Active",
                             UpdatedAt = new DateTime(2026, 9, 25, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.StockMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<double>("AvailableAfter")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("InventoryItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<double>("Quantity")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("ReservedAfter")
+                        .HasColumnType("double precision");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("WorkflowRunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Kind");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("WorkflowRunId");
+
+                    b.HasIndex("InventoryItemId", "CreatedAt");
+
+                    b.ToTable("StockMovements");
                 });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.TriagePlanEntity", b =>
@@ -833,6 +907,11 @@ namespace FloodLink.Infrastructure.Migrations
 
             modelBuilder.Entity("FloodLink.Domain.Entities.AllocationProposalEntity", b =>
                 {
+                    b.HasOne("FloodLink.Domain.Entities.User", "ConfirmedBy")
+                        .WithMany()
+                        .HasForeignKey("ConfirmedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FloodLink.Domain.Entities.Depot", "Depot")
                         .WithMany()
                         .HasForeignKey("DepotId")
@@ -850,6 +929,8 @@ namespace FloodLink.Infrastructure.Migrations
                         .HasForeignKey("WorkflowRunId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("ConfirmedBy");
 
                     b.Navigation("Depot");
 
@@ -959,6 +1040,24 @@ namespace FloodLink.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ContactVolunteer");
+                });
+
+            modelBuilder.Entity("FloodLink.Domain.Entities.StockMovement", b =>
+                {
+                    b.HasOne("FloodLink.Domain.Entities.InventoryItem", "InventoryItem")
+                        .WithMany()
+                        .HasForeignKey("InventoryItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FloodLink.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("InventoryItem");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FloodLink.Domain.Entities.TriagePlanEntity", b =>

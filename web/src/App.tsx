@@ -12,6 +12,7 @@ import { WorkflowTrace } from './components/WorkflowTrace'
 import { UsersAdmin } from './components/UsersAdmin'
 import { DepotsPage } from './components/DepotsPage'
 import { AllocationsPage } from './components/AllocationsPage'
+import { StockHistoryPage } from './components/StockHistoryPage'
 import ApprovalQueue from './components/ApprovalQueue'
 import DispatchHistory from './components/DispatchHistory'
 import Analytics from './components/Analytics'
@@ -26,6 +27,7 @@ const ELEMENTS: Record<string, ReactElement> = {
   '/inventory': <InventoryDashboard />,
   '/depots': <DepotsPage />,
   '/allocations': <AllocationsPage />,
+  '/stock-history': <StockHistoryPage />,
   '/approvals': <ApprovalQueue />,
   '/dispatches': <DispatchHistory />,
   '/analytics': <Analytics />,

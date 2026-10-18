@@ -7,6 +7,14 @@ namespace FloodLink.Api.DTOs;
 
 public class CreateReportDto
 {
+    /// <summary>
+    /// Optional id the app generates per report (e.g. a UUID). Re-sending a report with the same value
+    /// returns the report already saved instead of creating a second one (offline queue, 8.09).
+    /// </summary>
+    [StringLength(64, MinimumLength = 8, ErrorMessage = "ClientReference must be 8–64 characters.")]
+    [RegularExpression("^[A-Za-z0-9-]+$", ErrorMessage = "ClientReference may contain only letters, digits and '-'.")]
+    public string? ClientReference { get; set; }
+
     [Required(ErrorMessage = "ShelterId is required.")]
     public int ShelterId { get; set; }
 

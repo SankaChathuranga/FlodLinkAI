@@ -169,6 +169,20 @@ change.
   POST_NOTIFICATIONS permissions — the manifest had no location permission, so GPS would have failed on phones.
   ADR-010 addendum. Tests: backend 366, web 56, Flutter 54.
 
+- 2026-10-18 — **Phase 8 batch 3** (8.03, 8.05, 8.06, 8.09). Domain: `StockMovement` + `StockMovementKinds`;
+  `AllocationProposalEntity` gains `CountedQuantity`/`ConfirmedAt`/`ConfirmedById`/`ConfirmationNote`; `Report.ClientReference`
+  (filtered unique index with `ReportedBy`; plain `ReportedBy` index kept explicitly). `StockReservationService` records a
+  movement for every change (approver/rejecter passed from `DispatchService`; added movements detached on a concurrency
+  conflict) and gains `ConfirmReservedStockAsync`. API: `GET /api/inventory/{id}`, `GET /api/inventory/movements`,
+  `POST /api/allocations/{id}/confirm-stock`, allocations `managedByMe` + confirmation fields, approval-queue `stockCheck`,
+  `ReportService.SubmitOnceAsync` (re-send → 200 with the saved report). React: `StockHistoryPage` (`/stock-history`),
+  Inventory History link + QR label (`qrcode` 1.5.4), approval-queue stock badge. Flutter: `mobile_scanner`,
+  `shared_preferences`; `ScanLabelScreen`, `stock/stock_label.dart`, check-in "Scan shelf label",
+  `ReservationConfirmationScreen` (`/reservations`), `offline/report_queue.dart` + `QueuedReportsBanner`,
+  `ReportProvider.submitReport` now returns `SubmitOutcome`. iOS usage descriptions added. Migration
+  `StockMovementsAndConfirmations` (applied to dev DB). Tests: `Phase8Batch3Tests`, `Batch3.test.tsx`,
+  `phase8_batch3_test.dart`; backend 379, web 62, Flutter 63.
+
 ## In Progress
 
 - None.
@@ -199,6 +213,8 @@ change.
   data model — include why the decision was made]
 
 ## Session Notes
+
+- 2026-10-18 — Added `docs/USER-GUIDE.md` and linked it from README. The guide covers implemented mobile/web workflows by role, status meanings, stock lifecycle, troubleshooting, and current limitations (including no persistent offline report queue). Verified against source screens and services; no application behavior changed.
 
 - Local-development CORS now permits the React server on port 5173 and
   Flutter Web on the fixed port 5174. Run Flutter with

@@ -135,7 +135,22 @@ public sealed class ReportService(
     /// defaults the GPS position to the shelter's.
     /// </summary>
     public async Task<Report> SubmitAsync(CreateReportDto dto, int reporterId, CancellationToken ct = default)
+        => (await SubmitOnceAsync(dto, reporterId, ct)).Report;
+
+    /// <summary>
+    /// Like <see cref="SubmitAsync"/>, but a report whose <see cref="CreateReportDto.ClientReference"/> this
+    /// reporter already submitted is returned as it was saved (<c>Created = false</c>) instead of saved again.
+    /// </summary>
+    public async Task<(Report Report, bool Created)> SubmitOnceAsync(CreateReportDto dto, int reporterId, CancellationToken ct = default)
     {
+        var clientReference = string.IsNullOrWhiteSpace(dto.ClientReference) ? null : dto.ClientReference.Trim();
+        if (clientReference is not null && await FindByClientReferenceAsync(reporterId, clientReference, ct) is { } existing)
+        {
+            logger.LogInformation("Report {ReportId} re-sent by user {UserId} ({ClientReference}); not saved again",
+                existing.Id, reporterId, clientReference);
+            return (existing, false);
+        }
+
         var shelter = await db.Shelters.FirstOrDefaultAsync(s => s.Id == dto.ShelterId, ct)
             ?? throw new BadRequestException($"Shelter with ID {dto.ShelterId} does not exist.");
 
@@ -172,18 +187,35 @@ public sealed class ReportService(
             GpsLat = dto.GpsLat ?? shelter.Latitude,
             GpsLng = dto.GpsLng ?? shelter.Longitude,
             Status = dto.Status,
+            ClientReference = clientReference,
             CreatedAt = DateTime.UtcNow
         };
 
         db.Reports.Add(report);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException) when (clientReference is not null)
+        {
+            // The same report may have arrived twice at once and the other request saved it first.
+            db.Entry(report).State = EntityState.Detached;
+            var saved = await FindByClientReferenceAsync(reporterId, clientReference, ct);
+            if (saved is null)
+                throw;
+            return (saved, false);
+        }
 
         logger.LogInformation(
             "Report {ReportId} submitted by user {UserId} for shelter {ShelterId}: {NeedType} x{Quantity}, urgency {Urgency} ({UrgencySource})",
             report.Id, reporterId, report.ShelterId, report.NeedType, report.QuantityNeeded, report.UrgencyLevel,
             dto.UrgencyLevel.HasValue ? "given" : "rule-based");
-        return report;
+        return (report, true);
     }
+
+    private Task<Report?> FindByClientReferenceAsync(int reporterId, string clientReference, CancellationToken ct)
+        => db.Reports.AsNoTracking().Include(r => r.Shelter)
+            .FirstOrDefaultAsync(r => r.ReportedBy == reporterId && r.ClientReference == clientReference, ct);
 
     /// <summary>Coordinator edit of a report's need, quantity, urgency, photo, position or status.</summary>
     public async Task<Report> UpdateAsync(int id, UpdateReportDto dto, int? editorId, CancellationToken ct = default)

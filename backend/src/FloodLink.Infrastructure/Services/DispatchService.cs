@@ -32,7 +32,7 @@ public sealed class DispatchService(
             return Refused("approve", workflowRunId, actorId,
                 DispatchOutcome.InvalidState($"Only a PendingApproval plan can be approved; current state is {run.CurrentState}."));
 
-        var commit = await stock.StageCommitAsync(run.Id, ct);
+        var commit = await stock.StageCommitAsync(run.Id, actorId, ct);
         if (!commit.Succeeded)
             return Refused("approve", workflowRunId, actorId, DispatchOutcome.Conflict(commit.ErrorCode!, commit.ErrorMessage!));
 
@@ -58,7 +58,7 @@ public sealed class DispatchService(
             return Refused("reject", workflowRunId, actorId,
                 DispatchOutcome.InvalidState($"Only a PendingApproval plan can be rejected; current state is {run.CurrentState}."));
 
-        await stock.StageReleaseAsync(run.Id, ct);
+        await stock.StageReleaseAsync(run.Id, actorId, ct);
         var dispatch = NewDispatch(run, DispatchDecision.Rejected, reason, actorId);
         AddAudit(dispatch, "DispatchRejected", actorId, new { workflowRunId, reason });
         WorkflowEngine.TryTransition(run, WorkflowState.Rejected);
@@ -82,7 +82,7 @@ public sealed class DispatchService(
             return Refused("request-revision", workflowRunId, actorId,
                 DispatchOutcome.InvalidState($"Only a PendingApproval plan can be sent for revision; current state is {run.CurrentState}."));
 
-        await stock.StageReleaseAsync(run.Id, ct);
+        await stock.StageReleaseAsync(run.Id, actorId, ct);
         var dispatch = NewDispatch(run, DispatchDecision.RevisionRequested, notes, actorId);
         AddAudit(dispatch, "RevisionRequested", actorId, new { workflowRunId, notes });
         run.PlanJson = WorkflowPlan.Merge(run.PlanJson, WorkflowPlan.RevisionKey,

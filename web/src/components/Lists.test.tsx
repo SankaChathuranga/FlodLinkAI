@@ -169,7 +169,9 @@ describe('InventoryDashboard', () => {
     return render(
       <AppProvider>
         <AuthProvider>
-          <InventoryDashboard />
+          <MemoryRouter>
+            <InventoryDashboard />
+          </MemoryRouter>
         </AuthProvider>
       </AppProvider>,
     )

@@ -71,6 +71,9 @@ public class AppDbContext : DbContext
 
     public DbSet<AllocationProposalEntity> AllocationProposals => Set<AllocationProposalEntity>();
 
+    /// <summary>Append-only history of every stock change (8.03).</summary>
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+
     // ── Member D tables ────────────────────────────────────────────────────────
 
     /// <summary>Coordinator decisions that commit (or reject) a validated plan.</summary>
@@ -184,6 +187,13 @@ public class AppDbContext : DbContext
                   .HasForeignKey(e => e.WorkflowRunId)
                   .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => e.Status);
+            entity.Property(e => e.ClientReference).HasMaxLength(64);
+            // Kept explicitly: the filtered index below can't serve "this reporter's reports" lookups.
+            entity.HasIndex(e => e.ReportedBy);
+            // A re-sent report from the app's offline queue is matched on (reporter, client reference).
+            entity.HasIndex(e => new { e.ReportedBy, e.ClientReference })
+                  .IsUnique()
+                  .HasFilter("\"ClientReference\" IS NOT NULL");
         });
 
         // ── TriagePlanEntity ───────────────────────────────────────────────────
@@ -246,6 +256,29 @@ public class AppDbContext : DbContext
                   .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(e => new { e.WorkflowRunId, e.Status });
             entity.HasIndex(e => e.Status);
+            entity.Property(e => e.ConfirmationNote).HasMaxLength(500);
+            entity.HasOne(e => e.ConfirmedBy)
+                  .WithMany()
+                  .HasForeignKey(e => e.ConfirmedById)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<StockMovement>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Kind).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.Note).HasMaxLength(500);
+            entity.HasOne(e => e.InventoryItem)
+                  .WithMany()
+                  .HasForeignKey(e => e.InventoryItemId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => new { e.InventoryItemId, e.CreatedAt });
+            entity.HasIndex(e => e.WorkflowRunId);
+            entity.HasIndex(e => e.Kind);
         });
 
         // ── Dispatch ───────────────────────────────────────────────────────────

@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>FloodLink uses the camera to photograph field reports and deliveries, and to scan stock labels.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>FloodLink lets you attach a photo from your library to a field report or delivery.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>FloodLink records where a field report was made so supplies reach the right place.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

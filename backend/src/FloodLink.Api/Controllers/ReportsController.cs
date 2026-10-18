@@ -131,8 +131,9 @@ public class ReportsController : ControllerBase
 
         // The reporter is always the signed-in user; it is never taken from the request body.
         int reporterId = User.GetUserId() ?? throw new UnauthorizedException("Token has no user id.");
-        Report report = await _reports.SubmitAsync(dto, reporterId, ct);
-        return CreatedAtAction(nameof(GetReportById), new { id = report.Id }, report);
+        var (report, created) = await _reports.SubmitOnceAsync(dto, reporterId, ct);
+        // A re-sent report (same ClientReference) is answered with the one already saved.
+        return created ? CreatedAtAction(nameof(GetReportById), new { id = report.Id }, report) : Ok(report);
     }
 
     /// <summary>
