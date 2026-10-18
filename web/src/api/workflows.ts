@@ -242,17 +242,20 @@ const STATE_LABELS: Record<string, string> = {
 
 export const stateLabel = (state: string) => STATE_LABELS[state] ?? state
 
-export function stateBadgeClass(state: string): string {
+/** Carbon tag colour for a workflow state or decision. */
+export function stateTagType(state: string): 'green' | 'red' | 'warm-gray' | 'blue' | 'purple' {
   switch (state) {
     case 'Approved':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-300'
+      return 'green'
     case 'Rejected':
     case 'Failed':
-      return 'bg-rose-100 text-rose-800 border-rose-300'
+      return 'red'
     case 'PendingApproval':
-      return 'bg-amber-100 text-amber-800 border-amber-300'
+      return 'purple'
+    case 'RevisionRequested':
+      return 'warm-gray'
     default:
-      return 'bg-blue-100 text-blue-800 border-blue-300'
+      return 'blue'
   }
 }
 

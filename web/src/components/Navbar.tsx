@@ -1,69 +1,94 @@
-import { NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import {
+  Header,
+  HeaderContainer,
+  HeaderGlobalAction,
+  HeaderGlobalBar,
+  HeaderMenu,
+  HeaderMenuButton,
+  HeaderMenuItem,
+  HeaderName,
+  HeaderNavigation,
+  HeaderSideNavItems,
+  SideNav,
+  SideNavItems,
+  SkipToContent,
+} from '@carbon/react'
+import { Logout } from '@carbon/icons-react'
 import { useAuth } from '../context/AuthContext'
-import { PAGES, canOpen } from '../routes'
+import { PAGES, PAGE_GROUPS, canOpen, type PageDef } from '../routes'
 
-/** Top bar: only the links the signed-in role may open, plus the user and a sign-out button. */
+/**
+ * App header (Carbon UI Shell): the pages the signed-in role may open, grouped into menus
+ * (Operations, Stock, Insights, Admin), the signed-in user and sign-out. On small screens the
+ * menus move into a side navigation opened from the menu button. A group with one page is a plain link.
+ */
 export function Navbar() {
   const { user, role, logout } = useAuth()
   const navigate = useNavigate()
-  const links = PAGES.filter((p) => canOpen(p, role))
+  const { pathname } = useLocation()
+  const groups = PAGE_GROUPS
+    .map((group) => ({ group, pages: PAGES.filter((p) => p.group === group && canOpen(p, role)) }))
+    .filter((g) => g.pages.length > 0)
 
   const signOut = () => {
     logout()
     navigate('/login', { replace: true })
   }
 
+  const isCurrent = (page: PageDef) => pathname === page.path || pathname.startsWith(`${page.path}/`)
+
+  const item = (page: PageDef) => (
+    <HeaderMenuItem key={page.path} as={NavLink} to={page.path} isActive={isCurrent(page)}
+      aria-current={isCurrent(page) ? 'page' : undefined}>
+      {page.label}
+    </HeaderMenuItem>
+  )
+
+  const menus = groups.map(({ group, pages }) =>
+    pages.length === 1 ? item(pages[0]) : (
+      <HeaderMenu key={group} aria-label={group} menuLinkName={group} isActive={pages.some(isCurrent)}>
+        {pages.map(item)}
+      </HeaderMenu>
+    ))
+
   return (
-    <header className="bg-slate-900 text-white shadow-md border-b border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-          {/* Logo & Branding */}
-          <div className="flex items-center space-x-3">
-            <div className="bg-blue-600 p-2 rounded-lg text-white">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <div>
-              <span className="font-bold text-lg tracking-wide text-white">FloodLink AI</span>
-              <span className="text-xs text-blue-400 block font-medium">Relief Coordination Portal</span>
-            </div>
-          </div>
-
+    <HeaderContainer
+      render={({ isSideNavExpanded, onClickSideNavExpand }: { isSideNavExpanded: boolean; onClickSideNavExpand: () => void }) => (
+        <Header aria-label="FloodLink AI Relief Coordination Portal">
+          <SkipToContent href="#main-content" />
           {user && (
-            <div className="flex items-center gap-3 text-sm">
-              <span className="text-slate-300">
-                {user.name} <span className="text-slate-500">·</span>{' '}
-                <span className="text-blue-300">{role}</span>
-              </span>
-              <button
-                onClick={signOut}
-                className="px-3 py-1.5 rounded-md border border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-white"
-              >
-                Sign out
-              </button>
-            </div>
+            <HeaderMenuButton
+              aria-label={isSideNavExpanded ? 'Close menu' : 'Open menu'}
+              onClick={onClickSideNavExpand}
+              isActive={isSideNavExpanded}
+              aria-expanded={isSideNavExpanded}
+            />
           )}
-        </div>
-
-        {user && (
-          <nav aria-label="Main" className="flex flex-wrap gap-2 pb-3">
-            {links.map((page) => (
-              <NavLink
-                key={page.path}
-                to={page.path}
-                className={({ isActive }) =>
-                  `px-3 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-                    isActive ? 'bg-blue-600 text-white shadow' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                  }`
-                }
-              >
-                {page.label}
-              </NavLink>
-            ))}
-          </nav>
-        )}
-      </div>
-    </header>
+          <HeaderName as={Link} to="/" prefix="FloodLink AI">
+            Relief Coordination Portal
+          </HeaderName>
+          {user && (
+            <>
+              <HeaderNavigation aria-label="Main">{menus}</HeaderNavigation>
+              <HeaderGlobalBar>
+                <span className="fl-header-user">
+                  {user.name} · <span className="fl-header-role">{role}</span>
+                </span>
+                <HeaderGlobalAction aria-label="Sign out" tooltipAlignment="end" onClick={signOut}>
+                  <Logout size={20} />
+                </HeaderGlobalAction>
+              </HeaderGlobalBar>
+              <SideNav aria-label="Side navigation" expanded={isSideNavExpanded} isPersistent={false}
+                onSideNavBlur={onClickSideNavExpand}>
+                <SideNavItems>
+                  <HeaderSideNavItems>{menus}</HeaderSideNavItems>
+                </SideNavItems>
+              </SideNav>
+            </>
+          )}
+        </Header>
+      )}
+    />
   )
 }

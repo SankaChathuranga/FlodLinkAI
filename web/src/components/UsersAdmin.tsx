@@ -1,4 +1,23 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import {
+  Button,
+  Form,
+  InlineLoading,
+  InlineNotification,
+  PasswordInput,
+  Select,
+  SelectItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TextInput,
+  Tile,
+} from '@carbon/react'
 import { apiFetch } from '../api/http'
 import type { SessionUser } from '../auth/session'
 import { useAppContext } from '../context/AppContext'
@@ -75,99 +94,78 @@ export function UsersAdmin() {
     }
   }
 
-  const input = 'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">User management</h1>
-        <p className="text-sm text-slate-500">Volunteers register in the mobile app. Create staff accounts here.</p>
-      </div>
-
-      <form
-        onSubmit={(e) => void onSubmit(e)}
-        noValidate
-        aria-labelledby="create-staff-heading"
-        className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end"
-      >
-        <h2 id="create-staff-heading" className="sm:col-span-2 lg:col-span-5 font-semibold text-slate-800">Create staff account</h2>
-        <label className="text-sm font-medium text-slate-700">
-          Name
-          <input className={input} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          Email
-          <input type="email" className={input} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          Phone
-          <input className={input} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          Temporary password
-          <input
-            type="password"
-            autoComplete="new-password"
-            className={input}
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          Role
-          <select className={input} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as StaffRole })}>
-            <option value="Coordinator">Coordinator</option>
-            <option value="DepotManager">Depot manager</option>
-          </select>
-        </label>
-        <div className="sm:col-span-2 lg:col-span-5 flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-          >
-            {saving ? 'Creating…' : 'Create account'}
-          </button>
-          {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
-          {success && <p role="status" className="text-sm text-green-700">{success}</p>}
+    <section aria-labelledby="users-heading">
+      <Stack gap={6}>
+        <div>
+          <h1 id="users-heading" className="cds--heading-04">User management</h1>
+          <p className="cds--body-compact-01 fl-text-muted">Volunteers register in the mobile app. Create staff accounts here.</p>
         </div>
-      </form>
 
-      <section className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-x-auto">
+        <Tile>
+          <Form onSubmit={(e) => void onSubmit(e)} noValidate aria-labelledby="create-staff-heading">
+            <Stack gap={5}>
+              <h2 id="create-staff-heading" className="cds--heading-03">Create staff account</h2>
+              <div className="fl-form-grid">
+                <TextInput id="staff-name" labelText="Name" maxLength={100} value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <TextInput id="staff-email" type="email" labelText="Email" autoComplete="off" value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                <TextInput id="staff-phone" type="tel" labelText="Phone" placeholder="+94 77 123 4567" value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <PasswordInput id="staff-password" labelText="Temporary password" autoComplete="new-password" value={form.password}
+                  helperText="At least 8 characters."
+                  onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <Select id="staff-role" labelText="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as StaffRole })}>
+                  <SelectItem value="Coordinator" text="Coordinator" />
+                  <SelectItem value="DepotManager" text="Depot manager" />
+                </Select>
+              </div>
+              {formError && <InlineNotification kind="error" role="alert" title="Account not created" subtitle={formError} lowContrast hideCloseButton />}
+              {success && <InlineNotification kind="success" role="status" title={success} lowContrast onCloseButtonClick={() => setSuccess(null)} />}
+              <div>
+                <Button type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create account'}</Button>
+              </div>
+            </Stack>
+          </Form>
+        </Tile>
+
         {loading ? (
-          <p className="p-5 text-sm text-slate-500">Loading users…</p>
+          <InlineLoading description="Loading users…" />
         ) : loadError ? (
-          <div role="alert" className="p-5 text-sm text-red-700">
-            {loadError}{' '}
-            <button className="underline" onClick={() => void loadUsers()}>Retry</button>
+          <div>
+            <InlineNotification kind="error" role="alert" title="Users could not be loaded" subtitle={loadError} lowContrast hideCloseButton />
+            <Button kind="tertiary" size="sm" onClick={() => void loadUsers()}>Retry</Button>
           </div>
         ) : users.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">No accounts yet.</p>
+          <p className="cds--body-compact-01">No accounts yet.</p>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-600">
-              <tr>
-                <th className="px-4 py-2 font-medium">Name</th>
-                <th className="px-4 py-2 font-medium">Email</th>
-                <th className="px-4 py-2 font-medium">Role</th>
-                <th className="px-4 py-2 font-medium">Phone</th>
-                <th className="px-4 py-2 font-medium">Created</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {users.map((u) => (
-                <tr key={u.id}>
-                  <td className="px-4 py-2 text-slate-900">{u.name}</td>
-                  <td className="px-4 py-2 text-slate-700">{u.email ?? '—'}</td>
-                  <td className="px-4 py-2 text-slate-700">{u.role}</td>
-                  <td className="px-4 py-2 text-slate-700">{u.phone}</td>
-                  <td className="px-4 py-2 text-slate-500">{new Date(u.createdAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <TableContainer title="Accounts">
+            <Table aria-label="Accounts">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Name</TableHeader>
+                  <TableHeader>Email</TableHeader>
+                  <TableHeader>Role</TableHeader>
+                  <TableHeader>Phone</TableHeader>
+                  <TableHeader>Created</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell>{u.name}</TableCell>
+                    <TableCell>{u.email ?? '—'}</TableCell>
+                    <TableCell>{u.role}</TableCell>
+                    <TableCell>{u.phone}</TableCell>
+                    <TableCell>{new Date(u.createdAt).toLocaleDateString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
-      </section>
-    </div>
+      </Stack>
+    </section>
   )
 }

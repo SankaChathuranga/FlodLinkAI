@@ -38,10 +38,11 @@ function App() {
   const { role } = useAuth()
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
+    <div className="fl-app">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Carbon's fixed header is 3rem tall; the skip link in the header jumps here. */}
+      <main id="main-content" tabIndex={-1} className="fl-main">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           {PAGES.map((page) => (

@@ -28,16 +28,16 @@ export function RouteMap({ legs }: { legs: RouteMapLeg[] }) {
     [signature],
   )
 
-  if (lines.length === 0) return <p className="text-sm text-slate-500">No route geometry to draw.</p>
+  if (lines.length === 0) return <p className="cds--body-compact-01 fl-text-muted">No route geometry to draw.</p>
 
   return (
-    <figure className="space-y-2">
+    <figure className="fl-route-map">
       {MAPBOX_TOKEN ? <MapboxRoutes lines={lines} /> : <SvgRoutes lines={lines} />}
       <figcaption>
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600" aria-label="Map legend">
+        <ul className="fl-route-map__legend" aria-label="Map legend">
           {lines.map((l) => (
-            <li key={l.key} className="flex items-center gap-1">
-              <span aria-hidden="true" className="inline-block h-1 w-4 rounded" style={{ background: l.color }} />
+            <li key={l.key}>
+              <span aria-hidden="true" className="fl-route-map__swatch" style={{ background: l.color }} />
               {l.label}
             </li>
           ))}
@@ -61,7 +61,7 @@ function SvgRoutes({ lines }: { lines: Line[] }) {
 
   return (
     <svg role="img" aria-label={`Route map with ${lines.length} leg${lines.length === 1 ? '' : 's'}`}
-      viewBox={`0 0 ${size} ${size}`} className="h-72 w-full rounded-lg border border-slate-200 bg-slate-50">
+      viewBox={`0 0 ${size} ${size}`} className="fl-route-map__svg">
       {lines.map((l) => {
         const pts = l.points.map(project)
         const [sx, sy] = pts[0]
@@ -114,5 +114,5 @@ function MapboxRoutes({ lines }: { lines: Line[] }) {
   }, [lines])
 
   if (unavailable) return <SvgRoutes lines={lines} />
-  return <div ref={containerRef} role="region" aria-label="Route map" className="h-80 w-full overflow-hidden rounded-lg border border-slate-200" />
+  return <div ref={containerRef} role="region" aria-label="Route map" className="fl-route-map__canvas" />
 }

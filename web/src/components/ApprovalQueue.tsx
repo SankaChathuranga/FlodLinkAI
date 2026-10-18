@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Button, InlineLoading, InlineNotification, Stack, Tag, TextArea, Tile } from '@carbon/react'
 import { useAppContext } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -133,52 +134,57 @@ function ApprovalQueue() {
   }
 
   return (
-    <div>
-      <h1 className="fl-section-title">Approval Queue</h1>
-      <p className="fl-section-desc">
-        Workflow runs awaiting coordinator decision — all have passed safety validation.
-      </p>
+    <section aria-labelledby="approvals-heading">
+      <Stack gap={5}>
+        <div>
+          <h1 id="approvals-heading" className="cds--heading-04">Approval Queue</h1>
+          <p className="cds--body-compact-01 fl-text-muted">
+            Workflow runs awaiting coordinator decision — all have passed safety validation.
+          </p>
+        </div>
 
-      {state.notice && (
-        <div className="fl-notification fl-notification-success" style={{ marginBottom: '1rem' }}>
-          {state.notice}
-        </div>
-      )}
-      {state.error && (
-        <div className="fl-notification fl-notification-error" style={{ marginBottom: '1rem' }}>
-          {state.error}
-        </div>
-      )}
+        {state.notice && (
+          <InlineNotification kind="success" role="status" title={state.notice} lowContrast
+            onCloseButtonClick={() => setState((s) => ({ ...s, notice: null }))} />
+        )}
+        {state.error && (
+          <InlineNotification kind="error" role="alert" title={state.error} lowContrast hideCloseButton />
+        )}
 
-      {loading ? (
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Loading queue…</p>
-      ) : state.items.length === 0 ? (
-        <div className="fl-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-          No runs are pending approval right now.
-        </div>
-      ) : (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {state.items.map((item) => (
-            <QueueCard
-              key={item.workflowRunId}
-              item={item}
-              expanded={state.expandedId === item.workflowRunId}
-              report={state.reports[item.workflowRunId]}
-              mode={state.mode}
-              notes={state.notes}
-              busy={state.busyId === item.workflowRunId}
-              onToggle={() => void toggleExpand(item)}
-              onModeChange={(mode) => setState((s) => ({ ...s, mode, error: null }))}
-              onCancel={() => setState((s) => ({ ...s, mode: null, error: null }))}
-              onNotesChange={(notes) => setState((s) => ({ ...s, notes }))}
-              onSubmit={() => void submitAction(item)}
-            />
-          ))}
-        </ul>
-      )}
-    </div>
+        {loading ? (
+          <InlineLoading description="Loading queue…" />
+        ) : state.items.length === 0 ? (
+          <Tile className="fl-empty"><p className="cds--body-compact-01">No runs are pending approval right now.</p></Tile>
+        ) : (
+          <ul className="fl-report-list" aria-label="Runs awaiting approval">
+            {state.items.map((item) => (
+              <QueueCard
+                key={item.workflowRunId}
+                item={item}
+                expanded={state.expandedId === item.workflowRunId}
+                report={state.reports[item.workflowRunId]}
+                mode={state.mode}
+                notes={state.notes}
+                busy={state.busyId === item.workflowRunId}
+                onToggle={() => void toggleExpand(item)}
+                onModeChange={(mode) => setState((s) => ({ ...s, mode, error: null }))}
+                onCancel={() => setState((s) => ({ ...s, mode: null, error: null }))}
+                onNotesChange={(notes) => setState((s) => ({ ...s, notes }))}
+                onSubmit={() => void submitAction(item)}
+              />
+            ))}
+          </ul>
+        )}
+      </Stack>
+    </section>
   )
 }
+
+const MODES: { mode: ActionMode; label: string; kind: 'primary' | 'danger' | 'secondary' }[] = [
+  { mode: 'approve', label: 'Approve', kind: 'primary' },
+  { mode: 'reject', label: 'Reject', kind: 'danger' },
+  { mode: 'revision', label: 'Request revision', kind: 'secondary' },
+]
 
 function QueueCard({
   item,
@@ -205,113 +211,50 @@ function QueueCard({
   onNotesChange: (notes: string) => void
   onSubmit: () => void
 }) {
+  const panelId = `decide-${item.workflowRunId}`
   return (
-    <li className="fl-card" style={{ overflow: 'hidden' }}>
-      {/* Card header row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', padding: '0.875rem 1rem', gap: '0.75rem' }}>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {item.objective}
-          </p>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>
-            Created {new Date(item.createdAt).toLocaleString()} ·{' '}
-            <Link to={`/workflows/${item.workflowRunId}`} style={{ color: 'var(--accent-primary)' }}>
-              View trace
-            </Link>
-          </p>
-          <PlanSummary item={item} />
+    <li>
+      <Tile className="fl-queue-card">
+        <div className="fl-plan-banner">
+          <div className="fl-queue-card__main">
+            <h2 className="cds--heading-03 fl-truncate-heading">{item.objective}</h2>
+            <p className="cds--helper-text-01">
+              Created {new Date(item.createdAt).toLocaleString()} ·{' '}
+              <Link to={`/workflows/${item.workflowRunId}`} className="cds--link">View trace</Link>
+            </p>
+            <PlanSummary item={item} />
+          </div>
+          <div className="fl-toolbar-inline">
+            <Tag type="purple" size="sm">{item.state}</Tag>
+            <Button kind="ghost" size="sm" onClick={onToggle} disabled={busy} aria-expanded={expanded} aria-controls={panelId}>
+              {expanded ? 'Collapse' : 'Inspect & decide'}
+            </Button>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexShrink: 0 }}>
-          {/* PendingApproval → warning token per spec */}
-          <span className="fl-badge fl-badge-warning">{item.state}</span>
-          <button type="button" onClick={onToggle} disabled={busy} className="fl-btn-ghost">
-            {expanded ? 'Collapse' : 'Inspect & decide'}
-          </button>
-        </div>
-      </div>
 
-      {expanded && (
-        <div style={{ borderTop: '1px solid var(--border-default)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <ValidationChecks report={report} />
+        {expanded && (
+          <div id={panelId} className="fl-queue-card__panel">
+            <ValidationChecks report={report} />
 
-          {/* Action buttons */}
-          <div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => onModeChange('approve')}
-                disabled={busy}
-                style={{
-                  background: mode === 'approve' ? 'var(--state-success)' : 'var(--bg-surface)',
-                  color: mode === 'approve' ? '#fff' : 'var(--state-success)',
-                  border: `1px solid var(--state-success)`,
-                  borderRadius: '4px',
-                  padding: '0.375rem 0.875rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: busy ? 'not-allowed' : 'pointer',
-                  opacity: busy ? 0.5 : 1,
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                onClick={() => onModeChange('reject')}
-                disabled={busy}
-                style={{
-                  background: mode === 'reject' ? 'var(--state-error)' : 'var(--bg-surface)',
-                  color: mode === 'reject' ? '#fff' : 'var(--state-error)',
-                  border: `1px solid var(--state-error)`,
-                  borderRadius: '4px',
-                  padding: '0.375rem 0.875rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: busy ? 'not-allowed' : 'pointer',
-                  opacity: busy ? 0.5 : 1,
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                Reject
-              </button>
-              <button
-                type="button"
-                onClick={() => onModeChange('revision')}
-                disabled={busy}
-                style={{
-                  background: mode === 'revision' ? 'var(--accent-primary)' : 'var(--bg-surface)',
-                  color: mode === 'revision' ? '#fff' : 'var(--accent-primary)',
-                  border: `1px solid var(--accent-primary)`,
-                  borderRadius: '4px',
-                  padding: '0.375rem 0.875rem',
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  cursor: busy ? 'not-allowed' : 'pointer',
-                  opacity: busy ? 0.5 : 1,
-                  fontFamily: 'var(--font-sans)',
-                }}
-              >
-                Request revision
-              </button>
+            <div className="fl-toolbar-inline" role="group" aria-label="Decision">
+              {MODES.map((m) => (
+                <Button key={m.mode} size="sm" kind={mode === m.mode ? m.kind : 'tertiary'} aria-pressed={mode === m.mode}
+                  onClick={() => onModeChange(m.mode)} disabled={busy}>
+                  {m.label}
+                </Button>
+              ))}
             </div>
 
             {mode && (
-              <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {mode === 'approve'
-                    ? 'Optional approval notes'
-                    : mode === 'reject'
-                      ? 'Rejection reason (required)'
-                      : 'Revision notes (required)'}
-                </label>
-                <textarea
+              <div className="fl-stack-sm">
+                <TextArea
+                  id={`${panelId}-notes`}
+                  labelText={mode === 'approve' ? 'Optional approval notes' : mode === 'reject' ? 'Rejection reason (required)' : 'Revision notes (required)'}
                   value={notes}
                   onChange={(e) => onNotesChange(e.target.value)}
                   disabled={busy}
                   rows={3}
-                  className="fl-input"
-                  style={{ resize: 'vertical' }}
+                  maxCount={2000}
                   placeholder={
                     mode === 'approve'
                       ? 'e.g. Supply route confirmed – good to go.'
@@ -320,19 +263,15 @@ function QueueCard({
                         : 'e.g. Vehicle capacity underestimated; re-match with bigger truck.'
                   }
                 />
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="button" onClick={onSubmit} disabled={busy} className="fl-btn-primary">
-                    {busy ? 'Submitting…' : 'Submit decision'}
-                  </button>
-                  <button type="button" onClick={onCancel} disabled={busy} className="fl-btn-secondary">
-                    Cancel
-                  </button>
+                <div className="fl-toolbar-inline">
+                  <Button size="sm" onClick={onSubmit} disabled={busy}>{busy ? 'Submitting…' : 'Submit decision'}</Button>
+                  <Button size="sm" kind="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
                 </div>
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </Tile>
     </li>
   )
 }
@@ -347,24 +286,22 @@ function PlanSummary({ item }: { item: WorkflowRunQueueItem }) {
       : 'no route',
   ]
   return (
-    <p style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', margin: '0.375rem 0 0' }}>
-      {parts.join(' · ')}
-      {(item.unfulfillableCount ?? 0) > 0 && (
-        <span className="fl-badge fl-badge-warning" style={{ marginLeft: '0.5rem' }}>
-          {item.unfulfillableCount} need{item.unfulfillableCount === 1 ? '' : 's'} not fully covered
-        </span>
-      )}
-      {item.isRevision && (
-        <span className="fl-badge fl-badge-info" style={{ marginLeft: '0.5rem' }}>
-          Revised plan
-        </span>
-      )}
-      <StockCheckBadge check={item.stockCheck} />
-      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+    <div className="fl-plan-summary">
+      <p className="cds--body-compact-01">{parts.join(' · ')}</p>
+      <div className="fl-tag-row">
+        {(item.unfulfillableCount ?? 0) > 0 && (
+          <Tag type="warm-gray" size="sm">
+            {item.unfulfillableCount} need{item.unfulfillableCount === 1 ? '' : 's'} not fully covered
+          </Tag>
+        )}
+        {item.isRevision && <Tag type="blue" size="sm">Revised plan</Tag>}
+        <StockCheckBadge check={item.stockCheck} />
+      </div>
+      <p className="cds--helper-text-01">
         Plan: {item.planSource === 'llm' ? 'LLM' : 'default'} · Triage: {item.scoringMethod === 'llm-adjusted' ? 'rules + LLM' : 'rules only'} ·
         Safety checks: {item.validationPassed ? 'passed' : `${item.failedChecks ?? 0} failed`}
-      </span>
-    </p>
+      </p>
+    </div>
   )
 }
 
@@ -376,65 +313,43 @@ function StockCheckBadge({ check }: { check?: WorkflowRunQueueItem['stockCheck']
       .map((s) => `${s.depotName ?? 'Depot'}: ${s.counted} of ${s.reserved} ${s.itemName} on the shelf${s.note ? ` (${s.note})` : ''}`)
       .join('; ')
     return (
-      <span className="fl-badge fl-badge-warning" style={{ marginLeft: '0.5rem' }} title={detail}>
-        Shortfall reported by depot
-        <span className="sr-only">: {detail}</span>
-      </span>
+      <>
+        <Tag type="red" size="sm">Shortfall reported by depot</Tag>
+        <span className="cds--helper-text-01 fl-text-error fl-block">{detail}</span>
+      </>
     )
   }
   const all = check.confirmedLines === check.reservedLines
   return (
-    <span className={`fl-badge ${all ? 'fl-badge-success' : 'fl-badge-info'}`} style={{ marginLeft: '0.5rem' }}>
+    <Tag type={all ? 'green' : 'blue'} size="sm">
       {all ? 'Depot confirmed stock' : `Depot confirmed ${check.confirmedLines} of ${check.reservedLines} lines`}
-    </span>
+    </Tag>
   )
 }
 
 function ValidationChecks({ report }: { report: ValidationReport | undefined }) {
   if (!report) {
-    return <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loading safety checks…</p>
+    return <InlineLoading description="Loading safety checks…" />
   }
 
   if (!report.hasRunValidation) {
-    return (
-      <div className="fl-notification fl-notification-warning">
-        No safety checks recorded for this run yet.
-      </div>
-    )
+    return <InlineNotification kind="warning" title="No safety checks recorded for this run yet." lowContrast hideCloseButton />
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>Safety checks</span>
-        <span className={`fl-badge ${report.overallPassed ? 'fl-badge-success' : 'fl-badge-error'}`}>
-          {report.overallPassed ? 'Overall PASS' : 'Overall FAIL'}
-        </span>
+    <div className="fl-stack-sm">
+      <div className="fl-tag-row">
+        <strong>Safety checks</strong>
+        <Tag type={report.overallPassed ? 'green' : 'red'} size="sm">{report.overallPassed ? 'Overall PASS' : 'Overall FAIL'}</Tag>
       </div>
-      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+      <ul className="fl-check-list">
         {report.checks.map((check) => (
-          <li
-            key={check.checkName}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'space-between',
-              gap: '0.5rem',
-              fontSize: '0.875rem',
-              backgroundColor: check.passed ? 'var(--bg-base)' : '#FFF1F1',
-              border: `1px solid ${check.passed ? 'var(--border-default)' : '#FFBDBD'}`,
-              borderRadius: '4px',
-              padding: '0.5rem 0.75rem',
-            }}
-          >
-            <span style={{ color: check.passed ? 'var(--text-primary)' : 'var(--state-error)' }}>
-              {check.passed ? '✓' : '✗'} {check.checkName}
+          <li key={check.checkName} className={check.passed ? '' : 'fl-check-list__failed'}>
+            <span>
+              <span aria-hidden="true">{check.passed ? '✓' : '✗'}</span> {check.checkName}
+              <span className="sr-only">{check.passed ? ' passed' : ' failed'}</span>
             </span>
-            {!check.passed && check.violationDetail && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--state-error)', textAlign: 'right', maxWidth: '18rem' }}>
-                {check.violationDetail}
-              </span>
-            )}
+            {!check.passed && check.violationDetail && <span className="cds--helper-text-01">{check.violationDetail}</span>}
           </li>
         ))}
       </ul>

@@ -183,6 +183,16 @@ change.
   `StockMovementsAndConfirmations` (applied to dev DB). Tests: `Phase8Batch3Tests`, `Batch3.test.tsx`,
   `phase8_batch3_test.dart`; backend 379, web 62, Flutter 63.
 
+- 2026-10-18 — **Phase 8 polish** (8.18 Carbon consistency, 8.19 accessibility/responsiveness). React: `Navbar` is a
+  Carbon UI Shell (`routes.ts` pages carry a `group`; menus Operations/Stock/Insights/Admin; side nav on small
+  screens; skip link to `#main-content`); Login, Users, Reports, Shelters (+ detail `Modal`), Triage (`RadioTile`
+  run list), Workflows (`ContentSwitcher`), Trace (`ProgressIndicator` pipeline, Carbon tables), Approvals
+  (`TextArea` with label, `aria-pressed` decision buttons), Dispatches, Analytics, ProtectedRoute, RouteMap legend
+  converted; `stateTagType` replaces `stateBadgeClass`; legacy `fl-*` component CSS removed (layout `fl-*` kept).
+  Tests: `test/a11y.ts` (axe-core 4.10.2), `Accessibility.test.tsx`, `test/contrast.test.ts`; `test/setup.ts` stubs
+  `matchMedia`. ADR-011; `context/ui-context.md` documents components, tag colours and a11y rules. Web tests 95.
+  Phase 8 complete except the manual phone/narrow-screen check.
+
 ## In Progress
 
 - None.

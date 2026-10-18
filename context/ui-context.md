@@ -107,3 +107,27 @@ Icons
 IBM Carbon Icons (`@carbon/icons-react`). Simple, clean icons with
 consistent stroke weight. Use icons to communicate meaning and status (e.g.
 urgency, validation state) rather than decoration.
+
+React components (from 18 Oct 2026, Phase 8.18/8.19)
+
+The React portal uses IBM Carbon (`@carbon/react`, white theme) components for every control
+and surface: UI Shell header (pages grouped into Operations / Stock / Insights / Admin menus,
+side navigation below Carbon's `lg` breakpoint), `Tile` for panels, Carbon `Table` for tables,
+`Button`, `TextInput`, `PasswordInput`, `TextArea`, `Select`, `Search`, `Checkbox`, `Toggle`,
+`ContentSwitcher` (view switches — not `Tabs`, which need tab panels), `Modal`, `InlineNotification`
+(errors use `role="alert"`, success `role="status"`), `InlineLoading`/`SkeletonText`, `Tag`,
+`ProgressBar` and `ProgressIndicator`. Layout-only CSS lives in `index.css` (`fl-*` classes);
+Tailwind remains only inside `ShelterMap`.
+
+Status tags (Carbon has no yellow tag, so "waiting" is purple):
+`Triage / Matching / Routing / Validating` → `blue` · `PendingApproval` → `purple` ·
+`RevisionRequested` → `warm-gray` · `Approved` → `green` · `Rejected / Failed` → `red`
+(`stateTagType` in `web/src/api/workflows.ts`). The CSS-variable mapping above still applies to the
+Flutter app and to non-tag colour (text, bars).
+
+Accessibility rules (checked by `Accessibility.test.tsx` with axe-core and `test/contrast.test.ts`):
+every control has a visible or programmatic label; nothing clickable is a bare `div` (use buttons,
+links, radio tiles); dialogs are Carbon `Modal`s (Esc closes, focus stays inside); expanding rows
+use `aria-expanded`/`aria-controls`; a skip link jumps to `#main-content`; keyboard focus is always
+visible; information is never only in a hover `title`; text pairs meet 4.5:1.
+

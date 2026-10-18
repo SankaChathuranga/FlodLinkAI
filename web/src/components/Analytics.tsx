@@ -1,4 +1,17 @@
 ﻿import { useEffect, useState } from 'react'
+import {
+  InlineLoading,
+  InlineNotification,
+  ProgressBar,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tile,
+} from '@carbon/react'
 import { useAppContext } from '../context/AppContext'
 import { getDispatchSummary } from '../api/client'
 import { describeApiError } from '../lib/apiError'
@@ -31,21 +44,19 @@ function Analytics() {
 
   if (loading) {
     return (
-      <div>
-        <h1 className="fl-section-title">Analytics</h1>
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Loading analytics…</p>
-      </div>
+      <section aria-labelledby="analytics-heading">
+        <h1 id="analytics-heading" className="cds--heading-04">Analytics</h1>
+        <InlineLoading description="Loading analytics…" />
+      </section>
     )
   }
 
   if (error || !summary) {
     return (
-      <div>
-        <h1 className="fl-section-title">Analytics</h1>
-        <div className="fl-notification fl-notification-error" style={{ marginTop: '1rem' }}>
-          {error ?? 'No summary available.'}
-        </div>
-      </div>
+      <section aria-labelledby="analytics-heading">
+        <h1 id="analytics-heading" className="cds--heading-04">Analytics</h1>
+        <InlineNotification kind="error" role="alert" title={error ?? 'No summary available.'} lowContrast hideCloseButton />
+      </section>
     )
   }
 
@@ -69,82 +80,78 @@ function Analytics() {
   const perShelter = summary.dispatchesPerShelter ?? []
 
   return (
-    <div>
-      <h1 className="fl-section-title">Analytics</h1>
-      <p className="fl-section-desc">
-        Coordinator decision metrics derived from the dispatch log. Time to approval runs from starting a workflow to the approval.
-      </p>
+    <section aria-labelledby="analytics-heading">
+      <Stack gap={5}>
+        <div>
+          <h1 id="analytics-heading" className="cds--heading-04">Analytics</h1>
+          <p className="cds--body-compact-01 fl-text-muted">
+            Coordinator decision metrics derived from the dispatch log. Time to approval runs from starting a workflow to the approval.
+          </p>
+        </div>
 
-      {/* Metric tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9rem, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-        {cards.map((card) => (
-          <div key={card.label} className="fl-card" style={{ padding: '1rem' }}>
-            <p style={{ fontSize: '1.75rem', fontWeight: 700, color: card.color, margin: '0 0 0.25rem', lineHeight: 1 }}>
-              {card.value}
-            </p>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{card.label}</p>
-          </div>
-        ))}
-      </div>
+        <ul className="fl-metric-grid" aria-label="Decision metrics">
+          {cards.map((card) => (
+            <li key={card.label}>
+              <Tile className="fl-metric">
+                <span className="fl-metric__value" style={{ color: card.color }}>{card.value}</span>
+                <span className="cds--label-01">{card.label}</span>
+              </Tile>
+            </li>
+          ))}
+        </ul>
 
-      {/* Decisions per shelter */}
-      <div className="fl-card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 0.875rem' }}>
-          Decisions per shelter
-        </h2>
-        {perShelter.length === 0 ? (
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>No decisions recorded yet.</p>
-        ) : (
-          <table aria-label="Decisions per shelter" style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', color: 'var(--text-muted)' }}>
-                <th scope="col" style={{ padding: '0.375rem 0' }}>Shelter</th>
-                <th scope="col">Approved</th>
-                <th scope="col">Rejected</th>
-                <th scope="col">Revisions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {perShelter.map((s) => (
-                <tr key={s.shelterId} style={{ borderTop: '1px solid var(--border-subtle, #e0e0e0)' }}>
-                  <td style={{ padding: '0.375rem 0', color: 'var(--text-primary)' }}>{s.shelterName}</td>
-                  <td style={{ color: 'var(--state-success)' }}>{s.approved}</td>
-                  <td style={{ color: 'var(--state-error)' }}>{s.rejected}</td>
-                  <td>{s.revisionsRequested}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        <Tile>
+          <h2 className="cds--heading-03">Decisions per shelter</h2>
+          {perShelter.length === 0 ? (
+            <p className="cds--body-compact-01 fl-text-muted">No decisions recorded yet.</p>
+          ) : (
+            <div className="fl-table-scroll">
+              <Table aria-label="Decisions per shelter" size="sm">
+                <TableHead>
+                  <TableRow>
+                    <TableHeader>Shelter</TableHeader>
+                    <TableHeader>Approved</TableHeader>
+                    <TableHeader>Rejected</TableHeader>
+                    <TableHeader>Revisions</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {perShelter.map((sh) => (
+                    <TableRow key={sh.shelterId}>
+                      <TableCell>{sh.shelterName}</TableCell>
+                      <TableCell>{sh.approved}</TableCell>
+                      <TableCell>{sh.rejected}</TableCell>
+                      <TableCell>{sh.revisionsRequested}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </Tile>
 
-      {/* Top rejection reasons panel */}
-      <div className="fl-card" style={{ padding: '1.25rem' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 0.875rem' }}>
-          Top rejection reasons
-        </h2>
-        {summary.topRejectionReasons.length === 0 ? (
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>No rejections recorded yet.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {summary.topRejectionReasons.map((reason) => {
-              const width = Math.max(6, (reason.count / summary.topRejectionReasons[0].count) * 100)
-              return (
-                <li key={reason.reason} style={{ fontSize: '0.875rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span style={{ color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{reason.reason}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.5rem', flexShrink: 0 }}>{reason.count}×</span>
-                  </div>
-                  <div className="fl-bar-track">
-                    <div className="fl-bar-fill" style={{ width: `${width}%` }} />
-                  </div>
+        <Tile>
+          <h2 className="cds--heading-03">Top rejection reasons</h2>
+          {summary.topRejectionReasons.length === 0 ? (
+            <p className="cds--body-compact-01 fl-text-muted">No rejections recorded yet.</p>
+          ) : (
+            <ul className="fl-stack-sm fl-plain-list">
+              {summary.topRejectionReasons.map((reason) => (
+                <li key={reason.reason}>
+                  <ProgressBar
+                    label={reason.reason}
+                    helperText={`${reason.count}×`}
+                    value={reason.count}
+                    max={summary.topRejectionReasons[0].count}
+                    size="small"
+                  />
                 </li>
-              )
-            })}
-          </ul>
-        )}
-      </div>
-    </div>
+              ))}
+            </ul>
+          )}
+        </Tile>
+      </Stack>
+    </section>
   )
 }
 

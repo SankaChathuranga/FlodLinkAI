@@ -1,5 +1,21 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import {
+  Button,
+  InlineLoading,
+  InlineNotification,
+  ProgressIndicator,
+  ProgressStep,
+  Stack,
+  Table as CarbonTable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tag,
+  Tile,
+} from '@carbon/react'
 import { useAppContext } from '../context/AppContext'
 import { getAuditTrail } from '../api/client'
 import type { AuditResponse } from '../api/types'
@@ -12,7 +28,7 @@ import {
   llmCallOf,
   parsePlan,
   retryWorkflow,
-  stateBadgeClass,
+  stateTagType,
   stateLabel,
   type DispatchStatus,
   type ToolCall,
@@ -104,29 +120,27 @@ export function WorkflowTrace() {
 
   if (notFound) {
     return (
-      <div className="space-y-3">
+      <Stack gap={4}>
         <BackLink />
-        <p role="alert" className="rounded-lg border border-slate-200 bg-white p-6 text-slate-700">
-          No workflow run with id <span className="font-mono">{id}</span>.
-        </p>
-      </div>
+        <Tile role="alert">
+          No workflow run with id <span className="fl-mono">{id}</span>.
+        </Tile>
+      </Stack>
     )
   }
   if (!data) {
     return (
-      <div className="space-y-3">
+      <Stack gap={4}>
         <BackLink />
         {error ? (
-          <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-            {error}{' '}
-            <button className="underline" onClick={() => void load()}>
-              Try again
-            </button>
+          <div role="alert" className="fl-error-block">
+            <InlineNotification kind="error" title="The trace could not be loaded" subtitle={error} lowContrast hideCloseButton />
+            <Button kind="tertiary" size="sm" onClick={() => void load()}>Try again</Button>
           </div>
         ) : (
-          <p className="p-4 text-sm text-slate-500">Loading execution trace…</p>
+          <InlineLoading description="Loading execution trace…" />
         )}
-      </div>
+      </Stack>
     )
   }
 
@@ -140,65 +154,49 @@ export function WorkflowTrace() {
   const deliveryPhoto = deliveryPhotoOf(audit)
 
   return (
-    <div className="space-y-5">
+    <Stack gap={5} as="article" aria-labelledby="trace-heading">
       <BackLink />
 
       {/* Header */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <Tile>
+        <div className="fl-plan-banner">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">{run.objective}</h1>
-            <p className="font-mono text-xs text-slate-500">{run.id}</p>
-            <p className="mt-1 text-xs text-slate-500">
+            <h1 id="trace-heading" className="cds--heading-04">{run.objective}</h1>
+            <p className="fl-mono fl-text-muted cds--label-01">{run.id}</p>
+            <p className="cds--helper-text-01">
               Reports {run.reportIds.join(', ') || '—'} · started {new Date(run.createdAt).toLocaleString()} · updated{' '}
               {new Date(run.updatedAt).toLocaleString()} · retries {run.retryCount}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {active && (
-              <span className="flex items-center gap-1 text-xs text-blue-700" aria-live="polite">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-blue-600" /> Processing…
-              </span>
-            )}
-            <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${stateBadgeClass(run.currentState)}`}>
-              {stateLabel(run.currentState)}
-            </span>
+          <div className="fl-toolbar-inline">
+            {active && <InlineLoading description="Processing…" />}
+            <Tag type={stateTagType(run.currentState)}>{stateLabel(run.currentState)}</Tag>
           </div>
         </div>
         <PipelineSteps state={run.currentState} failedAt={run.failedAtState} />
         {run.currentState === 'Failed' && (
-          <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
-            <p className="text-sm text-rose-800">
-              <strong>Stopped at {run.failedAtState ?? 'unknown stage'}:</strong> {run.failureReason ?? 'No reason recorded.'}
-            </p>
-            <div className="flex items-center gap-2">
-              {retryMessage && <span className="text-xs text-slate-700">{retryMessage}</span>}
-              <button
-                onClick={() => void retry()}
-                disabled={retrying}
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-              >
-                {retrying ? 'Retrying…' : 'Retry stage'}
-              </button>
+          <div role="alert" className="fl-error-block fl-spaced">
+            <InlineNotification kind="error" title={`Stopped at ${run.failedAtState ?? 'unknown stage'}`}
+              subtitle={run.failureReason ?? 'No reason recorded.'} lowContrast hideCloseButton />
+            <div className="fl-toolbar-inline">
+              <Button size="sm" onClick={() => void retry()} disabled={retrying}>{retrying ? 'Retrying…' : 'Retry stage'}</Button>
+              {retryMessage && <span className="cds--helper-text-01" role="status">{retryMessage}</span>}
             </div>
           </div>
         )}
-        {error && <p className="mt-2 text-xs text-rose-700">Refresh failed: {error}</p>}
-      </section>
+        {error && <InlineNotification kind="warning" title="Refresh failed" subtitle={error} lowContrast hideCloseButton />}
+      </Tile>
 
       {/* Planner */}
       <Section title="Plan" subtitle="From the Planner step. The orchestrator always runs these four agents in this order.">
         {plan.plan ? (
           <>
             <SourceBadge llm={plan.plan.Source === 'llm'} reason={plan.plan.FallbackReason} />
-            <ol className="mt-3 space-y-2">
+            <ol className="fl-plan-steps">
               {plan.plan.Steps.map((step, i) => (
-                <li key={step.Agent} className="text-sm">
-                  <span className="font-semibold text-slate-900">
-                    {i + 1}. {step.Agent}
-                  </span>{' '}
-                  — {step.Purpose}
-                  <span className="block pl-4 text-xs text-slate-500">{step.Rationale}</span>
+                <li key={step.Agent}>
+                  <strong>{i + 1}. {step.Agent}</strong> — {step.Purpose}
+                  <span className="cds--helper-text-01 fl-block">{step.Rationale}</span>
                 </li>
               ))}
             </ol>
@@ -213,7 +211,7 @@ export function WorkflowTrace() {
         {logs.length === 0 ? (
           <Empty>{active ? 'Waiting for the first step…' : 'No steps were logged.'}</Empty>
         ) : (
-          <ol className="space-y-3">
+          <ol className="fl-log">
             {logs.map((entry) => (
               <LogStep key={entry.id} entry={entry} />
             ))}
@@ -233,7 +231,7 @@ export function WorkflowTrace() {
         >
           <Table headers={['Rank', 'Report', 'Shelter', 'Need', 'Qty', 'Rule', 'LLM', 'Final', 'Justification']}>
             {plan.triagePlan.PriorityItems.map((item, i) => (
-              <tr key={item.ReportId} className="align-top">
+              <TableRow key={item.ReportId}>
                 <Td>{i + 1}</Td>
                 <Td>#{item.ReportId}</Td>
                 <Td>{item.ShelterId}</Td>
@@ -244,8 +242,8 @@ export function WorkflowTrace() {
                 <Td>
                   <strong>{item.PriorityScore.toFixed(0)}</strong>
                 </Td>
-                <Td className="max-w-md text-xs">{item.Justification}</Td>
-              </tr>
+                <Td className="fl-justification">{item.Justification}</Td>
+              </TableRow>
             ))}
           </Table>
         </Section>
@@ -256,18 +254,18 @@ export function WorkflowTrace() {
         <Section title="Allocations" subtitle={plan.revision ? `Re-planned after revision: “${plan.revision.Notes}”` : undefined}>
           <Table headers={['Depot', 'Shelter', 'Item', 'Quantity']}>
             {plan.allocationProposal.Allocations.map((a, i) => (
-              <tr key={i}>
+              <TableRow key={i}>
                 <Td>{a.DepotId}</Td>
                 <Td>{a.ShelterId}</Td>
                 <Td>{a.ItemName}</Td>
                 <Td>{a.Quantity}</Td>
-              </tr>
+              </TableRow>
             ))}
           </Table>
           {plan.allocationProposal.Unfulfillable.length > 0 && (
-            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="fl-callout-warning">
               <strong>Not fully covered:</strong>
-              <ul className="mt-1 list-disc pl-5">
+              <ul>
                 {plan.allocationProposal.Unfulfillable.map((u, i) => (
                   <li key={i}>
                     Shelter {u.ShelterId} · {u.ItemName}: {u.Reason}
@@ -286,16 +284,16 @@ export function WorkflowTrace() {
           subtitle={`Total ${plan.route.DistanceKm.toFixed(1)} km · longest ETA ${Math.round(plan.route.EtaMinutes)} min (Mapbox driving)`}
         >
           {legRows.length > 0 ? (
-            <div className="space-y-3">
+            <div className="fl-stack-sm">
               <RouteMap legs={mapLegs} />
               <Table headers={['Depot', 'Shelter', 'Distance', 'ETA']}>
                 {legRows.map((leg) => (
-                  <tr key={leg.key}>
+                  <TableRow key={leg.key}>
                     <Td>{leg.depot}</Td>
                     <Td>{leg.shelter}</Td>
                     <Td>{leg.distanceKm.toFixed(1)} km</Td>
                     <Td>{Math.round(leg.etaMinutes)} min</Td>
-                  </tr>
+                  </TableRow>
                 ))}
               </Table>
             </div>
@@ -308,16 +306,16 @@ export function WorkflowTrace() {
       {/* Validation */}
       {plan.validationResults && (
         <Section title="Safety checks" subtitle={plan.validationResults.OverallPassed ? 'All checks passed.' : 'At least one check failed — the plan was blocked.'}>
-          <ul className="space-y-1 text-sm">
+          <ul className="fl-checks">
             {plan.validationResults.Checks.map((c) => (
-              <li key={c.CheckName} className="flex gap-2">
-                <span aria-hidden="true" className={c.Passed ? 'text-emerald-600' : 'text-rose-600'}>
+              <li key={c.CheckName}>
+                <span aria-hidden="true" className={c.Passed ? 'fl-text-success' : 'fl-text-error'}>
                   {c.Passed ? '✔' : '✖'}
                 </span>
                 <span>
-                  <span className="font-medium">{c.CheckName}</span>
+                  <strong>{c.CheckName}</strong>
                   <span className="sr-only">{c.Passed ? ' passed' : ' failed'}</span>
-                  {c.ViolationDetail && <span className="text-rose-700"> — {c.ViolationDetail}</span>}
+                  {c.ViolationDetail && <span className="fl-text-error"> — {c.ViolationDetail}</span>}
                 </span>
               </li>
             ))}
@@ -331,22 +329,20 @@ export function WorkflowTrace() {
         {!dispatch || dispatch.decisions.length === 0 ? (
           <Empty>{run.currentState === 'PendingApproval' ? 'Awaiting a coordinator decision.' : 'No coordinator decision yet.'}</Empty>
         ) : (
-          <ul className="space-y-2 text-sm">
+          <ul className="fl-decisions">
             {dispatch.decisions.map((d) => (
-              <li key={d.dispatchId} className="rounded-md border border-slate-200 p-3">
-                <span className={`mr-2 rounded-full border px-2 py-0.5 text-xs font-semibold ${stateBadgeClass(d.decision)}`}>
-                  {stateLabel(d.decision)}
-                </span>
+              <li key={d.dispatchId}>
+                <Tag type={stateTagType(d.decision)} size="sm">{stateLabel(d.decision)}</Tag>
                 by <strong>{d.decidedBy ?? `user #${d.decidedById ?? '?'}`}</strong> on {new Date(d.decidedAt).toLocaleString()}
-                {d.notes && <span className="mt-1 block text-slate-700">“{d.notes}”</span>}
+                {d.notes && <span className="fl-quote">“{d.notes}”</span>}
               </li>
             ))}
             {dispatch.isDelivered && (
-              <li className="text-emerald-700">
+              <li className="fl-text-success">
                 Delivery confirmed {dispatch.deliveredAt ? new Date(dispatch.deliveredAt).toLocaleString() : ''}.
                 {deliveryPhoto && (
-                  <a href={`${apiBaseUrl}${deliveryPhoto}`} target="_blank" rel="noreferrer" className="mt-2 block w-fit">
-                    <img src={`${apiBaseUrl}${deliveryPhoto}`} alt="Delivery photo" className="h-32 rounded-md border border-slate-200 object-cover" />
+                  <a href={`${apiBaseUrl}${deliveryPhoto}`} target="_blank" rel="noreferrer" className="fl-delivery-photo">
+                    <img src={`${apiBaseUrl}${deliveryPhoto}`} alt="Delivery photo" />
                   </a>
                 )}
               </li>
@@ -354,11 +350,11 @@ export function WorkflowTrace() {
           </ul>
         )}
         {audit && audit.events.length > 0 && (
-          <details className="mt-3 text-sm">
-            <summary className="cursor-pointer text-slate-700">Audit trail for the latest decision ({audit.events.length} events)</summary>
-            <ol className="mt-2 space-y-1 text-xs">
+          <details className="fl-details">
+            <summary>Audit trail for the latest decision ({audit.events.length} events)</summary>
+            <ol>
               {audit.events.map((e) => (
-                <li key={e.id} className="font-mono text-slate-600">
+                <li key={e.id} className="fl-mono">
                   {new Date(e.createdAt).toLocaleString()} · {e.eventType} · actor {e.actorId ?? '—'}
                 </li>
               ))}
@@ -366,7 +362,7 @@ export function WorkflowTrace() {
           </details>
         )}
       </Section>
-    </div>
+    </Stack>
   )
 }
 
@@ -404,38 +400,37 @@ function ValidationExplainer({ runId }: { runId: string }) {
   }
 
   return (
-    <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm" aria-live="polite">
+    <div className="fl-explainer" aria-live="polite">
       {!explanation ? (
-        <button type="button" onClick={() => void explain()} disabled={loading}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-60">
+        <Button kind="tertiary" size="sm" onClick={() => void explain()} disabled={loading}>
           {loading ? 'Explaining…' : 'Explain these results'}
-        </button>
+        </Button>
       ) : (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-slate-600">
+        <div className="fl-stack-sm">
+          <div className="fl-plan-banner">
+            <span className="cds--label-01">
               {explanation.source === 'llm' ? 'Explanation written by the LLM' : 'Explanation from the rule results (LLM not used)'}
               {' · '}display only — the checks above decide pass or fail
             </span>
-            <button type="button" onClick={() => void explain(true)} disabled={loading} className="text-xs text-blue-700 underline disabled:opacity-60">
+            <Button kind="ghost" size="sm" onClick={() => void explain(true)} disabled={loading}>
               {loading ? 'Explaining…' : 'Regenerate'}
-            </button>
+            </Button>
           </div>
-          <p className="text-slate-900">{explanation.summary}</p>
-          <ul className="space-y-1">
+          <p className="cds--body-compact-01">{explanation.summary}</p>
+          <ul className="fl-checks">
             {explanation.points.map((p) => (
               <li key={p.checkName}>
-                <span className={p.passed ? 'text-emerald-700' : 'text-rose-700'}>{p.checkName}</span>
+                <strong className={p.passed ? 'fl-text-success' : 'fl-text-error'}>{p.checkName}</strong>
                 <span className="sr-only">{p.passed ? ' passed' : ' failed'}</span>: {p.explanation}
               </li>
             ))}
           </ul>
           {explanation.source !== 'llm' && explanation.fallbackReason && (
-            <p className="text-xs text-slate-500">Why no LLM text: {explanation.fallbackReason}</p>
+            <p className="cds--helper-text-01">Why no LLM text: {explanation.fallbackReason}</p>
           )}
         </div>
       )}
-      {error && <p role="alert" className="mt-2 text-rose-700">{error}</p>}
+      {error && <p role="alert" className="fl-text-error cds--body-compact-01">{error}</p>}
     </div>
   )
 }
@@ -451,31 +446,17 @@ const PIPELINE: { label: string; states: WorkflowState[] }[] = [
 function PipelineSteps({ state, failedAt }: { state: WorkflowState; failedAt: string | null }) {
   const current = PIPELINE.findIndex((p) => p.states.includes(state === 'Failed' ? ((failedAt as WorkflowState) ?? 'Triage') : state))
   return (
-    <ol aria-label="Pipeline progress" className="mt-4 flex flex-wrap gap-2 text-xs">
+    <ProgressIndicator aria-label="Pipeline progress" currentIndex={state === 'Approved' ? PIPELINE.length : Math.max(current, 0)}
+      spaceEqually className="fl-pipeline">
       {PIPELINE.map((step, i) => {
-        const done = i < current || state === 'Approved'
-        const here = i === current && state !== 'Approved'
-        const failed = here && (state === 'Failed' || state === 'Rejected')
+        const failed = i === current && (state === 'Failed' || state === 'Rejected')
         return (
-          <li
-            key={step.label}
-            aria-current={here ? 'step' : undefined}
-            className={`rounded-full border px-3 py-1 ${
-              failed
-                ? 'border-rose-300 bg-rose-50 text-rose-800'
-                : here
-                  ? 'border-blue-400 bg-blue-50 font-semibold text-blue-800'
-                  : done
-                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                    : 'border-slate-200 text-slate-500'
-            }`}
-          >
-            {done ? '✔ ' : ''}
-            {step.label}
-          </li>
+          <ProgressStep key={step.label} label={step.label} invalid={failed}
+            secondaryLabel={failed ? (state === 'Rejected' ? 'Rejected' : 'Failed') : undefined}
+            complete={i < current || state === 'Approved'} />
         )
       })}
-    </ol>
+    </ProgressIndicator>
   )
 }
 
@@ -484,33 +465,30 @@ function LogStep({ entry }: { entry: WorkflowLogEntry }) {
   const tools = (entry.toolCalls ?? []).filter((t) => t.Tool !== 'llm.generate')
   const ok = entry.status === 'Success'
   return (
-    <li className="rounded-lg border border-slate-200 p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span aria-hidden="true" className={ok ? 'text-emerald-600' : 'text-rose-600'}>
-            {ok ? '●' : '✖'}
-          </span>
-          <span className="font-semibold text-slate-900">{entry.agentName}</span>
-          <span className={`text-xs ${ok ? 'text-emerald-700' : 'text-rose-700'}`}>{entry.status}</span>
-          {entry.isRetry && <span className="rounded bg-amber-100 px-1.5 text-xs text-amber-800">retry</span>}
+    <li className="fl-log__step">
+      <div className="fl-plan-banner">
+        <div className="fl-tag-row">
+          <strong>{entry.agentName}</strong>
+          <Tag type={ok ? 'green' : 'red'} size="sm">{entry.status}</Tag>
+          {entry.isRetry && <Tag type="warm-gray" size="sm">retry</Tag>}
         </div>
-        <span className="text-xs text-slate-500">
+        <span className="cds--helper-text-01">
           {formatDuration(entry.durationMs)} · {new Date(entry.createdAt).toLocaleTimeString()}
         </span>
       </div>
-      {entry.errorMessage && <p className="mt-1 text-xs text-rose-700">{entry.errorMessage}</p>}
+      {entry.errorMessage && <p className="fl-text-error cds--helper-text-01">{entry.errorMessage}</p>}
       {llm && <LlmCall call={llm} />}
       {tools.length > 0 && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-xs text-slate-600">Tool calls ({tools.length})</summary>
-          <ul className="mt-1 space-y-1">
+        <details className="fl-details">
+          <summary>Tool calls ({tools.length})</summary>
+          <ul>
             {tools.map((t, i) => (
-              <li key={i} className="rounded bg-slate-50 px-2 py-1 font-mono text-xs text-slate-700">
-                <span className={t.Succeeded ? 'text-emerald-700' : 'text-rose-700'}>{t.Tool}</span>
+              <li key={i} className="fl-tool-call fl-mono">
+                <span className={t.Succeeded ? 'fl-text-success' : 'fl-text-error'}>{t.Tool}</span>
                 {t.DurationMs != null && ` · ${t.DurationMs} ms`}
-                {t.Input && <span className="block break-all">in: {compact(t.Input)}</span>}
-                {t.Output && <span className="block break-all">out: {compact(t.Output)}</span>}
-                {t.Error && <span className="block text-rose-700">error: {t.Error}</span>}
+                {t.Input && <span className="fl-block">in: {compact(t.Input)}</span>}
+                {t.Output && <span className="fl-block">out: {compact(t.Output)}</span>}
+                {t.Error && <span className="fl-block fl-text-error">error: {t.Error}</span>}
               </li>
             ))}
           </ul>
@@ -524,69 +502,66 @@ function LlmCall({ call }: { call: ToolCall }) {
   const out = call.Output ?? {}
   const fallback = Boolean(out.usedFallback)
   return (
-    <div className={`mt-2 rounded-md border px-3 py-2 text-xs ${fallback ? 'border-amber-200 bg-amber-50' : 'border-violet-200 bg-violet-50'}`}>
-      <span className="font-semibold">{fallback ? 'LLM not used — rule-based fallback' : 'LLM output accepted'}</span>
-      <span className="text-slate-600">
-        {' '}
-        · {String(call.Input?.model ?? '?')} · prompt {String(call.Input?.promptVersion ?? '?')} · {String(out.latencyMs ?? '?')} ms · attempts{' '}
+    <div className={`fl-llm-call ${fallback ? 'fl-llm-call--fallback' : ''}`}>
+      <Tag type={fallback ? 'warm-gray' : 'purple'} size="sm">{fallback ? 'LLM not used — rule-based fallback' : 'LLM output accepted'}</Tag>
+      <span className="cds--helper-text-01">
+        {String(call.Input?.model ?? '?')} · prompt {String(call.Input?.promptVersion ?? '?')} · {String(out.latencyMs ?? '?')} ms · attempts{' '}
         {String(out.attempts ?? '?')} · tokens {String(out.promptTokens ?? '—')}/{String(out.outputTokens ?? '—')}
       </span>
-      {call.Error && <span className="block text-amber-900">Reason: {call.Error}</span>}
+      {call.Error && <span className="fl-block cds--helper-text-01">Reason: {call.Error}</span>}
     </div>
   )
 }
 
 function SourceBadge({ llm, reason }: { llm: boolean; reason?: string | null }) {
   return llm ? (
-    <span className="rounded-full border border-violet-300 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-800">Written by the LLM</span>
+    <Tag type="purple">Written by the LLM</Tag>
   ) : (
-    <span className="text-xs text-amber-800">
-      <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 font-semibold">Default plan</span>
-      {reason && <span className="ml-2">{reason}</span>}
+    <span>
+      <Tag type="warm-gray">Default plan</Tag>
+      {reason && <span className="cds--helper-text-01"> {reason}</span>}
     </span>
   )
 }
 
 function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-      {subtitle && <p className="mb-3 text-xs text-slate-500">{subtitle}</p>}
-      <div className={subtitle ? '' : 'mt-3'}>{children}</div>
+    <section aria-label={title}>
+      <Tile className="fl-section">
+        <h2 className="cds--heading-03">{title}</h2>
+        {subtitle && <p className="cds--helper-text-01">{subtitle}</p>}
+        <div className="fl-section__body">{children}</div>
+      </Tile>
     </section>
   )
 }
 
 function Table({ headers, children }: { headers: string[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <thead className="bg-slate-50 text-left text-slate-600">
-          <tr>
-            {headers.map((h) => (
-              <th key={h} className="px-3 py-1.5 font-medium">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">{children}</tbody>
-      </table>
+    <div className="fl-table-scroll">
+      <CarbonTable size="sm" useZebraStyles>
+        <TableHead>
+          <TableRow>
+            {headers.map((h) => <TableHeader key={h}>{h}</TableHeader>)}
+          </TableRow>
+        </TableHead>
+        <TableBody>{children}</TableBody>
+      </CarbonTable>
     </div>
   )
 }
 
 function Td({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <td className={`px-3 py-1.5 text-slate-700 ${className}`}>{children}</td>
+  return <TableCell className={className}>{children}</TableCell>
 }
 
 function Empty({ children }: { children: ReactNode }) {
-  return <p className="text-sm text-slate-500">{children}</p>
+  return <p className="cds--body-compact-01 fl-text-muted">{children}</p>
 }
 
 function BackLink() {
   return (
-    <Link to="/workflows" className="text-sm text-blue-700 hover:underline">
+    <Link to="/workflows" className="cds--link">
       ← All workflow runs
     </Link>
   )

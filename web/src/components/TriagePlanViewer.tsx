@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppContext } from '../context/AppContext'
+import { Button, InlineNotification, RadioTile, SkeletonText, Stack, Tag, Tile, TileGroup } from '@carbon/react'
 import { apiFetch } from '../api/http'
 import { Link } from 'react-router-dom'
 
@@ -84,178 +85,104 @@ export function TriagePlanViewer() {
   }, [selectedPlanRecord])
 
 
-  const getUrgencyBadge = (score: number) => {
-    if (score >= 80) return 'bg-rose-100 text-rose-800 border-rose-300'
-    if (score >= 50) return 'bg-amber-100 text-amber-800 border-amber-300'
-    return 'bg-emerald-100 text-emerald-800 border-emerald-300'
-  }
+  const urgencyTag = (score: number) => (score >= 80 ? 'red' : score >= 50 ? 'magenta' : 'green')
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner & Trigger Action */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Triage Plan Viewer</h2>
-          <p className="text-sm text-slate-500">
-            Every need gets a rule-based urgency score (need type, shelter occupancy, days since resupply). The
-            LLM may then adjust it by at most ±15 after reading the volunteer&apos;s notes, with a one-line reason.
-            If the LLM is unavailable or its output fails the checks, the rule score and a template reason are used.
-          </p>
-        </div>
-
-        <Link
-          to="/reports"
-          className="self-start rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          Start a workflow from Reports
-        </Link>
-      </div>
-
-      {/* ERROR STATE */}
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-xl flex items-center justify-between shadow-sm">
-          <div className="flex items-center space-x-3">
-            <svg className="w-6 h-6 text-rose-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+    <section aria-labelledby="triage-heading">
+      <Stack gap={5}>
+        <Tile>
+          <div className="inventory-dashboard__header">
             <div>
-              <h4 className="font-semibold text-sm">Could not load triage plans</h4>
-              <p className="text-xs text-rose-600">{error}</p>
+              <h2 id="triage-heading" className="cds--heading-04">Triage Plan Viewer</h2>
+              <p className="cds--body-compact-01 fl-text-muted">
+                Every need gets a rule-based urgency score (need type, shelter occupancy, days since resupply). The
+                LLM may then adjust it by at most ±15 after reading the volunteer&apos;s notes, with a one-line reason.
+                If the LLM is unavailable or its output fails the checks, the rule score and a template reason are used.
+              </p>
             </div>
+            <Link to="/reports" className="cds--btn cds--btn--primary cds--btn--md">Start a workflow from Reports</Link>
           </div>
-          <button
-            onClick={fetchTriagePlans}
-            className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold hover:bg-rose-700 transition"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+        </Tile>
 
-      {/* LOADING STATE */}
-      {loading && (
-        <div className="bg-white p-8 rounded-xl border border-slate-200 animate-pulse space-y-4">
-          <div className="h-6 bg-slate-200 rounded w-1/3"></div>
-          <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-          <div className="h-20 bg-slate-100 rounded"></div>
-        </div>
-      )}
-
-      {/* EMPTY STATE */}
-      {!loading && !error && triagePlanRecords.length === 0 && (
-        <div className="bg-white p-12 text-center rounded-xl border border-slate-200 shadow-sm space-y-3">
-          <svg className="w-12 h-12 text-slate-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <h3 className="text-lg font-bold text-slate-800">No Triage Plans Generated Yet</h3>
-          <p className="text-sm text-slate-500 max-w-sm mx-auto">
-            Plans appear here once a workflow has been started from the Reports page.
-          </p>
-        </div>
-      )}
-
-      {/* MAIN TRIAGE PLAN VIEWER CONTENT */}
-      {!loading && !error && triagePlanRecords.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* History Sidebar */}
-          <div className="lg:col-span-1 bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-            <h3 className="font-bold text-slate-900 text-sm border-b pb-2">Generated Triage Runs</h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {triagePlanRecords.map((rec) => (
-                <div
-                  key={rec.id}
-                  onClick={() => setSelectedPlanRecord(rec)}
-                  className={`p-3 rounded-lg border text-xs cursor-pointer transition ${
-                    selectedPlanRecord?.id === rec.id
-                      ? 'bg-blue-50 border-blue-500 text-blue-900 font-semibold'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span>Run #{rec.id}</span>
-                    <span className="text-[10px] text-slate-400">
-                      {new Date(rec.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <p className="font-mono text-[10px] text-slate-400 truncate mt-1">
-                    ID: {rec.createdByAgentRunId ?? 'N/A'}
-                  </p>
-                </div>
-              ))}
-            </div>
+        {error && (
+          <div>
+            <InlineNotification kind="error" role="alert" title="Could not load triage plans" subtitle={error} lowContrast hideCloseButton />
+            <Button kind="tertiary" size="sm" onClick={() => void fetchTriagePlans()}>Retry</Button>
           </div>
+        )}
 
-          {/* Main Plan Display */}
-          <div className="lg:col-span-3 space-y-4">
-            <div className="bg-slate-900 text-white p-6 rounded-xl shadow border border-slate-800">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+        {loading && <Tile aria-busy="true" aria-label="Loading triage plans"><SkeletonText paragraph lineCount={4} /></Tile>}
+
+        {!loading && !error && triagePlanRecords.length === 0 && (
+          <Tile className="fl-empty">
+            <h3 className="cds--heading-03">No Triage Plans Generated Yet</h3>
+            <p className="cds--body-compact-01 fl-text-muted">Plans appear here once a workflow has been started from the Reports page.</p>
+          </Tile>
+        )}
+
+        {!loading && !error && triagePlanRecords.length > 0 && (
+          <div className="fl-split">
+            <Tile className="fl-split__side">
+              <TileGroup
+                legend="Generated Triage Runs"
+                name="triage-run"
+                valueSelected={String(selectedPlanRecord?.id ?? '')}
+                onChange={(value) => setSelectedPlanRecord(triagePlanRecords.find((r) => String(r.id) === String(value)) ?? null)}
+              >
+                {triagePlanRecords.map((rec) => (
+                  <RadioTile key={rec.id} id={`triage-run-${rec.id}`} value={String(rec.id)}>
+                    <span className="cds--label-01">Run #{rec.id} · {new Date(rec.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="fl-mono fl-text-muted fl-truncate">ID: {rec.createdByAgentRunId ?? 'N/A'}</span>
+                  </RadioTile>
+                ))}
+              </TileGroup>
+            </Tile>
+
+            <Stack gap={4}>
+              <Tile className="fl-plan-banner">
                 <div>
-                  <span className="text-xs text-blue-400 uppercase tracking-wider font-mono font-bold">
-                    Active Triage Plan Contract
-                  </span>
-                  <h3 className="text-xl font-bold mt-1">
-                    Workflow Run ID: <span className="font-mono text-blue-300">{parsedPlan?.workflowRunId ?? 'N/A'}</span>
+                  <span className="cds--label-01">Active Triage Plan Contract</span>
+                  <h3 className="cds--heading-03">
+                    Workflow Run ID: <span className="fl-mono">{parsedPlan?.workflowRunId ?? 'N/A'}</span>
                   </h3>
                 </div>
-                <span className="px-3 py-1 bg-blue-950 border border-blue-800 text-blue-300 text-xs font-mono rounded-lg">
+                <Tag type={parsedPlan?.scoringMethod === 'llm-adjusted' ? 'purple' : 'gray'}>
                   {parsedPlan?.scoringMethod === 'llm-adjusted' ? 'Scores: rules + LLM adjustment' : 'Scores: rule-based only'}
-                </span>
-              </div>
-            </div>
+                </Tag>
+              </Tile>
 
-            {/* Priority Items List */}
-            {parsedPlan?.priorityItems && parsedPlan.priorityItems.length > 0 ? (
-              <div className="space-y-4">
-                {parsedPlan.priorityItems.map((item, idx) => (
-                  <div
-                    key={`${item.reportId}-${idx}`}
-                    className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-3"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs">
-                          #{idx + 1}
-                        </span>
-                        <span className="font-bold text-slate-900 text-base">
-                          Shelter #{item.shelterId} &bull; Need: {item.needType}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xs text-slate-500 font-medium">Qty: {item.quantity}</span>
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${getUrgencyBadge(item.priorityScore)}`}>
-                          Priority Score: {item.priorityScore.toFixed(0)} / 100
-                        </span>
-                        {item.ruleScore != null && (
-                          <span className="text-xs text-slate-500">
-                            rule {item.ruleScore.toFixed(0)}
-                            {item.llmAdjustment != null && ` ${item.llmAdjustment >= 0 ? '+' : '−'} ${Math.abs(item.llmAdjustment)} LLM`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* AGENT REASONING / JUSTIFICATION BOX */}
-                    <div className="bg-slate-50 border-l-4 border-blue-600 p-3.5 rounded-r-lg">
-                      <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center space-x-1.5 mb-1">
-                        <svg className="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                        </svg>
-                        <span>{item.llmAdjustment != null ? 'LLM justification' : 'Rule-based justification'}</span>
-                      </h5>
-                      <p className="text-xs text-slate-700 leading-relaxed font-sans">{item.justification}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white p-8 text-center rounded-xl border border-slate-200">
-                <p className="text-sm text-slate-500">No priority items found in this plan.</p>
-              </div>
-            )}
+              {parsedPlan?.priorityItems && parsedPlan.priorityItems.length > 0 ? (
+                <ol className="fl-report-list" aria-label="Ranked needs">
+                  {parsedPlan.priorityItems.map((item, idx) => (
+                    <li key={`${item.reportId}-${idx}`}>
+                      <Tile className="fl-timeline__item">
+                        <div className="fl-tag-row">
+                          <strong>#{idx + 1}</strong>
+                          <span className="cds--heading-02">Shelter #{item.shelterId} · Need: {item.needType}</span>
+                          <span className="cds--label-01">Qty: {item.quantity}</span>
+                          <Tag type={urgencyTag(item.priorityScore)} size="sm">Priority Score: {item.priorityScore.toFixed(0)} / 100</Tag>
+                          {item.ruleScore != null && (
+                            <span className="cds--label-01">
+                              rule {item.ruleScore.toFixed(0)}
+                              {item.llmAdjustment != null && ` ${item.llmAdjustment >= 0 ? '+' : '−'} ${Math.abs(item.llmAdjustment)} LLM`}
+                            </span>
+                          )}
+                        </div>
+                        <div className="fl-reason">
+                          <span className="cds--label-01">{item.llmAdjustment != null ? 'LLM justification' : 'Rule-based justification'}</span>
+                          <p className="cds--body-compact-01">{item.justification}</p>
+                        </div>
+                      </Tile>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <Tile className="fl-empty"><p className="cds--body-compact-01">No priority items found in this plan.</p></Tile>
+              )}
+            </Stack>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </Stack>
+    </section>
   )
 }

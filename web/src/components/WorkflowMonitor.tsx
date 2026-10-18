@@ -1,11 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  Button,
+  ContentSwitcher,
+  InlineLoading,
+  InlineNotification,
+  ProgressBar,
+  Search,
+  Select,
+  SelectItem,
+  Stack,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tag,
+  Tile,
+  Toggle,
+} from '@carbon/react'
+import { Renew } from '@carbon/icons-react'
 import { useAppContext } from '../context/AppContext'
 import {
   WORKFLOW_STATES,
   listWorkflows,
   retryWorkflow,
-  stateBadgeClass,
+  stateTagType,
   stateLabel,
   type Page,
   type WorkflowRunSummary,
@@ -103,198 +126,137 @@ export function WorkflowMonitor() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Workflow runs</h1>
-          <p className="text-sm text-slate-500">
-            Start a run from the Reports page. Click a run to see its full execution trace.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <label className="flex items-center gap-2 text-slate-700">
-            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-            Auto-refresh
-          </label>
-          <span className="text-xs text-slate-500" aria-live="polite">
-            {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : ''}
-          </span>
-          <button
-            onClick={() => void load()}
-            disabled={loading}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
+    <section aria-labelledby="workflows-heading">
+      <Stack gap={5}>
+        <Tile>
+          <div className="inventory-dashboard__header">
+            <div>
+              <h1 id="workflows-heading" className="cds--heading-04">Workflow runs</h1>
+              <p className="cds--body-compact-01 fl-text-muted">
+                Start a run from the Reports page. Click a run to see its full execution trace.
+              </p>
+            </div>
+            <div className="fl-toolbar-inline">
+              <Toggle id="workflows-auto-refresh" size="sm" labelText="Auto-refresh" hideLabel={false}
+                labelA="Off" labelB="On" toggled={autoRefresh} onToggle={(on) => setAutoRefresh(on)} />
+              <span className="cds--helper-text-01" aria-live="polite">
+                {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : ''}
+              </span>
+              <Button kind="secondary" size="md" renderIcon={Renew} onClick={() => void load()} disabled={loading}>Refresh</Button>
+            </div>
+          </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div role="tablist" aria-label="Run views" className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5">
-          {(['all', 'failed'] as View[]).map((v) => (
-            <button
-              key={v}
-              role="tab"
-              aria-selected={view === v}
-              onClick={() => switchView(v)}
-              className={`px-3 py-1.5 text-sm rounded-md ${view === v ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'}`}
-            >
-              {v === 'all' ? 'All runs' : 'Failed runs'}
-            </button>
-          ))}
-        </div>
-        {view === 'all' && (
-          <label className="text-sm text-slate-700">
-            <span className="sr-only">Filter by stage</span>
-            <select
-              value={stateFilter}
-              onChange={(e) => {
-                setStateFilter(e.target.value)
-                setPage(1)
-              }}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5"
-            >
-              <option value="">All stages</option>
-              {WORKFLOW_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {stateLabel(s)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ContentSwitcher aria-label="Run views" selectedIndex={view === 'all' ? 0 : 1} size="md"
+            onChange={({ index }) => switchView(index === 0 ? 'all' : 'failed')}>
+            <Switch name="all" text="All runs" />
+            <Switch name="failed" text="Failed runs" />
+          </ContentSwitcher>
+
+          <div className="fl-filter-bar fl-filter-bar--spaced">
+            <Search size="md" labelText="Search objectives" placeholder="Search objectives…" value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)} closeButtonLabelText="Clear search" />
+            {view === 'all' && (
+              <Select id="workflows-stage" labelText="Filter by stage" value={stateFilter}
+                onChange={(e) => { setStateFilter(e.target.value); setPage(1) }}>
+                <SelectItem value="" text="All stages" />
+                {WORKFLOW_STATES.map((st) => <SelectItem key={st} value={st} text={stateLabel(st)} />)}
+              </Select>
+            )}
+          </div>
+        </Tile>
+
+        {notice && (
+          <InlineNotification kind={notice.kind === 'error' ? 'error' : 'success'} role={notice.kind === 'error' ? 'alert' : 'status'}
+            title={notice.text} lowContrast onCloseButtonClick={() => setNotice(null)} />
         )}
-        <label className="text-sm">
-          <span className="sr-only">Search objectives</span>
-          <input
-            type="search"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search objectives…"
-            className="w-56 rounded-md border border-slate-300 bg-white px-3 py-1.5"
-          />
-        </label>
-      </div>
 
-      {notice && (
-        <p
-          role={notice.kind === 'error' ? 'alert' : 'status'}
-          className={`rounded-md border px-3 py-2 text-sm ${
-            notice.kind === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'
-          }`}
-        >
-          {notice.text}
-        </p>
-      )}
-
-      <section className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
         {loading && !data ? (
-          <p className="p-5 text-sm text-slate-500">Loading workflow runs…</p>
+          <InlineLoading description="Loading workflow runs…" />
         ) : error && !data ? (
-          <div role="alert" className="p-5 text-sm text-rose-700">
-            {error}{' '}
-            <button className="underline" onClick={() => void load()}>
-              Try again
-            </button>
+          <div role="alert" className="fl-error-block">
+            <InlineNotification kind="error" title="Workflow runs could not be loaded" subtitle={error} lowContrast hideCloseButton />
+            <Button kind="tertiary" size="sm" onClick={() => void load()}>Try again</Button>
           </div>
         ) : !data || data.items.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">
-            {view === 'failed' ? 'No failed runs.' : search || stateFilter ? 'No runs match these filters.' : 'No workflow runs yet.'}
-          </p>
+          <Tile className="fl-empty">
+            <p className="cds--body-compact-01">
+              {view === 'failed' ? 'No failed runs.' : search || stateFilter ? 'No runs match these filters.' : 'No workflow runs yet.'}
+            </p>
+          </Tile>
         ) : (
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-slate-600">
-              <tr>
-                <th className="px-4 py-2 font-medium">Objective</th>
-                <th className="px-4 py-2 font-medium">Stage</th>
-                <th className="px-4 py-2 font-medium w-40">Progress</th>
-                <th className="px-4 py-2 font-medium">Reports</th>
-                <th className="px-4 py-2 font-medium">Retries</th>
-                <th className="px-4 py-2 font-medium">Updated</th>
-                {view === 'failed' && <th className="px-4 py-2 font-medium">Action</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {data.items.map((run) => {
-                const canRetry = run.currentState === 'Failed' && run.retryCount < run.retryLimit
-                return (
-                  <tr key={run.id} className="align-top">
-                    <td className="px-4 py-2">
-                      <Link to={`/workflows/${run.id}`} className="font-medium text-blue-700 hover:underline">
-                        {run.objective}
-                      </Link>
-                      <span className="block font-mono text-xs text-slate-400">{run.id.slice(0, 8)}</span>
-                    </td>
-                    <td className="px-4 py-2">
-                      <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${stateBadgeClass(run.currentState)}`}>
-                        {stateLabel(run.currentState)}
-                      </span>
-                      {run.failureReason && (
-                        <span className="mt-1 block max-w-xs text-xs text-rose-700">
-                          {run.failedAtState && <strong>{run.failedAtState}: </strong>}
-                          {run.failureReason}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      <div
-                        role="progressbar"
-                        aria-valuenow={run.progressPercent}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label={`Progress of ${run.objective}`}
-                        className="h-2 w-full rounded-full bg-slate-200"
-                      >
-                        <div
-                          className={`h-2 rounded-full ${run.currentState === 'Failed' || run.currentState === 'Rejected' ? 'bg-rose-500' : 'bg-blue-600'}`}
-                          style={{ width: `${run.progressPercent}%` }}
+          <TableContainer title={view === 'failed' ? 'Failed runs' : 'All runs'}>
+            <Table aria-label="Workflow runs">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Objective</TableHeader>
+                  <TableHeader>Stage</TableHeader>
+                  <TableHeader>Progress</TableHeader>
+                  <TableHeader>Reports</TableHeader>
+                  <TableHeader>Retries</TableHeader>
+                  <TableHeader>Updated</TableHeader>
+                  {view === 'failed' && <TableHeader>Action</TableHeader>}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {data.items.map((run) => {
+                  const canRetry = run.currentState === 'Failed' && run.retryCount < run.retryLimit
+                  return (
+                    <TableRow key={run.id}>
+                      <TableCell>
+                        <Link to={`/workflows/${run.id}`} className="cds--link">{run.objective}</Link>
+                        <span className="fl-mono fl-text-muted fl-truncate">{run.id.slice(0, 8)}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Tag type={stateTagType(run.currentState)} size="sm">{stateLabel(run.currentState)}</Tag>
+                        {run.failureReason && (
+                          <span className="fl-failure">
+                            {run.failedAtState && <strong>{run.failedAtState}: </strong>}
+                            {run.failureReason}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="fl-progress-cell">
+                        <ProgressBar
+                          label={`Progress of ${run.objective}`}
+                          hideLabel
+                          value={run.progressPercent}
+                          max={100}
+                          size="small"
+                          status={run.currentState === 'Failed' || run.currentState === 'Rejected' ? 'error' : 'active'}
+                          helperText={`${run.progressPercent}%`}
                         />
-                      </div>
-                      <span className="text-xs text-slate-500">{run.progressPercent}%</span>
-                    </td>
-                    <td className="px-4 py-2 text-slate-700">{run.reportCount}</td>
-                    <td className="px-4 py-2 text-slate-700">
-                      {run.retryCount} / {run.retryLimit}
-                    </td>
-                    <td className="px-4 py-2 text-slate-500">{new Date(run.updatedAt).toLocaleString()}</td>
-                    {view === 'failed' && (
-                      <td className="px-4 py-2">
-                        <button
-                          onClick={() => void retry(run)}
-                          disabled={!canRetry || retrying === run.id}
-                          title={canRetry ? `Re-run the ${run.failedAtState} stage` : 'Retry limit reached'}
-                          className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {retrying === run.id ? 'Retrying…' : canRetry ? 'Retry' : 'Limit reached'}
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </TableCell>
+                      <TableCell>{run.reportCount}</TableCell>
+                      <TableCell>{run.retryCount} / {run.retryLimit}</TableCell>
+                      <TableCell>{new Date(run.updatedAt).toLocaleString()}</TableCell>
+                      {view === 'failed' && (
+                        <TableCell>
+                          <Button size="sm" onClick={() => void retry(run)} disabled={!canRetry || retrying === run.id}
+                            title={canRetry ? `Re-run the ${run.failedAtState} stage` : 'Retry limit reached'}>
+                            {retrying === run.id ? 'Retrying…' : canRetry ? 'Retry' : 'Limit reached'}
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
         )}
-      </section>
 
-      {error && data && (
-        <p role="alert" className="text-xs text-rose-700">
-          Live refresh failed: {error}
-        </p>
-      )}
+        {error && data && (
+          <InlineNotification kind="warning" role="alert" title="Live refresh failed" subtitle={error} lowContrast hideCloseButton />
+        )}
 
-      {data && data.totalPages > 1 && (
-        <nav aria-label="Pagination" className="flex items-center gap-3 text-sm">
-          <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="underline disabled:opacity-40">
-            Previous
-          </button>
-          <span>
-            Page {data.page} of {data.totalPages} ({data.totalItems} runs)
-          </span>
-          <button disabled={page >= data.totalPages} onClick={() => setPage(page + 1)} className="underline disabled:opacity-40">
-            Next
-          </button>
-        </nav>
-      )}
-    </div>
+        {data && data.totalPages > 1 && (
+          <nav aria-label="Pagination" className="fl-pager">
+            <Button kind="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+            <span className="cds--body-compact-01">Page {data.page} of {data.totalPages} ({data.totalItems} runs)</span>
+            <Button kind="secondary" size="sm" disabled={page >= data.totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+          </nav>
+        )}
+      </Stack>
+    </section>
   )
 }

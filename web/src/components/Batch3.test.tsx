@@ -127,7 +127,7 @@ describe('Approval queue stock check', () => {
   it('warns about a shortfall the depot reported', async () => {
     queueWith({ reservedLines: 1, confirmedLines: 1, shortfalls: [{ depotName: 'Colombo Central Depot', itemName: 'Water', reserved: 40, counted: 25, note: 'Damaged' }] })
     renderAs('Coordinator', <ApprovalQueue />)
-    const badge = await screen.findByText('Shortfall reported by depot')
-    expect(badge).toHaveAttribute('title', 'Colombo Central Depot: 25 of 40 Water on the shelf (Damaged)')
+    expect(await screen.findByText('Shortfall reported by depot')).toBeInTheDocument()
+    expect(screen.getByText('Colombo Central Depot: 25 of 40 Water on the shelf (Damaged)')).toBeVisible()
   })
 })

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Button, Form, InlineNotification, PasswordInput, Stack, TextInput, Tile } from '@carbon/react'
 import { LoginError, useAuth } from '../context/AuthContext'
 import { homePathFor } from '../routes'
 
@@ -46,71 +47,53 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <form
-        onSubmit={(e) => void onSubmit(e)}
-        noValidate
-        aria-labelledby="login-heading"
-        className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4"
-      >
-        <div>
-          <h1 id="login-heading" className="text-xl font-bold text-slate-900">Sign in</h1>
-          <p className="text-sm text-slate-500 mt-1">Coordinators, depot managers and administrators.</p>
-        </div>
+    <div className="fl-login">
+      <Tile className="fl-login__tile">
+        <Form onSubmit={(e) => void onSubmit(e)} noValidate aria-labelledby="login-heading">
+          <Stack gap={6}>
+            <div>
+              <h1 id="login-heading" className="cds--heading-05">Sign in</h1>
+              <p className="cds--body-compact-01 fl-text-muted">Coordinators, depot managers and administrators.</p>
+            </div>
 
-        {error && (
-          <div role="alert" className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800">
-            {error}
-          </div>
-        )}
+            {error && (
+              <InlineNotification kind="error" role="alert" title="Sign-in failed" subtitle={error} lowContrast hideCloseButton />
+            )}
 
-        <div>
-          <label htmlFor="login-email" className="block text-sm font-medium text-slate-700">Email</label>
-          <input
-            id="login-email"
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            aria-invalid={Boolean(fieldErrors.email)}
-            aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {fieldErrors.email && (
-            <p id="login-email-error" className="mt-1 text-xs text-red-700">{fieldErrors.email}</p>
-          )}
-        </div>
+            <TextInput
+              id="login-email"
+              type="email"
+              labelText="Email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              invalid={Boolean(fieldErrors.email)}
+              invalidText={fieldErrors.email}
+            />
 
-        <div>
-          <label htmlFor="login-password" className="block text-sm font-medium text-slate-700">Password</label>
-          <input
-            id="login-password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            aria-invalid={Boolean(fieldErrors.password)}
-            aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {fieldErrors.password && (
-            <p id="login-password-error" className="mt-1 text-xs text-red-700">{fieldErrors.password}</p>
-          )}
-        </div>
+            <PasswordInput
+              id="login-password"
+              labelText="Password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              invalid={Boolean(fieldErrors.password)}
+              invalidText={fieldErrors.password}
+              showPasswordLabel="Show password"
+              hidePasswordLabel="Hide password"
+            />
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-        >
-          {submitting ? 'Signing in…' : 'Sign in'}
-        </button>
+            <Button type="submit" disabled={submitting} className="fl-login__submit">
+              {submitting ? 'Signing in…' : 'Sign in'}
+            </Button>
 
-        <p className="text-xs text-slate-500 text-center">
-          No account? Staff accounts are created by an administrator. Field volunteers sign up in the
-          FloodLink mobile app.
-        </p>
-      </form>
+            <p className="cds--helper-text-01">
+              No account? Staff accounts are created by an administrator. Field volunteers sign up in the
+              FloodLink mobile app.
+            </p>
+          </Stack>
+        </Form>
+      </Tile>
     </div>
   )
 }

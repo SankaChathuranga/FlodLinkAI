@@ -83,7 +83,7 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByLabelText('Password'), 'wrong-password')
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Incorrect email or password.')
+    expect((await screen.findByText('Incorrect email or password.')).closest('[role="alert"]')).not.toBeNull()
   })
 
   it('refuses a Volunteer account with a pointer to the mobile app', async () => {
@@ -98,7 +98,7 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByLabelText('Password'), 'any-password')
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/mobile app/)
+    expect((await screen.findByText(/mobile app/, { selector: '.cds--inline-notification__subtitle' })).closest('[role="alert"]')).not.toBeNull()
     expect(sessionStorage.length).toBe(0)
   })
 

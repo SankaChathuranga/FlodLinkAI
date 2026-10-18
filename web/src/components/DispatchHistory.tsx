@@ -1,5 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
+import {
+  Button,
+  InlineLoading,
+  InlineNotification,
+  Select,
+  SelectItem,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Tag,
+  TextInput,
+  Tile,
+} from '@carbon/react'
 import { useAppContext } from '../context/AppContext'
+import { stateTagType } from '../api/workflows'
 import { getAuditTrail, listDispatches } from '../api/client'
 import { describeApiError } from '../lib/apiError'
 import type { AuditEvent, DispatchListResponse } from '../api/types'
@@ -67,71 +86,51 @@ function DispatchHistory() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
 
   return (
-    <div>
-      <h1 className="fl-section-title">Dispatch History</h1>
-      <p className="fl-section-desc">All coordinator decisions with full audit trail.</p>
-
-      {error && (
-        <div className="fl-notification fl-notification-error" style={{ marginBottom: '1rem' }}>
-          {error}
+    <section aria-labelledby="dispatches-heading">
+      <Stack gap={5}>
+        <div>
+          <h1 id="dispatches-heading" className="cds--heading-04">Dispatch History</h1>
+          <p className="cds--body-compact-01 fl-text-muted">All coordinator decisions with full audit trail.</p>
         </div>
-      )}
 
-      {/* Filter bar */}
-      <div className="fl-card" style={{ padding: '0.875rem 1rem', marginBottom: '1rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end' }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          Decision
-          <select
-            value={draft.status}
-            onChange={(e) => setDraft({ ...draft, status: e.target.value })}
-            className="fl-input"
-            style={{ width: '10rem' }}
-          >
-            <option value="">All</option>
-            {DECISIONS.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </label>
+        {error && <InlineNotification kind="error" role="alert" title={error} lowContrast hideCloseButton />}
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          From
-          <input type="date" value={draft.dateFrom} onChange={(e) => setDraft({ ...draft, dateFrom: e.target.value })} className="fl-input" style={{ width: '10rem' }} />
-        </label>
+        <Tile>
+          <form className="fl-filter-bar" aria-label="Filter decisions" onSubmit={(e) => { e.preventDefault(); applyFilters() }}>
+            <Select id="dispatch-decision" labelText="Decision" value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>
+              <SelectItem value="" text="All" />
+              {DECISIONS.map((d) => <SelectItem key={d} value={d} text={d} />)}
+            </Select>
+            <TextInput id="dispatch-from" type="date" labelText="From" value={draft.dateFrom}
+              onChange={(e) => setDraft({ ...draft, dateFrom: e.target.value })} />
+            <TextInput id="dispatch-to" type="date" labelText="To" value={draft.dateTo}
+              onChange={(e) => setDraft({ ...draft, dateTo: e.target.value })} />
+            <div className="fl-toolbar-inline">
+              <Button type="submit" size="md">Apply</Button>
+              <Button type="button" kind="secondary" size="md" onClick={resetFilters}>Reset</Button>
+            </div>
+          </form>
+        </Tile>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          To
-          <input type="date" value={draft.dateTo} onChange={(e) => setDraft({ ...draft, dateTo: e.target.value })} className="fl-input" style={{ width: '10rem' }} />
-        </label>
-
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button type="button" onClick={applyFilters} className="fl-btn-primary">Apply</button>
-          <button type="button" onClick={resetFilters} className="fl-btn-secondary">Reset</button>
-        </div>
-      </div>
-
-      {loading ? (
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Loading history…</p>
-      ) : !data || data.items.length === 0 ? (
-        <div className="fl-card" style={{ padding: '2rem', textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-          No dispatch decisions match the current filters.
-        </div>
-      ) : (
-        <>
-          <div className="fl-card" style={{ overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="fl-table">
-                <thead>
-                  <tr>
-                    <th>Decision</th>
-                    <th>Workflow run</th>
-                    <th>Notes / reason</th>
-                    <th>Dispatched at</th>
-                    <th>Created at</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
+        {loading ? (
+          <InlineLoading description="Loading history…" />
+        ) : !data || data.items.length === 0 ? (
+          <Tile className="fl-empty"><p className="cds--body-compact-01">No dispatch decisions match the current filters.</p></Tile>
+        ) : (
+          <>
+            <TableContainer title="Decisions">
+              <Table aria-label="Dispatch decisions">
+                <TableHead>
+                  <TableRow>
+                    <TableHeader>Decision</TableHeader>
+                    <TableHeader>Workflow run</TableHeader>
+                    <TableHeader>Notes / reason</TableHeader>
+                    <TableHeader>Dispatched at</TableHeader>
+                    <TableHeader>Created at</TableHeader>
+                    <TableHeader><span className="sr-only">Audit</span></TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
                   {data.items.map((item) => (
                     <AuditRow
                       key={item.id}
@@ -146,26 +145,21 @@ function DispatchHistory() {
                       onToggle={() => void toggleAudit(item.id)}
                     />
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                </TableBody>
+              </Table>
+            </TableContainer>
 
-          {/* Pagination */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-            <span>Page {data.page} of {totalPages} · {data.total} total</span>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} className="fl-btn-secondary">
-                Previous
-              </button>
-              <button type="button" disabled={page >= totalPages} onClick={() => setPage(page + 1)} className="fl-btn-secondary">
-                Next
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+            <nav aria-label="Dispatch pages" className="fl-pager">
+              <span className="cds--body-compact-01">Page {data.page} of {totalPages} · {data.total} total</span>
+              <div>
+                <Button kind="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button>
+                <Button kind="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
+              </div>
+            </nav>
+          </>
+        )}
+      </Stack>
+    </section>
   )
 }
 
@@ -176,27 +170,28 @@ function AuditRow({
   dispatchedAt: string | null; createdAt: string; expanded: boolean
   events: AuditEvent[] | undefined; onToggle: () => void
 }) {
+  const panelId = `audit-${dispatchId}`
   return (
     <>
-      <tr>
-        <td><DecisionBadge decision={decision} /></td>
+      <TableRow>
+        <TableCell><DecisionBadge decision={decision} /></TableCell>
         {/* Monospace for IDs per spec: reserved for IDs and coordinates */}
-        <td className="fl-mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{workflowRunId}</td>
-        <td style={{ maxWidth: '16rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{notes ?? '–'}</td>
-        <td style={{ color: 'var(--text-muted)' }}>{dispatchedAt ? new Date(dispatchedAt).toLocaleString() : '–'}</td>
-        <td style={{ color: 'var(--text-muted)' }}>{new Date(createdAt).toLocaleString()}</td>
-        <td style={{ textAlign: 'right' }}>
-          <button type="button" onClick={onToggle} className="fl-btn-ghost">
+        <TableCell className="fl-mono fl-id-cell">{workflowRunId}</TableCell>
+        <TableCell className="fl-notes-cell">{notes ?? '–'}</TableCell>
+        <TableCell>{dispatchedAt ? new Date(dispatchedAt).toLocaleString() : '–'}</TableCell>
+        <TableCell>{new Date(createdAt).toLocaleString()}</TableCell>
+        <TableCell>
+          <Button kind="ghost" size="sm" onClick={onToggle} aria-expanded={expanded} aria-controls={panelId}>
             {expanded ? 'Hide audit' : 'Audit'}
-          </button>
-        </td>
-      </tr>
+          </Button>
+        </TableCell>
+      </TableRow>
       {expanded && (
-        <tr>
-          <td colSpan={6} style={{ backgroundColor: 'var(--bg-base)', padding: '1rem' }}>
+        <TableRow id={panelId}>
+          <TableCell colSpan={6} className="fl-audit-cell">
             <AuditTimeline events={events} dispatchId={dispatchId} />
-          </td>
-        </tr>
+          </TableCell>
+        </TableRow>
       )}
     </>
   )
@@ -204,47 +199,33 @@ function AuditRow({
 
 function AuditTimeline({ events, dispatchId }: { events: AuditEvent[] | undefined; dispatchId: string }) {
   if (!events) {
-    return <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Loading audit trail…</p>
+    return <InlineLoading description="Loading audit trail…" />
   }
   if (events.length === 0) {
-    return <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No audit events recorded for dispatch {dispatchId}.</p>
+    return <p className="cds--helper-text-01">No audit events recorded for dispatch {dispatchId}.</p>
   }
   return (
-    <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+    <ol className="fl-timeline" aria-label={`Audit trail of dispatch ${dispatchId}`}>
       {events.map((event) => (
-        <li key={event.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', fontSize: '0.875rem' }}>
-          <span className="fl-timeline-dot" />
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontWeight: 500, color: 'var(--text-primary)', margin: '0 0 0.125rem' }}>{event.eventType}</p>
-            {event.eventDetailJson && (
-              /* Monospace for raw JSON values per spec */
-              <pre className="fl-mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '4px', padding: '0.375rem 0.5rem', marginTop: '0.25rem', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
-                {formatDetail(event.eventDetailJson)}
-              </pre>
-            )}
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              {new Date(event.createdAt).toLocaleString()}
-              {event.actorId ? ` · actor ${event.actorId}` : ''}
-            </p>
-          </div>
+        <li key={event.id} className="fl-stack-sm">
+          <strong>{event.eventType}</strong>
+          {event.eventDetailJson && (
+            /* Monospace for raw JSON values per spec */
+            <pre className="fl-mono fl-json">{formatDetail(event.eventDetailJson)}</pre>
+          )}
+          <span className="cds--helper-text-01">
+            {new Date(event.createdAt).toLocaleString()}
+            {event.actorId ? ` · actor ${event.actorId}` : ''}
+          </span>
         </li>
       ))}
-    </ul>
+    </ol>
   )
 }
 
-/** Status badge – exact WorkflowState → color mapping from ui-context.md */
+/** Decision tag – WorkflowState → colour mapping shared with the rest of the portal. */
 function DecisionBadge({ decision }: { decision: string }) {
-  const cls: Record<string, string> = {
-    Approved: 'fl-badge-success',
-    Rejected: 'fl-badge-error',
-    RevisionRequested: 'fl-badge-warning',
-  }
-  return (
-    <span className={`fl-badge ${cls[decision] ?? 'fl-badge-neutral'}`}>
-      {decision}
-    </span>
-  )
+  return <Tag type={stateTagType(decision)} size="sm">{decision}</Tag>
 }
 
 function formatDetail(json: string): string {

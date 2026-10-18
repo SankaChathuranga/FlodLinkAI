@@ -15,3 +15,20 @@ if (!('ResizeObserver' in globalThis)) {
     disconnect() {}
   }
 }
+
+// jsdom has no matchMedia; Carbon components (e.g. Tabs) read it for breakpoints. Report "no match".
+if (typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  })
+}
