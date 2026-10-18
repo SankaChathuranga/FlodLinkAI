@@ -268,3 +268,5 @@ change.
   `start_floodlink.sh` now uses `docker compose` (falls back to `docker-compose`) and has the shebang on line 1.
 
 - Shelters map: `ShelterMap` now renders a real Mapbox GL map (outdoors-v12, colored occupancy pins, popups, auto-fit) when `VITE_MAPBOX_TOKEN` is set in `web/.env`; otherwise it falls back to the old simulated grid map. Added `mapbox-gl` dependency.
+
+- 2026-10-18 Shelters: Coordinators (and Admins) can add and edit shelters from the web Shelters dashboard (`ShelterFormModal`, `api/shelters.ts`) using the existing `POST/PUT /api/shelters`. The contact volunteer is kept as-is on edit; there is no picker yet.

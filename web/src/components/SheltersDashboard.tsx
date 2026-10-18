@@ -1,15 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppContext } from '../context/AppContext'
 import { Button, InlineNotification, ProgressBar, Search, Select, SelectItem, SkeletonText, Stack, Tag, Tile } from '@carbon/react'
-import { Renew, Time } from '@carbon/icons-react'
+import { Add, Edit, Renew, Time } from '@carbon/icons-react'
 import { apiFetch } from '../api/http'
+import { useAuth } from '../context/AuthContext'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
 import { ShelterMap } from './ShelterMap'
 import { ShelterDetailModal } from './ShelterDetailModal'
+import { ShelterFormModal } from './ShelterFormModal'
 import type { Shelter, PaginatedResult } from '../types'
 
 export function SheltersDashboard() {
   const { apiBaseUrl } = useAppContext()
+  const canEdit = useAuth().hasRole('Coordinator')
+  // undefined = form closed, null = adding, Shelter = editing
+  const [formShelter, setFormShelter] = useState<Shelter | null | undefined>(undefined)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const [shelters, setShelters] = useState<Shelter[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -63,8 +69,12 @@ export function SheltersDashboard() {
               <h2 id="shelters-heading" className="cds--heading-04">Shelters Overview Dashboard</h2>
               <p className="cds--body-compact-01 fl-text-muted">Monitor shelter occupancy, location coordinates, and volunteer contact details.</p>
             </div>
-            <Button kind="secondary" renderIcon={Renew} onClick={() => void fetchShelters()} disabled={loading}>Refresh</Button>
+            <div className="inventory-dashboard__actions">
+              <Button kind="secondary" renderIcon={Renew} onClick={() => void fetchShelters()} disabled={loading}>Refresh</Button>
+              {canEdit && <Button renderIcon={Add} onClick={() => { setNotice(null); setFormShelter(null) }}>Add shelter</Button>}
+            </div>
           </div>
+          {notice && <InlineNotification kind="success" title={notice} lowContrast onCloseButtonClick={() => setNotice(null)} />}
           <div className="fl-filter-bar">
             <Search size="md" labelText="Search shelters" placeholder="Search shelter name..." value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setPage(1) }} closeButtonLabelText="Clear search" />
@@ -144,6 +154,12 @@ export function SheltersDashboard() {
                           <Button kind="tertiary" size="sm" renderIcon={Time} onClick={() => setDetailShelterId(shelter.id)}>
                             Report History
                           </Button>
+                          {canEdit && (
+                            <Button kind="ghost" size="sm" renderIcon={Edit} aria-label={`Edit ${shelter.name}`}
+                              onClick={() => { setNotice(null); setFormShelter(shelter) }}>
+                              Edit
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </Tile>
@@ -163,6 +179,15 @@ export function SheltersDashboard() {
         )}
 
         <ShelterDetailModal shelterId={detailShelterId} onClose={() => setDetailShelterId(null)} />
+        <ShelterFormModal
+          shelter={formShelter}
+          onClose={() => setFormShelter(undefined)}
+          onSaved={(name, created) => {
+            setFormShelter(undefined)
+            setNotice(created ? `Shelter “${name}” added.` : `Shelter “${name}” saved.`)
+            void fetchShelters()
+          }}
+        />
       </Stack>
     </section>
   )
