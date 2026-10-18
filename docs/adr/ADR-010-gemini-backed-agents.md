@@ -72,3 +72,14 @@ rule-based.
   slow model can add up to about a minute to a run, which the background runner absorbs.
 - The safety guarantees do not depend on the model: stock changes still happen only through the
   stock service after validation and coordinator approval.
+
+## Addendum (18 Oct 2026) — validation explanation (8.15)
+
+`ValidationExplainer` (`validation-explainer.v1`) now writes a plain-language explanation of the safety
+checks on request (`POST /api/validations/{runId}/explain`). It follows the same rules as the agents:
+check names and violation details go to the model as fenced data; its text is accepted only if it explains
+exactly the checks it was given within the length limits, otherwise a template built from the rule results
+is shown. Each check's pass/fail and the overall verdict are copied from the rules, never from the model,
+and the explanation can't approve or block anything. The call is logged as a `ValidationExplainer` step and
+the result is cached in the plan under `validationExplanation`.
+

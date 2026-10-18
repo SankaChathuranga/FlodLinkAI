@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AppProvider } from '../context/AppContext'
 import { AuthProvider } from '../context/AuthContext'
 import { saveSession, type Role } from '../auth/session'
 import { DepotsPage } from './DepotsPage'
 import { AllocationsPage } from './AllocationsPage'
 import Analytics from './Analytics'
+import { WorkflowTrace } from './WorkflowTrace'
 
 // WEB-P8: depot management (8.01), allocation proposals review (8.02), analytics per shelter (8.17).
 
@@ -175,5 +176,94 @@ describe('Analytics', () => {
     const table = screen.getByRole('table', { name: 'Decisions per shelter' })
     const row = within(table).getByText('Central Colombo Relief Center').closest('tr')!
     expect(within(row).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Central Colombo Relief Center', '2', '1', '0'])
+  })
+})
+
+// 8.10 route map, 8.15 validation explanation and 8.16 delivery photo in the execution trace.
+describe('WorkflowTrace additions', () => {
+  const RUN = '741984fa-7614-4107-9871-1f77126cdc5d'
+  const PLAN = JSON.stringify({
+    route: { DistanceKm: 6.5, EtaMinutes: 15, Legs: [{ DepotId: 2, ShelterId: 2, DistanceKm: 6.5, EtaMinutes: 15, Polyline: '_p~iF~ps|U_ulLnnqC' }] },
+    validationResults: { OverallPassed: false, Checks: [{ CheckName: 'StockAvailability', Passed: false, ViolationDetail: 'Requested 60 exceeds 40.' }] },
+  })
+  const EXPLANATION = {
+    source: 'llm', summary: 'Blocked: depot 2 has only 40 kits free.', overallPassed: false, generatedAt: '2026-10-18T00:00:00Z',
+    points: [{ checkName: 'StockAvailability', passed: false, explanation: 'Restock or use another depot.' }],
+  }
+
+  const traceApi = (opts: { explain?: { status: number; body: unknown }; delivered?: boolean } = {}) =>
+    mockApi((url, init) => {
+      const path = url.pathname
+      if (path === `/api/validations/${RUN}/explain` && init?.method === 'POST') return opts.explain ?? { status: 200, body: EXPLANATION }
+      if (path === '/api/routes') {
+        return { status: 200, body: [{ id: 'r1', depotId: 2, depotName: 'Kaduwela Supply Depot', shelterId: 2, shelterName: 'Kaduwela Community Hall', distanceKm: 6.5, etaMinutes: 15, polyline: '_p~iF~ps|U_ulLnnqC' }] }
+      }
+      if (path.endsWith('/logs')) return { status: 200, body: [] }
+      if (path.includes('/by-workflow/')) {
+        return {
+          status: 200,
+          body: {
+            workflowRunId: RUN, state: 'Approved', dispatchId: opts.delivered ? 'd1' : null, decision: opts.delivered ? 'Approved' : null,
+            isDelivered: !!opts.delivered, deliveredAt: opts.delivered ? '2026-10-18T08:00:00Z' : null,
+            decisions: opts.delivered ? [{ dispatchId: 'd1', decision: 'Approved', notes: null, decidedById: 2, decidedBy: 'Jane Smith', decidedAt: '2026-10-18T06:00:00Z', dispatchedAt: null }] : [],
+          },
+        }
+      }
+      if (path.startsWith('/api/audit/')) {
+        return { status: 200, body: { dispatchId: 'd1', decision: 'Approved', events: [
+          { id: 'e1', eventType: 'DeliveryConfirmed', eventDetailJson: JSON.stringify({ photoReference: '/uploads/deliveries/abc.jpg' }), actorId: '1', createdAt: '2026-10-18T08:00:00Z' },
+        ] } }
+      }
+      return { status: 200, body: { id: RUN, objective: 'Insulin for Kaduwela', currentState: 'Approved', failedAtState: null, failureReason: null, reportIds: [1], retryCount: 0, createdAt: '2026-10-18T05:00:00Z', updatedAt: '2026-10-18T06:00:00Z', planJson: PLAN } }
+    })
+
+  // The trace reads the run id from the URL, so mount it at the run's route.
+  const renderTraceAt = () => {
+    saveSession({ token: 'token-Coordinator', expiresAt: new Date(Date.now() + 3_600_000).toISOString(), user: { id: 2, name: 'Jane', email: 'c@floodlink.lk', role: 'Coordinator', phone: '+94770000000', createdAt: '' } })
+    return render(
+      <AppProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={[`/workflows/${RUN}`]}>
+            <Routes><Route path="/workflows/:id" element={<WorkflowTrace />} /></Routes>
+          </MemoryRouter>
+        </AuthProvider>
+      </AppProvider>,
+    )
+  }
+  it('draws the route legs and names depot and shelter', async () => {
+    traceApi()
+    renderTraceAt()
+
+    expect(await screen.findByRole('img', { name: 'Route map with 1 leg' })).toBeInTheDocument()
+    expect(screen.getAllByTestId('route-leg')).toHaveLength(1)
+    expect(screen.getByRole('list', { name: 'Map legend' })).toHaveTextContent('Kaduwela Supply Depot → Kaduwela Community Hall')
+  })
+
+  it('explains the safety checks on request, keeping the rule verdict', async () => {
+    traceApi()
+    renderTraceAt()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Explain these results' }))
+
+    expect(await screen.findByText('Blocked: depot 2 has only 40 kits free.')).toBeInTheDocument()
+    expect(screen.getByText(/Explanation written by the LLM/)).toBeInTheDocument()
+    expect(screen.getByText(/display only/)).toBeInTheDocument()
+  })
+
+  it('shows why an explanation could not be loaded', async () => {
+    traceApi({ explain: { status: 409, body: { error: 'NOT_VALIDATED', message: 'The safety checks have not run.' } } })
+    renderTraceAt()
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Explain these results' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The safety checks have not run.')
+  })
+
+  it('shows the delivery photo recorded with the confirmation', async () => {
+    traceApi({ delivered: true })
+    renderTraceAt()
+
+    const photo = await screen.findByRole('img', { name: 'Delivery photo' })
+    expect(photo).toHaveAttribute('src', 'http://localhost:5000/uploads/deliveries/abc.jpg')
   })
 })

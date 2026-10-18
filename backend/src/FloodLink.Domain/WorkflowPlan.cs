@@ -15,6 +15,7 @@ public static class WorkflowPlan
     public const string RouteKey = "route";
     public const string ValidationResultsKey = "validationResults";
     public const string RevisionKey = "revision";
+    public const string ValidationExplanationKey = "validationExplanation";
 
     /// <summary>Returns <paramref name="planJson"/> with <paramref name="key"/> set to <paramref name="value"/>.</summary>
     public static string Merge<T>(string? planJson, string key, T value)

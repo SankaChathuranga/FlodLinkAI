@@ -23,12 +23,16 @@ import 'screens/field_home_screen.dart';
 import 'screens/low_stock_screen.dart';
 import 'screens/shelter_status_screen.dart';
 import 'state/app_state.dart';
+import 'notifications/status_notifier.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final auth = AuthProvider(baseUrl: kApiBaseUrl, store: SecureTokenStore());
   final api = ApiClient(baseUrl: kApiBaseUrl, auth: auth);
-  runApp(FloodLinkProviders(auth: auth, api: api, child: const FloodLinkApp()));
+  final notifier = LocalStatusNotifier();
+  runApp(FloodLinkProviders(auth: auth, api: api, notifier: notifier, child: const FloodLinkApp()));
+  // Ask for notification permission and set up the channel without delaying the first frame.
+  await notifier.init();
   // Restores a saved session; until it finishes the router shows the splash screen.
   await auth.restore();
 }
@@ -36,10 +40,17 @@ Future<void> main() async {
 /// The app's provider tree. Every provider reaches the API through the one [ApiClient],
 /// which adds the signed-in user's token. Tests build the same tree with fakes.
 class FloodLinkProviders extends StatelessWidget {
-  const FloodLinkProviders({super.key, required this.auth, required this.api, required this.child});
+  const FloodLinkProviders({
+    super.key,
+    required this.auth,
+    required this.api,
+    required this.child,
+    this.notifier = const SilentStatusNotifier(),
+  });
 
   final AuthProvider auth;
   final ApiClient api;
+  final StatusNotifier notifier;
   final Widget child;
 
   @override
@@ -48,6 +59,7 @@ class FloodLinkProviders extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: auth),
         Provider<ApiClient>.value(value: api),
+        Provider<StatusNotifier>.value(value: notifier),
         ChangeNotifierProvider(create: (_) => AppState()),
         ChangeNotifierProvider(create: (_) => ReportProvider(api)),
         ChangeNotifierProvider(create: (_) => InventoryProvider(api)),

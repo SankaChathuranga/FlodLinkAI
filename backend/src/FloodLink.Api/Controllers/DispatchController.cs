@@ -43,11 +43,13 @@ public sealed class DispatchController : ControllerBase
 
     private readonly AppDbContext _db;
     private readonly DispatchService _dispatches;
+    private readonly IPhotoStorageService _photos;
 
-    public DispatchController(AppDbContext db, DispatchService dispatches)
+    public DispatchController(AppDbContext db, DispatchService dispatches, IPhotoStorageService photos)
     {
         _db = db;
         _dispatches = dispatches;
+        _photos = photos;
     }
 
     /// <summary>Approves a validated plan: commits its reserved stock, records the dispatch and audit entry.</summary>
@@ -186,6 +188,38 @@ public sealed class DispatchController : ControllerBase
             return Error(outcome);
 
         return Ok(new { workflowRunId, state = WorkflowState.Approved, isDelivered = true, notes = request?.Notes });
+    }
+
+    /// <summary>
+    /// POST /api/dispatches/{workflowRunId}/delivery-photo — uploads a photo proving delivery (form field
+    /// <c>photo</c>; JPEG, PNG or WebP up to 10 MB) and returns its URL. Send that URL as
+    /// <c>photoReference</c> to confirm-delivery. Only for an Approved run, by whoever may confirm it.
+    /// </summary>
+    [HttpPost("{workflowRunId:guid}/delivery-photo")]
+    [RequestSizeLimit(PhotoStorageService.MaxBytes + 64 * 1024)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UploadDeliveryPhotoAsync(Guid workflowRunId, IFormFile? photo, CancellationToken ct)
+    {
+        var denied = await CheckRunAccessAsync(workflowRunId, ct);
+        if (denied is not null)
+            return denied;
+
+        var state = await _db.WorkflowRuns.AsNoTracking()
+            .Where(r => r.Id == workflowRunId)
+            .Select(r => (WorkflowState?)r.CurrentState)
+            .FirstOrDefaultAsync(ct);
+        if (state is null)
+            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
+        if (state != WorkflowState.Approved)
+            return Conflict(new { error = "INVALID_STATE", message = $"A delivery photo needs an Approved run; current state is {state}." });
+        if (photo is null || photo.Length == 0)
+            return BadRequest(new { error = "PHOTO_REQUIRED", message = "Attach the photo as the form field 'photo'." });
+
+        var url = await _photos.SavePhotoAsync(photo, PhotoStorageService.DeliveriesFolder);
+        return Created(url, new { workflowRunId, photoUrl = url });
     }
 
     /// <summary>

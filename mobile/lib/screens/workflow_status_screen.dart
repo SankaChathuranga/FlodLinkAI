@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../api/api_client.dart';
 import '../api/dispatch_api.dart' show ApiException;
 import '../api/workflow_api.dart';
+import '../notifications/status_notifier.dart';
+import 'route_map_screen.dart';
 import '../main.dart' show FloodLinkColors;
 import 'delivery_confirmation_screen.dart';
 
@@ -19,6 +21,7 @@ class WorkflowStatusScreen extends StatefulWidget {
     required this.workflowRunId,
     this.pollInterval = const Duration(seconds: 5),
     this.api,
+    this.notifier,
   });
 
   final String workflowRunId;
@@ -27,12 +30,18 @@ class WorkflowStatusScreen extends StatefulWidget {
   /// Injected in tests; otherwise built from the app's [ApiClient].
   final WorkflowApi? api;
 
+  /// Told about stage changes (8.12); otherwise the app's [StatusNotifier], if any.
+  final StatusNotifier? notifier;
+
   @override
   State<WorkflowStatusScreen> createState() => _WorkflowStatusScreenState();
 }
 
 class _WorkflowStatusScreenState extends State<WorkflowStatusScreen> {
   late final WorkflowApi _api = widget.api ?? WorkflowApi(context.read<ApiClient>());
+  late final StatusNotifier _notifier = widget.notifier ??
+      Provider.of<StatusNotifier?>(context, listen: false) ??
+      const SilentStatusNotifier();
   Timer? _timer;
   WorkflowStatus? _status;
   String? _error;
@@ -55,6 +64,9 @@ class _WorkflowStatusScreenState extends State<WorkflowStatusScreen> {
   Future<void> _poll() async {
     try {
       final status = await _api.fetchStatus(widget.workflowRunId);
+      if (!mounted) return;
+      final change = statusChangeMessage(_status, status);
+      if (change != null) await _notifier.notify(change.title, change.body);
       if (!mounted) return;
       setState(() {
         _status = status;
@@ -292,6 +304,16 @@ class _DeliveryCard extends StatelessWidget {
             ),
             if (distance != null && !status.isDelivered)
               Text('${distance.toStringAsFixed(1)} km by road', style: const TextStyle(color: FloodLinkColors.textMuted)),
+            if (status.routeLegs.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('View route on map'),
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => RouteMapScreen(legs: status.routeLegs),
+                )),
+              ),
+            ],
             if (!status.isDelivered) ...[
               const SizedBox(height: 12),
               FilledButton.icon(

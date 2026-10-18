@@ -9,5 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="..\FloodLink.Contracts\FloodLink.Contracts.csproj" />
     <ProjectReference Include="..\FloodLink.Infrastructure\FloodLink.Infrastructure.csproj" />
+    <EmbeddedResource Include="Prompts\*.md" />
   </ItemGroup>
 </Project>

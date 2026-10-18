@@ -1,11 +1,16 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
+using FloodLink.Agents.Validation;
+using FloodLink.Contracts;
+using FloodLink.Domain;
 using FloodLink.Domain.Entities;
 using FloodLink.Domain.Enums;
 using FloodLink.Domain.Security;
 using FloodLink.Infrastructure;
 using FloodLink.Tests.AgentEvaluation;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -207,5 +212,162 @@ public sealed class Phase8ApiTests : IClassFixture<AgentSafetyApiTests.Factory>
         Assert.Equal(("Kamal Perera", "depot@floodlink.lk"), (only!["name"]!.GetValue<string>(), only["email"]!.GetValue<string>()));
         Assert.Null(only["hashedPassword"]);
         Assert.Equal(HttpStatusCode.Forbidden, (await _coordinator.GetAsync("/api/depots/managers")).StatusCode);
+    }
+
+    // ── 8.15 Validation explanation ───────────────────────────────────────────
+
+    private async Task<Guid> ValidatedRunAsync(bool passed)
+    {
+        var runId = Guid.NewGuid();
+        var results = new ValidationResults
+        {
+            WorkflowRunId = runId,
+            OverallPassed = passed,
+            Checks =
+            [
+                new() { CheckName = SafetyRules.StockAvailability, Passed = passed, ViolationDetail = passed ? null : "Requested 60 Medical exceeds free stock 40 at depot 2." },
+                new() { CheckName = SafetyRules.VehicleCapacity, Passed = true }
+            ]
+        };
+        await using var db = NewDb();
+        db.WorkflowRuns.Add(new WorkflowRun
+        {
+            Id = runId, Objective = "explain", CurrentState = passed ? WorkflowState.PendingApproval : WorkflowState.Failed,
+            PlanJson = WorkflowPlan.Merge(null, WorkflowPlan.ValidationResultsKey, results)
+        });
+        await db.SaveChangesAsync();
+        return runId;
+    }
+
+    [Fact]
+    public async Task Explain_UsesTheModelsWords_ButTheRulesVerdict_AndCachesIt()
+    {
+        _factory.Llm = new FakeLlmClient().Returns(ValidationExplainer.PromptVersion, $$"""
+            {"summary":"The plan is blocked: depot 2 has only 40 medical kits free.",
+             "points":[{"checkName":"{{SafetyRules.StockAvailability}}","explanation":"60 kits were planned but 40 are free; restock or use another depot."},
+                       {"checkName":"{{SafetyRules.VehicleCapacity}}","explanation":"The load fits the truck."}]}
+            """);
+        var runId = await ValidatedRunAsync(passed: false);
+
+        var first = (await (await _coordinator.PostAsync($"/api/validations/{runId}/explain", null)).Content.ReadFromJsonAsync<JsonObject>())!;
+        var second = (await (await _coordinator.PostAsync($"/api/validations/{runId}/explain", null)).Content.ReadFromJsonAsync<JsonObject>())!;
+
+        Assert.Equal("llm", first["source"]!.GetValue<string>());
+        Assert.False(first["overallPassed"]!.GetValue<bool>());
+        var stock = first["points"]!.AsArray().Single(p => p!["checkName"]!.GetValue<string>() == SafetyRules.StockAvailability)!;
+        Assert.False(stock["passed"]!.GetValue<bool>()); // from the rules, not the model
+        Assert.Equal(first.ToJsonString(), second.ToJsonString());
+        Assert.Single(_factory.Llm.Requests); // the second call came from the plan
+        await using var db = NewDb();
+        Assert.Contains(db.AgentExecutionLogs.Where(l => l.WorkflowRunId == runId), l => l.AgentName == "ValidationExplainer");
+    }
+
+    [Fact]
+    public async Task Explain_WithoutValidation_Returns409()
+    {
+        await using (var db = NewDb())
+        {
+            db.WorkflowRuns.Add(new WorkflowRun { Id = Guid.NewGuid(), Objective = "not yet", CurrentState = WorkflowState.Matching });
+            await db.SaveChangesAsync();
+        }
+        var runId = NewDb().WorkflowRuns.Single(r => r.Objective == "not yet").Id;
+
+        var response = await _coordinator.PostAsync($"/api/validations/{runId}/explain", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await ClientAs(Roles.DepotManager).PostAsync($"/api/validations/{runId}/explain", null)).StatusCode);
+    }
+
+    // ── 8.16 Delivery photo ───────────────────────────────────────────────────
+
+    private async Task<Guid> ApprovedRunForVolunteerAsync()
+    {
+        await using var db = NewDb();
+        var run = new WorkflowRun { Id = Guid.NewGuid(), Objective = "delivered", CurrentState = WorkflowState.Approved };
+        db.WorkflowRuns.Add(run);
+        db.Reports.Add(new Report { ShelterId = 1, ReportedBy = TestAppFactory.DemoUserId(Roles.Volunteer), NeedType = "Water", QuantityNeeded = 5, Status = "InPlan", WorkflowRunId = run.Id });
+        db.Dispatches.Add(new Dispatch { Id = Guid.NewGuid(), WorkflowRunId = run.Id, Decision = DispatchDecision.Approved, DispatchedAt = DateTime.UtcNow });
+        await db.SaveChangesAsync();
+        return run.Id;
+    }
+
+    private static MultipartFormDataContent PhotoForm(string fileName = "proof.jpg", string type = "image/jpeg")
+    {
+        var file = new ByteArrayContent([0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3]);
+        file.Headers.ContentType = new MediaTypeHeaderValue(type);
+        return new MultipartFormDataContent { { file, "photo", fileName } };
+    }
+
+    [Fact]
+    public async Task DeliveryPhoto_IsStored_ServedAndRecordedWithTheConfirmation()
+    {
+        var runId = await ApprovedRunForVolunteerAsync();
+        var volunteer = ClientAs(Roles.Volunteer);
+
+        var upload = await volunteer.PostAsync($"/api/dispatches/{runId}/delivery-photo", PhotoForm());
+        Assert.Equal(HttpStatusCode.Created, upload.StatusCode);
+        var url = (await upload.Content.ReadFromJsonAsync<JsonObject>())!["photoUrl"]!.GetValue<string>();
+        Assert.Matches("^/uploads/deliveries/[0-9a-f]{32}\\.jpg$", url);
+
+        try
+        {
+            var served = await _factory.CreateClient().GetAsync(url);
+            Assert.Equal(HttpStatusCode.OK, served.StatusCode);
+
+            var confirm = await volunteer.PostAsJsonAsync($"/api/dispatches/{runId}/confirm-delivery", new { notes = "Received.", photoReference = url });
+            Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
+            await using var db = NewDb();
+            var audit = await db.AuditTrail.SingleAsync(a => a.EventType == "DeliveryConfirmed" && a.Dispatch!.WorkflowRunId == runId);
+            Assert.Contains(url, audit.EventDetailJson);
+        }
+        finally
+        {
+            var root = _factory.Services.GetRequiredService<IWebHostEnvironment>().ContentRootPath;
+            File.Delete(Path.Combine(root, "wwwroot", url.TrimStart('/')));
+        }
+    }
+
+    [Fact]
+    public async Task DeliveryPhoto_IsRefusedBeforeApproval_ForOthersRuns_AndForNonImages()
+    {
+        var runId = await ApprovedRunForVolunteerAsync();
+        await using (var db = NewDb())
+        {
+            db.WorkflowRuns.Add(new WorkflowRun { Id = Guid.NewGuid(), Objective = "pending", CurrentState = WorkflowState.PendingApproval });
+            await db.SaveChangesAsync();
+        }
+        var pendingId = NewDb().WorkflowRuns.Single(r => r.Objective == "pending").Id;
+
+        Assert.Equal(HttpStatusCode.Conflict, (await _coordinator.PostAsync($"/api/dispatches/{pendingId}/delivery-photo", PhotoForm())).StatusCode);
+        var stranger = _factory.CreateClient().WithToken(TestAppFactory.TokenFor(Roles.Volunteer, userId: 9999));
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsync($"/api/dispatches/{runId}/delivery-photo", PhotoForm())).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await ClientAs(Roles.Volunteer).PostAsync($"/api/dispatches/{runId}/delivery-photo", PhotoForm("x.html", "text/html"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await ClientAs(Roles.DepotManager).PostAsync($"/api/dispatches/{runId}/delivery-photo", PhotoForm())).StatusCode);
+    }
+
+    // ── 8.11 Route legs on the status screen ──────────────────────────────────
+
+    [Fact]
+    public async Task Status_CarriesTheRouteLegs_WithBothEndPoints()
+    {
+        var runId = await ApprovedRunForVolunteerAsync();
+        await using (var db = NewDb())
+        {
+            var run = await db.WorkflowRuns.SingleAsync(r => r.Id == runId);
+            run.PlanJson = WorkflowPlan.Merge(null, WorkflowPlan.RouteKey, new Route
+            {
+                WorkflowRunId = runId, AllocationProposalId = 1, DistanceKm = 6.5, EtaMinutes = 15, Polyline = "p",
+                Legs = [new RouteLeg { DepotId = 2, ShelterId = 2, DistanceKm = 6.5, EtaMinutes = 15, Polyline = "encoded" }]
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var status = await ClientAs(Roles.Volunteer).GetFromJsonAsync<JsonObject>($"/api/workflows/{runId}/status");
+
+        var leg = Assert.Single(status!["routeLegs"]!.AsArray())!;
+        Assert.Equal(("Kaduwela Supply Depot", 6.9061, "Kaduwela Community Hall", 6.9344, "encoded"),
+            (leg["depotName"]!.GetValue<string>(), leg["depotLatitude"]!.GetValue<double>(),
+             leg["shelterName"]!.GetValue<string>(), leg["shelterLatitude"]!.GetValue<double>(), leg["polyline"]!.GetValue<string>()));
     }
 }

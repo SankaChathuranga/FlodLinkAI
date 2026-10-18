@@ -83,8 +83,23 @@ public sealed record WorkflowStatusResponse(
     double? DistanceKm,
     double? EtaMinutes,
     bool IsDelivered,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    IReadOnlyList<StatusRouteLeg>? RouteLegs = null
 );
+
+/// <summary>One delivery leg on the status screen's map: where it starts and ends, and its encoded polyline.</summary>
+public sealed record StatusRouteLeg(
+    int DepotId,
+    string? DepotName,
+    double DepotLatitude,
+    double DepotLongitude,
+    int ShelterId,
+    string? ShelterName,
+    double ShelterLatitude,
+    double ShelterLongitude,
+    double DistanceKm,
+    double EtaMinutes,
+    string Polyline);
 
 /// <summary>Response of POST /api/workflows/{id}/retry: the stage being re-run and the retry number.</summary>
 public sealed record WorkflowRetryResponse(Guid Id, string? State, int RetryCount);

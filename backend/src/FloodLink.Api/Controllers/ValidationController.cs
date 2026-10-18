@@ -31,12 +31,17 @@ public sealed class ValidationController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IValidationAgent _validationAgent;
     private readonly IStockReservationService _stock;
+    private readonly ValidationExplainer _explainer;
+    private readonly IAgentExecutionLogger _executionLog;
 
-    public ValidationController(AppDbContext db, IValidationAgent validationAgent, IStockReservationService stock)
+    public ValidationController(AppDbContext db, IValidationAgent validationAgent, IStockReservationService stock,
+        ValidationExplainer explainer, IAgentExecutionLogger executionLog)
     {
         _db = db;
         _validationAgent = validationAgent;
         _stock = stock;
+        _explainer = explainer;
+        _executionLog = executionLog;
     }
 
     /// <summary>
@@ -178,5 +183,47 @@ public sealed class ValidationController : ControllerBase
             overallPassed = checks.Count > 0 && checks.All(c => c.Passed),
             checks
         });
+    }
+
+    /// <summary>
+    /// POST /api/validations/{workflowRunId}/explain — a plain-language explanation of the run's safety
+    /// checks for the coordinator (display only; pass/fail stays with the rules). Written by Gemini and
+    /// checked, or a template when Gemini is unavailable or its text is rejected. Saved in the plan, so
+    /// later calls return it without asking the model again unless <c>refresh=true</c>.
+    /// </summary>
+    [HttpPost("{workflowRunId:guid}/explain")]
+    [ProducesResponseType<ValidationExplanation>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> ExplainAsync(Guid workflowRunId, [FromQuery] bool refresh = false, CancellationToken ct = default)
+    {
+        var run = await _db.WorkflowRuns.FirstOrDefaultAsync(r => r.Id == workflowRunId, ct);
+        if (run is null)
+            return NotFound(new { error = "WORKFLOW_NOT_FOUND", message = $"No workflow run with id {workflowRunId}." });
+
+        var results = WorkflowPlan.TryRead<ValidationResults>(run.PlanJson, WorkflowPlan.ValidationResultsKey);
+        if (results is null)
+            return Conflict(new { error = "NOT_VALIDATED", message = "The safety checks have not run for this workflow yet." });
+
+        var cached = WorkflowPlan.TryRead<ValidationExplanation>(run.PlanJson, WorkflowPlan.ValidationExplanationKey);
+        if (cached is not null && !refresh)
+            return Ok(cached);
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var (explanation, llmCall) = await _explainer.ExplainAsync(results, ct);
+        await _executionLog.LogExecutionAsync(run.Id, "ValidationExplainer", sw.ElapsedMilliseconds, success: true,
+            outputJson: JsonSerializer.Serialize(new { explanation.Source, explanation.OverallPassed }),
+            toolCallsJson: JsonSerializer.Serialize(new[] { llmCall }), cancellationToken: ct);
+
+        run.PlanJson = WorkflowPlan.Merge(run.PlanJson, WorkflowPlan.ValidationExplanationKey, explanation);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // The run changed meanwhile (e.g. a decision); the explanation is still valid to show, just not cached.
+        }
+        return Ok(explanation);
     }
 }

@@ -156,6 +156,19 @@ change.
   `updatedAt`. Tests: `Phase8ApiTests`, access-matrix rows, `Phase8.test.tsx`, `phase8_screens_test.dart`;
   backend 352, web 50, Flutter 46. 8.08 deferred to 8.11 (map pin needs a map package).
 
+- 2026-10-18 — **Phase 8 batch 2** (8.08, 8.10, 8.11, 8.12, 8.15, 8.16). API: `ValidationExplainer`
+  (Agents.Validation, prompt `validation-explainer.v1`, template fallback, pass/fail copied from rules) behind
+  `POST /api/validations/{id}/explain` (cached under plan key `validationExplanation`, logged as a step);
+  `POST /api/dispatches/{id}/delivery-photo` (Approved runs, run-access rules of confirm-delivery,
+  `PhotoStorageService` folder `deliveries`); `WorkflowStatusResponse.RouteLegs`. React: `lib/polyline.ts`,
+  `RouteMap` (Mapbox or SVG fallback, also when WebGL is missing), trace map + names from `/api/routes`,
+  `ValidationExplainer` panel, delivery photo. Flutter: packages `flutter_map`, `latlong2`,
+  `flutter_local_notifications`; `maps/map_tiles.dart` (OSM tiles off under `flutter test`), `maps/polyline.dart`,
+  `RouteMapScreen`, GPS map pin, `notifications/status_notifier.dart` (+ `Provider<StatusNotifier>`),
+  delivery photo pick/upload. Android: desugaring (`desugar_jdk_libs` 2.1.4), ACCESS_FINE/COARSE_LOCATION and
+  POST_NOTIFICATIONS permissions — the manifest had no location permission, so GPS would have failed on phones.
+  ADR-010 addendum. Tests: backend 366, web 56, Flutter 54.
+
 ## In Progress
 
 - None.

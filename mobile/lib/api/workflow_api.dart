@@ -22,6 +22,7 @@ class WorkflowStatus {
     this.decidedAt,
     this.distanceKm,
     this.etaMinutes,
+    this.routeLegs = const [],
   });
 
   final String id;
@@ -39,6 +40,9 @@ class WorkflowStatus {
   final DateTime? decidedAt;
   final double? distanceKm;
   final double? etaMinutes;
+
+  /// The delivery legs (depot → shelter) once the plan is routed, for the route map.
+  final List<RouteLegInfo> routeLegs;
 
   bool get isApproved => state == 'Approved';
 
@@ -61,6 +65,46 @@ class WorkflowStatus {
         decidedAt: DateTime.tryParse(json['decidedAt'] as String? ?? ''),
         distanceKm: (json['distanceKm'] as num?)?.toDouble(),
         etaMinutes: (json['etaMinutes'] as num?)?.toDouble(),
+        routeLegs: ((json['routeLegs'] as List<dynamic>?) ?? const [])
+            .map((leg) => RouteLegInfo.fromJson(leg as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// One delivery leg of a routed plan: both end points, distance, ETA and the encoded road geometry.
+class RouteLegInfo {
+  const RouteLegInfo({
+    required this.depotName,
+    required this.depotLatitude,
+    required this.depotLongitude,
+    required this.shelterName,
+    required this.shelterLatitude,
+    required this.shelterLongitude,
+    required this.distanceKm,
+    required this.etaMinutes,
+    required this.polyline,
+  });
+
+  final String depotName;
+  final double depotLatitude;
+  final double depotLongitude;
+  final String shelterName;
+  final double shelterLatitude;
+  final double shelterLongitude;
+  final double distanceKm;
+  final double etaMinutes;
+  final String polyline;
+
+  factory RouteLegInfo.fromJson(Map<String, dynamic> json) => RouteLegInfo(
+        depotName: json['depotName'] as String? ?? 'Depot ${json['depotId']}',
+        depotLatitude: (json['depotLatitude'] as num).toDouble(),
+        depotLongitude: (json['depotLongitude'] as num).toDouble(),
+        shelterName: json['shelterName'] as String? ?? 'Shelter ${json['shelterId']}',
+        shelterLatitude: (json['shelterLatitude'] as num).toDouble(),
+        shelterLongitude: (json['shelterLongitude'] as num).toDouble(),
+        distanceKm: (json['distanceKm'] as num?)?.toDouble() ?? 0,
+        etaMinutes: (json['etaMinutes'] as num?)?.toDouble() ?? 0,
+        polyline: json['polyline'] as String? ?? '',
       );
 }
 

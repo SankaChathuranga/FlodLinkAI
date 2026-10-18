@@ -192,6 +192,7 @@ builder.Services.AddScoped<IPlannerInvoker, PlannerAgent>();
 builder.Services.AddScoped<IMatchingAgent, MatchingAgent>();
 // Member D — Validation/Safety Agent.
 builder.Services.AddScoped<IValidationAgent, ValidationAgent>();
+builder.Services.AddScoped<ValidationExplainer>();
 builder.Services.AddScoped<ITriageAgentInvoker, TriageAgentInvoker>();
 builder.Services.AddScoped<IMatchingAgentInvoker, MatchingAgentInvoker>();
 builder.Services.AddScoped<IValidationAgentInvoker, ValidationAgentInvoker>();

@@ -22,6 +22,8 @@ import {
 } from '../api/workflows'
 import { ApiError } from '../api/client'
 import { describeApiError } from '../lib/apiError'
+import { explainValidation, getRouteLegs, type StoredRouteLeg, type ValidationExplanation } from '../api/workflows'
+import { RouteMap, type RouteMapLeg } from './RouteMap'
 
 const POLL_MS = 3000
 
@@ -30,6 +32,8 @@ interface TraceData {
   logs: WorkflowLogEntry[]
   dispatch: DispatchStatus | null
   audit: AuditResponse | null
+  /** Stored route legs with depot and shelter names (null until the run is routed or if unavailable). */
+  routes: StoredRouteLeg[] | null
 }
 
 /**
@@ -56,8 +60,11 @@ export function WorkflowTrace() {
         getDispatchStatus(apiBaseUrl, id).catch(() => null),
       ])
       const audit = dispatch?.dispatchId ? await getAuditTrail(apiBaseUrl, dispatch.dispatchId).catch(() => null) : null
+      const routes = parsePlan(run.planJson).route
+        ? await getRouteLegs(apiBaseUrl, id).then((r) => (Array.isArray(r) ? r : null)).catch(() => null)
+        : null
       if (!mounted.current) return
-      setData({ run, logs, dispatch, audit })
+      setData({ run, logs, dispatch, audit, routes })
       setError(null)
     } catch (err) {
       if (!mounted.current) return
@@ -123,8 +130,14 @@ export function WorkflowTrace() {
     )
   }
 
-  const { run, logs, dispatch, audit } = data
+  const { run, logs, dispatch, audit, routes } = data
   const plan = parsePlan(run.planJson)
+  // Legs to draw and list: stored legs carry names; the plan's legs are the fallback.
+  const legRows = routes && routes.length > 0
+    ? routes.map((r) => ({ key: r.id, depot: r.depotName ?? `Depot ${r.depotId}`, shelter: r.shelterName ?? `Shelter ${r.shelterId}`, distanceKm: r.distanceKm, etaMinutes: r.etaMinutes, polyline: r.polyline }))
+    : (plan.route?.Legs ?? []).map((l, i) => ({ key: String(i), depot: `Depot ${l.DepotId}`, shelter: `Shelter ${l.ShelterId}`, distanceKm: l.DistanceKm, etaMinutes: l.EtaMinutes, polyline: l.Polyline ?? '' }))
+  const mapLegs: RouteMapLeg[] = legRows.map((l) => ({ key: `leg-${l.key}`, label: `${l.depot} → ${l.shelter}`, polyline: l.polyline }))
+  const deliveryPhoto = deliveryPhotoOf(audit)
 
   return (
     <div className="space-y-5">
@@ -272,17 +285,20 @@ export function WorkflowTrace() {
           title="Routes"
           subtitle={`Total ${plan.route.DistanceKm.toFixed(1)} km · longest ETA ${Math.round(plan.route.EtaMinutes)} min (Mapbox driving)`}
         >
-          {plan.route.Legs && plan.route.Legs.length > 0 ? (
-            <Table headers={['Depot', 'Shelter', 'Distance', 'ETA']}>
-              {plan.route.Legs.map((leg, i) => (
-                <tr key={i}>
-                  <Td>{leg.DepotId}</Td>
-                  <Td>{leg.ShelterId}</Td>
-                  <Td>{leg.DistanceKm.toFixed(1)} km</Td>
-                  <Td>{Math.round(leg.EtaMinutes)} min</Td>
-                </tr>
-              ))}
-            </Table>
+          {legRows.length > 0 ? (
+            <div className="space-y-3">
+              <RouteMap legs={mapLegs} />
+              <Table headers={['Depot', 'Shelter', 'Distance', 'ETA']}>
+                {legRows.map((leg) => (
+                  <tr key={leg.key}>
+                    <Td>{leg.depot}</Td>
+                    <Td>{leg.shelter}</Td>
+                    <Td>{leg.distanceKm.toFixed(1)} km</Td>
+                    <Td>{Math.round(leg.etaMinutes)} min</Td>
+                  </tr>
+                ))}
+              </Table>
+            </div>
           ) : (
             <Empty>Single route, no per-leg detail.</Empty>
           )}
@@ -306,6 +322,7 @@ export function WorkflowTrace() {
               </li>
             ))}
           </ul>
+          <ValidationExplainer runId={run.id} />
         </Section>
       )}
 
@@ -325,7 +342,14 @@ export function WorkflowTrace() {
               </li>
             ))}
             {dispatch.isDelivered && (
-              <li className="text-emerald-700">Delivery confirmed {dispatch.deliveredAt ? new Date(dispatch.deliveredAt).toLocaleString() : ''}.</li>
+              <li className="text-emerald-700">
+                Delivery confirmed {dispatch.deliveredAt ? new Date(dispatch.deliveredAt).toLocaleString() : ''}.
+                {deliveryPhoto && (
+                  <a href={`${apiBaseUrl}${deliveryPhoto}`} target="_blank" rel="noreferrer" className="mt-2 block w-fit">
+                    <img src={`${apiBaseUrl}${deliveryPhoto}`} alt="Delivery photo" className="h-32 rounded-md border border-slate-200 object-cover" />
+                  </a>
+                )}
+              </li>
             )}
           </ul>
         )}
@@ -347,6 +371,74 @@ export function WorkflowTrace() {
 }
 
 // ── Pieces ────────────────────────────────────────────────────────────────────
+
+/** The photo URL recorded with the delivery confirmation, if it was an uploaded photo. */
+function deliveryPhotoOf(audit: AuditResponse | null): string | null {
+  const event = audit?.events.find((e) => e.eventType === 'DeliveryConfirmed')
+  if (!event?.eventDetailJson) return null
+  try {
+    const detail = JSON.parse(event.eventDetailJson) as { photoReference?: string | null }
+    return detail.photoReference?.startsWith('/uploads/') ? detail.photoReference : null
+  } catch {
+    return null
+  }
+}
+
+/** On-demand plain-language explanation of the safety checks (8.15). Display only. */
+function ValidationExplainer({ runId }: { runId: string }) {
+  const { apiBaseUrl } = useAppContext()
+  const [explanation, setExplanation] = useState<ValidationExplanation | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const explain = async (refresh = false) => {
+    setLoading(true)
+    setError(null)
+    try {
+      setExplanation(await explainValidation(apiBaseUrl, runId, refresh))
+    } catch (err) {
+      setError(describeApiError(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm" aria-live="polite">
+      {!explanation ? (
+        <button type="button" onClick={() => void explain()} disabled={loading}
+          className="rounded-md border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-60">
+          {loading ? 'Explaining…' : 'Explain these results'}
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-600">
+              {explanation.source === 'llm' ? 'Explanation written by the LLM' : 'Explanation from the rule results (LLM not used)'}
+              {' · '}display only — the checks above decide pass or fail
+            </span>
+            <button type="button" onClick={() => void explain(true)} disabled={loading} className="text-xs text-blue-700 underline disabled:opacity-60">
+              {loading ? 'Explaining…' : 'Regenerate'}
+            </button>
+          </div>
+          <p className="text-slate-900">{explanation.summary}</p>
+          <ul className="space-y-1">
+            {explanation.points.map((p) => (
+              <li key={p.checkName}>
+                <span className={p.passed ? 'text-emerald-700' : 'text-rose-700'}>{p.checkName}</span>
+                <span className="sr-only">{p.passed ? ' passed' : ' failed'}</span>: {p.explanation}
+              </li>
+            ))}
+          </ul>
+          {explanation.source !== 'llm' && explanation.fallbackReason && (
+            <p className="text-xs text-slate-500">Why no LLM text: {explanation.fallbackReason}</p>
+          )}
+        </div>
+      )}
+      {error && <p role="alert" className="mt-2 text-rose-700">{error}</p>}
+    </div>
+  )
+}
 
 const PIPELINE: { label: string; states: WorkflowState[] }[] = [
   { label: 'Triage', states: ['Triage'] },

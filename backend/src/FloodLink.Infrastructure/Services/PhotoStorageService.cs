@@ -6,7 +6,8 @@ namespace FloodLink.Infrastructure.Services;
 
 public interface IPhotoStorageService
 {
-    Task<string?> SavePhotoAsync(IFormFile? photoFile);
+    /// <summary>Saves an image under <c>wwwroot/uploads/&lt;folder&gt;</c> and returns its URL path, or null for no file.</summary>
+    Task<string?> SavePhotoAsync(IFormFile? photoFile, string folder = PhotoStorageService.ReportsFolder);
 }
 
 /// <summary>
@@ -17,6 +18,8 @@ public interface IPhotoStorageService
 public class PhotoStorageService : IPhotoStorageService
 {
     public const long MaxBytes = 10 * 1024 * 1024;
+    public const string ReportsFolder = "reports";
+    public const string DeliveriesFolder = "deliveries";
 
     private static readonly Dictionary<string, string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -33,7 +36,7 @@ public class PhotoStorageService : IPhotoStorageService
         _environment = environment;
     }
 
-    public async Task<string?> SavePhotoAsync(IFormFile? photoFile)
+    public async Task<string?> SavePhotoAsync(IFormFile? photoFile, string folder = ReportsFolder)
     {
         if (photoFile == null || photoFile.Length == 0)
         {
@@ -60,7 +63,11 @@ public class PhotoStorageService : IPhotoStorageService
         }
 
         string webRootPath = _environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot");
-        string uploadsFolder = Path.Combine(webRootPath, "uploads", "reports");
+        if (folder is not (ReportsFolder or DeliveriesFolder))
+        {
+            throw new ArgumentOutOfRangeException(nameof(folder), folder, "Unknown photo folder.");
+        }
+        string uploadsFolder = Path.Combine(webRootPath, "uploads", folder);
 
         if (!Directory.Exists(uploadsFolder))
         {
@@ -75,6 +82,6 @@ public class PhotoStorageService : IPhotoStorageService
             await photoFile.CopyToAsync(stream);
         }
 
-        return $"/uploads/reports/{uniqueFileName}";
+        return $"/uploads/{folder}/{uniqueFileName}";
     }
 }

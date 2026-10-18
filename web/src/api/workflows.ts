@@ -136,7 +136,7 @@ export interface PlanSections {
   route?: {
     DistanceKm: number
     EtaMinutes: number
-    Legs?: { DepotId: number; ShelterId: number; DistanceKm: number; EtaMinutes: number }[]
+    Legs?: { DepotId: number; ShelterId: number; DistanceKm: number; EtaMinutes: number; Polyline?: string }[]
   }
   validationResults?: {
     OverallPassed: boolean
@@ -189,6 +189,37 @@ export function getDispatchStatus(baseUrl: string, id: string, signal?: AbortSig
 
 export function startWorkflow(baseUrl: string, objective: string, reportIds: number[]): Promise<WorkflowRun> {
   return request(baseUrl, '/api/workflows', { method: 'POST', body: JSON.stringify({ objective, reportIds }) })
+}
+
+/** A stored route leg (GET /api/routes?workflowRunId=), with depot and shelter names. */
+export interface StoredRouteLeg {
+  id: string
+  depotId: number | null
+  depotName: string | null
+  shelterId: number | null
+  shelterName: string | null
+  distanceKm: number
+  etaMinutes: number
+  polyline: string
+}
+
+export function getRouteLegs(baseUrl: string, id: string, signal?: AbortSignal): Promise<StoredRouteLeg[]> {
+  return request(baseUrl, `/api/routes?workflowRunId=${id}`, { signal })
+}
+
+/** Plain-language explanation of the safety checks (display only; the rules decide pass/fail). */
+export interface ValidationExplanation {
+  source: 'llm' | 'template' | string
+  promptVersion?: string | null
+  fallbackReason?: string | null
+  summary: string
+  points: { checkName: string; passed: boolean; explanation: string }[]
+  overallPassed: boolean
+  generatedAt: string
+}
+
+export function explainValidation(baseUrl: string, id: string, refresh = false): Promise<ValidationExplanation> {
+  return request(baseUrl, `/api/validations/${id}/explain${refresh ? '?refresh=true' : ''}`, { method: 'POST' })
 }
 
 export function retryWorkflow(baseUrl: string, id: string): Promise<{ id: string; state: string; retryCount: number }> {

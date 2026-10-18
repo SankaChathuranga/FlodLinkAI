@@ -70,6 +70,7 @@ public sealed class AccessMatrixTests : IClassFixture<TestAppFactory>
         { "GET", "/api/dispatches/summary", null, [C] },
         { "POST", "/api/validations/run", "{}", [C] },
         { "GET", $"/api/validations/{Run}", null, [C] },
+        { "POST", $"/api/validations/{Run}/explain", null, [C] },
         { "GET", $"/api/audit/{Run}", null, [C] },
         { "GET", "/api/audit", null, [C] },
         { "GET", "/api/audit/event-types", null, [C] },
@@ -77,6 +78,7 @@ public sealed class AccessMatrixTests : IClassFixture<TestAppFactory>
         { "GET", $"/api/workflows/{Run}/status", null, [V] },
         { "GET", $"/api/dispatches/by-workflow/{Run}", null, [V, C] },
         { "POST", $"/api/dispatches/{Run}/confirm-delivery", "{}", [V, C] },
+        { "POST", $"/api/dispatches/{Run}/delivery-photo", null, [V, C] },
         // Users
         { "GET", "/api/users", null, [] },
         { "POST", "/api/users", "{}", [] },

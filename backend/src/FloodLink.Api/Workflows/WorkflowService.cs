@@ -196,6 +196,7 @@ public sealed class WorkflowService(
         var delivered = dispatch is not null && await db.AuditTrail.AsNoTracking()
             .AnyAsync(a => a.DispatchId == dispatch.Id && a.EventType == "DeliveryConfirmed", ct);
         var route = WorkflowPlan.TryRead<Route>(run.PlanJson, WorkflowPlan.RouteKey);
+        var legs = route is { Legs.Count: > 0 } ? await RouteLegsAsync(route, ct) : null;
 
         return new WorkflowStatusResponse(
             run.Id,
@@ -212,7 +213,27 @@ public sealed class WorkflowService(
             route?.DistanceKm,
             route?.EtaMinutes,
             delivered,
-            run.UpdatedAt);
+            run.UpdatedAt,
+            legs);
+    }
+
+    // The route's legs with both end points, so a client can draw them on a map.
+    private async Task<IReadOnlyList<StatusRouteLeg>> RouteLegsAsync(Route route, CancellationToken ct)
+    {
+        var depotIds = route.Legs.Select(l => l.DepotId).Distinct().ToList();
+        var shelterIds = route.Legs.Select(l => l.ShelterId).Distinct().ToList();
+        var depots = await db.Depots.AsNoTracking().Where(d => depotIds.Contains(d.Id)).ToDictionaryAsync(d => d.Id, ct);
+        var shelters = await db.Shelters.AsNoTracking().Where(s => shelterIds.Contains(s.Id)).ToDictionaryAsync(s => s.Id, ct);
+        return route.Legs
+            .Where(l => depots.ContainsKey(l.DepotId) && shelters.ContainsKey(l.ShelterId))
+            .Select(l =>
+            {
+                var depot = depots[l.DepotId];
+                var shelter = shelters[l.ShelterId];
+                return new StatusRouteLeg(depot.Id, depot.Name, depot.Latitude, depot.Longitude,
+                    shelter.Id, shelter.Name, shelter.Latitude, shelter.Longitude, l.DistanceKm, l.EtaMinutes, l.Polyline);
+            })
+            .ToList();
     }
 
     /// <summary>

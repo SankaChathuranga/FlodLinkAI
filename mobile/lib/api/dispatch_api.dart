@@ -54,6 +54,23 @@ class DispatchApi {
     return DispatchStatus.fromJson(json);
   }
 
+  /// Uploads a photo proving delivery of an Approved run and returns its URL path
+  /// (e.g. `/uploads/deliveries/….jpg`), to pass as `photoReference` to [confirmDelivery].
+  Future<String> uploadDeliveryPhoto(String workflowRunId, List<int> bytes, String fileName) async {
+    final request = http.MultipartRequest('POST', _api.uri('/api/dispatches/$workflowRunId/delivery-photo'))
+      ..files.add(http.MultipartFile.fromBytes('photo', bytes, filename: fileName));
+    final response = await _api.sendMultipart(request);
+    final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return decoded['photoUrl'] as String;
+    }
+    throw ApiException(
+      response.statusCode,
+      decoded['error'] as String? ?? 'REQUEST_FAILED',
+      decoded['message'] as String? ?? 'Photo upload failed (HTTP ${response.statusCode}).',
+    );
+  }
+
   /// Records a field-worker delivery confirmation (audit-flow, see backend).
   Future<DeliveryResult> confirmDelivery(
     String workflowRunId, {

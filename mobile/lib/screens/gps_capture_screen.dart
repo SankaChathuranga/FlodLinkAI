@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../maps/map_tiles.dart';
 import '../providers/report_provider.dart';
 
 class GpsCaptureScreen extends StatefulWidget {
@@ -17,6 +20,7 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
   double _accuracy = 10.0;
 
   bool _isAcquiring = false;
+  final MapController _mapController = MapController();
   String? _errorMessage;
 
   @override
@@ -76,6 +80,10 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
         _longitude = position.longitude;
         _accuracy = position.accuracy;
       });
+      // Bring the fix into view (the map may not be laid out yet on the first frame).
+      try {
+        _mapController.move(LatLng(_latitude, _longitude), 15);
+      } catch (_) {}
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to acquire GPS position: $e. Using manual pin.';
@@ -156,54 +164,58 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
                 ),
               ),
 
-            // SIMULATED MAP / PIN VISUALIZER
+            // MAP — tap to place the pin; the sliders below fine-tune it.
             Expanded(
               child: Container(
                 margin: const EdgeInsets.all(16),
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF161616), // --text-primary dark background for map viewer
                   borderRadius: BorderRadius.circular(6), // rounded-md
                   border: Border.all(color: const Color(0xFFC6C6C6)),
                 ),
                 child: Stack(
-                  alignment: Alignment.center,
                   children: [
-                    // Grid background lines
-                    CustomPaint(
-                      size: Size.infinite,
-                      painter: MapGridPainter(),
-                    ),
-
-                    // Pin Marker
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: LatLng(_latitude, _longitude),
+                        initialZoom: 14,
+                        onTap: (_, point) => setState(() {
+                          _latitude = point.latitude;
+                          _longitude = point.longitude;
+                        }),
+                      ),
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF161616).withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: const Color(0xFF0F62FE)),
+                        osmTiles(),
+                        MarkerLayer(markers: [
+                          Marker(
+                            point: LatLng(_latitude, _longitude),
+                            width: 48,
+                            height: 48,
+                            alignment: Alignment.topCenter,
+                            child: const Icon(Icons.location_on, size: 48, color: Color(0xFF0F62FE), semanticLabel: 'Report location'),
                           ),
-                          child: Text(
-                            'Lat: ${_latitude.toStringAsFixed(5)}, Lng: ${_longitude.toStringAsFixed(5)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontFamily: 'IBM Plex Mono', // --font-mono
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Icon(
-                          Icons.location_on,
-                          size: 48,
-                          color: Color(0xFF0F62FE), // --accent-primary
-                        ),
+                        ]),
+                        osmAttribution(),
                       ],
                     ),
-
-                    // Floating GPS Accuracy badge
+                    // Coordinates and accuracy badges
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF161616).withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFF0F62FE)),
+                        ),
+                        child: Text(
+                          'Lat: ${_latitude.toStringAsFixed(5)}, Lng: ${_longitude.toStringAsFixed(5)}',
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'IBM Plex Mono'),
+                        ),
+                      ),
+                    ),
                     Positioned(
                       top: 12,
                       right: 12,
@@ -218,6 +230,15 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
                           'Accuracy: ~${_accuracy.toStringAsFixed(1)}m',
                           style: const TextStyle(color: Color(0xFF198038), fontSize: 10, fontWeight: FontWeight.bold),
                         ),
+                      ),
+                    ),
+                    const Positioned(
+                      bottom: 28,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Text('Tap the map to move the pin',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF161616), backgroundColor: Color(0xCCFFFFFF))),
                       ),
                     ),
                   ],
@@ -310,23 +331,3 @@ class _GpsCaptureScreenState extends State<GpsCaptureScreen> {
     );
   }
 }
-
-class MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.05)
-      ..strokeWidth = 1.0;
-
-    for (double i = 0; i < size.width; i += 30) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double j = 0; j < size.height; j += 30) {
-      canvas.drawLine(Offset(0, j), Offset(size.width, j), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
